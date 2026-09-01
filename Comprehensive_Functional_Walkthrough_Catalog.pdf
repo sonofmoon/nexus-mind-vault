@@ -1,0 +1,1374 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>
+endobj
+6 0 obj
+<< /Length 6694 >>
+stream
+0.060 0.090 0.160 rg
+40.00 746.89 515.28 55.00 re
+f
+BT
+/F2 14.00 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 55.00 779.89 Tm
+(NEXUS MIND VAULT — FUNCTIONAL WALKTHROUGH CATALOG) Tj
+ET
+BT
+/F1 8.50 Tf
+0.220 0.740 0.970 rg
+1 0 0 1 55.00 761.89 Tm
+(Master Scenario-Driven Test Specifications \(End-to-End Verification Manual\)) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 701.89 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 708.89 Tm
+([ SUITE 01 ] AUTHENTICATION & IDENTITY LIFECYCLE) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 695.89 Tm
+(TC-01.1: Federated Google Sign-In & Session Persistence) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 681.89 Tm
+(Prerequisites: User logged out, server active on http://localhost:3000) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 669.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 658.89 Tm
+(  1. Navigate to http://localhost:3000.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 648.39 Tm
+(  2. Verify Login Page renders with title "Nexus Mind Vault" and "Continue with Google" button.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 637.89 Tm
+(  3. Click [ Continue with Google ] \(or enter local sandbox session\).) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 625.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 614.39 Tm
+(  ✓ User profile avatar and email render in the top navigation header.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 603.89 Tm
+(  ✓ Application smoothly transitions to the Journal workspace view.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 593.39 Tm
+(  ✓ localStorage item "vault_journal_session_user" contains valid user UID and token.) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 574.89 Tm
+(TC-01.2: Session Sign Out & State Purge) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 560.89 Tm
+(Prerequisites: User authenticated in active session) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 548.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 537.89 Tm
+(  1. Click the user avatar in the top-right header.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 527.39 Tm
+(  2. Click [ Sign Out ] button.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 514.89 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 503.89 Tm
+(  ✓ User session is completely removed from local storage and memory.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 493.39 Tm
+(  ✓ Vault mode immediately resets to "protected" cover mode.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 482.89 Tm
+(  ✓ UI redirects to the Login Page.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 434.39 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 441.39 Tm
+([ SUITE 02 ] SECRET GATE & SOVEREIGN DECRYPTION SEQUENCE) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 428.39 Tm
+(TC-02.1: Secret Gate Trigger via Logo Long-Press \(750ms\)) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 414.39 Tm
+(Prerequisites: User signed in, app in Protected Cover Mode) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 402.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 391.39 Tm
+(  1. Position cursor on the top-left NexusMindVaultLogo.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 380.89 Tm
+(  2. Press and hold mouse button / touch for >= 750 milliseconds.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 368.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 357.39 Tm
+(  ✓ Haptic / visual glow trigger emits on the logo perimeter.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 346.89 Tm
+(  ✓ The "Unlock Real Vault" modal appears with input for Secret Passphrase.) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 328.39 Tm
+(TC-02.2: Master Secret Code Verification & Decryption Sequence) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 314.39 Tm
+(Prerequisites: Unlock modal open) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 302.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 291.39 Tm
+(  1. Enter configured Master Secret Code \(e.g. 123456\).) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 280.89 Tm
+(  2. Click [ Unlock Real Vault ] or press Enter.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 268.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 257.39 Tm
+(  ✓ Toast displays "Secret Code Verified: Nexus MIND Vault Unlocked.") Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 246.89 Tm
+(  ✓ Cinematic Decryption Sequence Modal runs diagnostic cryptographic checks.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 236.39 Tm
+(  ✓ Top HUD updates to "Sovereign Enclave Active" with solid high-contrast badges.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 225.89 Tm
+(  ✓ Session verification hash \(e.g. 0xEF835A0E...\) renders in the top HUD.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 177.39 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 184.39 Tm
+([ SUITE 03 ] DURESS ANTI-COERCION PROTOCOL) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 171.39 Tm
+(TC-03.1: Coerced Physical Challenge Unlock via Duress PIN) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 157.39 Tm
+(Prerequisites: Duress PIN configured in Settings \(e.g., 999888\)) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 145.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 134.39 Tm
+(  1. Trigger Secret Gate logo long-press to open Unlock Modal.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 123.89 Tm
+(  2. Enter Duress PIN \(999888\) instead of Master Secret Code.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 113.39 Tm
+(  3. Click [ Unlock ].) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 100.89 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 89.89 Tm
+(  ✓ Zero Error / Zero Alarm: Modal closes smoothly without giving away duress state.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 79.39 Tm
+(  ✓ Mounts the harmless Decoy Parallel Persona \(Botanical Field Journal\).) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 68.89 Tm
+(  ✓ Real journals, crypto capsules, and emergency directives remain 100% sealed.) Tj
+ET
+BT
+/F1 7.5 Tf
+0.58 0.64 0.72 rg
+1 0 0 1 120 25 Tm
+(Nexus Mind Vault — Comprehensive Functional Walkthrough Catalog   |   Page 1 of 4) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 6864 >>
+stream
+0.880 0.950 0.990 rg
+40.00 771.89 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 778.89 Tm
+([ SUITE 04 ] MULTIMODAL JOURNAL STUDIO) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 765.89 Tm
+(TC-04.1: Multi-Mood Reflection with Folder Organization) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 751.89 Tm
+(Prerequisites: Real Vault unlocked, Journal view active) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 739.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 728.89 Tm
+(  1. Select Write tab in Journal view.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 718.39 Tm
+(  2. Enter Title: "Autonomous Security Architecture".) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 707.89 Tm
+(  3. Enter Content: "Testing zero-trust cryptographic isolation and policy enforcement.") Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 697.39 Tm
+(  4. Select Mood: "Focused" \(green pill\), Folder: "Architecture".) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 686.89 Tm
+(  5. Click [ Save Entry to Vault ].) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 674.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 663.39 Tm
+(  ✓ Toast displays "Reflection encrypted & saved to Real Vault.") Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 652.89 Tm
+(  ✓ New reflection appears at top of timeline with #architecture tag and Focused pill.) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 634.39 Tm
+(TC-04.2: Multimodal Camera Studio Snapshot & Lens Filter) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 620.39 Tm
+(Prerequisites: Journal composer active) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 608.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 597.39 Tm
+(  1. Click Camera icon to open Innovative Camera Studio.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 586.89 Tm
+(  2. Select Lens Filter \(e.g. Cyberpunk Emerald\).) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 576.39 Tm
+(  3. Click [ Capture Snapshot ].) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 563.89 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 552.89 Tm
+(  ✓ Snapshot is converted to isolated Base64 data attachment.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 542.39 Tm
+(  ✓ Image preview thumbnail displays under composer draft.) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 523.89 Tm
+(TC-04.3: Talk with AI Cognitive Mirror \(Multi-Turn Chat\)) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 509.89 Tm
+(Prerequisites: Journal view active) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 497.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 486.89 Tm
+(  1. Click Talk \(Chat with AI\) tab.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 476.39 Tm
+(  2. Type prompt: "Analyze my dominant cognitive theme across recent reflections." and click Send.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 463.89 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 452.89 Tm
+(  ✓ User message renders in chat with timestamp.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 442.39 Tm
+(  ✓ Gemini AI model generates cognitive synthesis response.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 431.89 Tm
+(  ✓ Subsequent query turns maintain full multi-turn conversational history.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 383.39 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 390.39 Tm
+([ SUITE 05 ] FLOATING AMBIENT AUTO-LOCK WARNING BANNER) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 377.39 Tm
+(TC-05.1: 30-Second Warning Alert & Progress Bar Depletion) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 363.39 Tm
+(Prerequisites: Real Vault active, inactivity timer reaches <= 30 seconds) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 351.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 340.39 Tm
+(  1. Allow timer to countdown to 0:30 without typing or clicking.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 327.89 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 316.89 Tm
+(  ✓ Floating Ambient Action Banner slides into top-center viewport with red glow.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 306.39 Tm
+(  ✓ Audio warning pulse chime sounds.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 295.89 Tm
+(  ✓ Live progress micro-bar visually depletes second-by-second in real-time.) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 277.39 Tm
+(TC-05.2: Keyboard Shortcut Ctrl+E Session Extension) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 263.39 Tm
+(Prerequisites: 30-second warning banner visible on screen) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 251.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 240.39 Tm
+(  1. Press Ctrl + E on the keyboard \(or click [ +5m / Extend ] button\).) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 227.89 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 216.89 Tm
+(  ✓ Warning banner dismisses immediately.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 206.39 Tm
+(  ✓ Toast displays "Session extended.") Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 195.89 Tm
+(  ✓ HUD auto-lock countdown timer resets to full selected duration.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 147.39 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 154.39 Tm
+([ SUITE 06 ] SOVEREIGN SECURITY HUD & SESSION SYNC) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 141.39 Tm
+(TC-06.1: Dynamic Timeout Synchronization Across Settings) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 127.39 Tm
+(Prerequisites: Real Vault unlocked) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 115.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 104.39 Tm
+(  1. Navigate to Settings -> Auto-Lock & Inactivity.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 93.89 Tm
+(  2. Select 15 min or 30 min button.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 81.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 70.39 Tm
+(  ✓ HUD timer in header immediately synchronizes to 15:00 or 30:00.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 59.89 Tm
+(  ✓ Extend button dynamically updates to +15m or +30m.) Tj
+ET
+BT
+/F1 7.5 Tf
+0.58 0.64 0.72 rg
+1 0 0 1 120 25 Tm
+(Nexus Mind Vault — Comprehensive Functional Walkthrough Catalog   |   Page 2 of 4) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 6520 >>
+stream
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 801.89 Tm
+(TC-06.2: One-Click Panic Purge \(Instant Lock\)) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 787.89 Tm
+(Prerequisites: Real Vault unlocked) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 775.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 764.89 Tm
+(  1. Press ESC key twice or click red [ Panic Lock ] button in HUD.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 752.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 741.39 Tm
+(  ✓ Panic sound plays immediately.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 730.89 Tm
+(  ✓ Real Vault locks instantly, purging decrypted state from memory.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 720.39 Tm
+(  ✓ UI returns to Protected Cover Mode.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 671.89 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 678.89 Tm
+([ SUITE 07 ] SEMANTIC MEMORY GRAPH & NEURAL VAULT CHAT) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 665.89 Tm
+(TC-07.1: D3 Force-Directed Graph Interaction & Node Clusters) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 651.89 Tm
+(Prerequisites: Real Vault unlocked) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 639.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 628.89 Tm
+(  1. Click Memory Graph \(Nexus Mind\) tab in navigation header.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 618.39 Tm
+(  2. Click on an entity node \(e.g. "Architecture"\).) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 605.89 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 594.89 Tm
+(  ✓ Graph dynamically highlights connected relationship links and vertices.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 584.39 Tm
+(  ✓ Semantic inspection card displays connected entries count and summary.) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 565.89 Tm
+(TC-07.2: Subtab Switch to Neural Vault Chat \(Material 3 Styling\)) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 551.89 Tm
+(Prerequisites: Nexus Mind view active) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 539.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 528.89 Tm
+(  1. Click [ Neural Vault Chat ] segmented pill button.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 516.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 505.39 Tm
+(  ✓ Button active state highlights in solid Google Blue \(#1a73e8\) with white text.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 494.89 Tm
+(  ✓ Neural chat conversation pane renders with multi-turn history.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 446.39 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 453.39 Tm
+([ SUITE 08 ] SEALED TIME CAPSULES & CRYPTOGRAPHIC TIMELOCKS) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 440.39 Tm
+(TC-08.1: Create Sealed Time Capsule with SHA-256 Checksum Seal) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 426.39 Tm
+(Prerequisites: Real Vault unlocked) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 414.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 403.39 Tm
+(  1. Navigate to Time Capsules -> click [ + Create Sealed Time Capsule ].) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 392.89 Tm
+(  2. Enter Title: "Quantum Resilience Directive 2028".) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 382.39 Tm
+(  3. Set unlock date to 14 days in future; select Mood: "Calm".) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 371.89 Tm
+(  4. Click [ Cryptographically Seal Capsule ].) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 359.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 348.39 Tm
+(  ✓ Capsule is sealed with immutable SHA-256 integrity hash.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 337.89 Tm
+(  ✓ Capsule renders as "Sealed" with live countdown; message content masked until unlocked.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 289.39 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 296.39 Tm
+([ SUITE 09 ] NEXUS LEGACY GUARDIAN MULTI-POLICY PROTOCOL) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 283.39 Tm
+(TC-09.1: Deploy Multi-Category Emergency Directives) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 269.39 Tm
+(Prerequisites: Real Vault unlocked) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 257.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 246.39 Tm
+(  1. Navigate to Future Capsules -> click [ + Add Legacy Policy ].) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 235.89 Tm
+(  2. Category: Family Medical Living Will; Check-In: 72h; Grace: 24h.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 225.39 Tm
+(  3. Add trusted contact email -> click [ Deploy Policy ].) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 212.89 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 201.89 Tm
+(  ✓ Policy is saved and sealed with status "Active".) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 191.39 Tm
+(  ✓ Check-in deadline countdown timer starts running.) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 172.89 Tm
+(TC-09.2: Global Proof-of-Life Pulse \(Reset All Policies\)) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 158.89 Tm
+(Prerequisites: Legacy policies active) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 146.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 135.89 Tm
+(  1. Click [ Global Proof-of-Life Pulse \(Reset All Policies\) ].) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 123.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 112.39 Tm
+(  ✓ Audio pulse chime plays.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 101.89 Tm
+(  ✓ All active policies refresh their check-in deadlines to full duration.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 91.39 Tm
+(  ✓ Toast displays "Global Heartbeat confirmed across X policies!") Tj
+ET
+BT
+/F1 7.5 Tf
+0.58 0.64 0.72 rg
+1 0 0 1 120 25 Tm
+(Nexus Mind Vault — Comprehensive Functional Walkthrough Catalog   |   Page 3 of 4) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 5811 >>
+stream
+0.880 0.950 0.990 rg
+40.00 771.89 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 778.89 Tm
+([ SUITE 10 ] AUTOMATIC PROOF-OF-LIFE ON SECRET CODE UNLOCK) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 765.89 Tm
+(TC-10.1: Automatic Heartbeat Trigger on Secret Code Unlock) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 751.89 Tm
+(Prerequisites: Legacy policy active with elapsed time) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 739.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 728.89 Tm
+(  1. Lock the vault -> enter Secret Code in Secret Gate to unlock.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 716.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 705.39 Tm
+(  ✓ Unlock sequence automatically invokes recordGlobalHeartbeatPulse\(\).) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 694.89 Tm
+(  ✓ Proof-of-Life heartbeat is registered without needing manual clicks.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 646.39 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 653.39 Tm
+([ SUITE 11 ] ZERO-TRUST CRYPTOGRAPHIC ASSURANCE AUDIT) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 640.39 Tm
+(TC-11.1: Run Live In-Browser Cryptographic Self-Audit Benchmark) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 626.39 Tm
+(Prerequisites: Real Vault unlocked) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 614.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 603.39 Tm
+(  1. Navigate to Settings -> scroll to Zero-Trust Cryptographic Assurance.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 592.89 Tm
+(  2. Click [ Run Live Cryptographic Audit ] button.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 580.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 569.39 Tm
+(  ✓ Auditing animation displays for ~1s while testing CSPRNG entropy and storage.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 558.89 Tm
+(  ✓ Diagnostic panel renders "Live Audit Result: 100% Cryptographic Health Confirmed".) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 548.39 Tm
+(  ✓ Benchmark passes: Entropy Valid \(256-bit\), Zero Plaintext Leak, Duress Isolated.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 499.89 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 506.89 Tm
+([ SUITE 12 ] MASTER SECURITY CREDENTIALS CONFIGURATION) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 493.89 Tm
+(TC-12.1: Update Master PIN & Secret Code) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 479.89 Tm
+(Prerequisites: Settings view active) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 467.89 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 456.89 Tm
+(  1. In Master Security Credentials card, click [ Change Credentials ].) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 446.39 Tm
+(  2. Enter Current PIN, New 6-digit PIN, Confirm PIN, and New Secret Passphrase.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 435.89 Tm
+(  3. Click [ Update & Re-Encrypt ].) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 423.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 412.39 Tm
+(  ✓ Toast displays "Master Vault credentials successfully updated and re-encrypted.") Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 401.89 Tm
+(  ✓ Unlocking with old PIN fails; unlocking with new PIN succeeds.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 353.39 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 360.39 Tm
+([ SUITE 13 ] GLOBAL COMMAND PALETTE \(CTRL+K / CMD+K\)) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 347.39 Tm
+(TC-13.1: Global Keyboard Navigation & Tab Routing) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 333.39 Tm
+(Prerequisites: Any active view in application) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 321.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 310.39 Tm
+(  1. Press Ctrl + K \(or Cmd + K on macOS\).) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 299.89 Tm
+(  2. Type "Time Capsules" and press Enter.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 287.39 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 276.39 Tm
+(  ✓ Command palette modal opens immediately with dark backdrop.) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 265.89 Tm
+(  ✓ Selecting option smoothly routes directly to Time Capsules view.) Tj
+ET
+0.880 0.950 0.990 rg
+40.00 217.39 515.28 22.00 re
+f
+BT
+/F2 10.00 Tf
+0.100 0.450 0.910 rg
+1 0 0 1 50.00 224.39 Tm
+([ SUITE 14 ] HIGH-CONTRAST DARK & LIGHT THEME SWITCHING) Tj
+ET
+BT
+/F2 9.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 45.00 211.39 Tm
+(TC-14.1: Theme Mode Switching & Solid Text Contrast) Tj
+ET
+BT
+/F3 8.00 Tf
+0.400 0.450 0.550 rg
+1 0 0 1 52.00 197.39 Tm
+(Prerequisites: Header visible) Tj
+ET
+BT
+/F2 8.00 Tf
+0.200 0.250 0.350 rg
+1 0 0 1 52.00 185.39 Tm
+(Execution Steps:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.250 0.300 0.400 rg
+1 0 0 1 56.00 174.39 Tm
+(  1. Click Theme Toggle icon \(Moon / Sun\) in top header.) Tj
+ET
+BT
+/F2 8.00 Tf
+0.080 0.640 0.290 rg
+1 0 0 1 52.00 161.89 Tm
+(Expected Assertions:) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 150.89 Tm
+(  ✓ Application toggles between Security Dark \(#0b0f19\) and System Light \(#f8fafc\).) Tj
+ET
+BT
+/F1 7.50 Tf
+0.120 0.160 0.230 rg
+1 0 0 1 56.00 140.39 Tm
+(  ✓ All tags and badges render with solid high-contrast text across both themes.) Tj
+ET
+BT
+/F1 7.5 Tf
+0.58 0.64 0.72 rg
+1 0 0 1 120 25 Tm
+(Nexus Mind Vault — Comprehensive Functional Walkthrough Catalog   |   Page 4 of 4) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000135 00000 n 
+0000000205 00000 n 
+0000000280 00000 n 
+0000000358 00000 n 
+0000007104 00000 n 
+0000007256 00000 n 
+0000014172 00000 n 
+0000014324 00000 n 
+0000020897 00000 n 
+0000021051 00000 n 
+0000026915 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+27069
+%%EOF

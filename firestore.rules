@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default Deny: Global Safety Net (Zero Insecure Defaults)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Authentication Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Role-Based Access Control (RBAC) Helper Functions
+    function hasRole(role) {
+      return isSignedIn() && (
+        request.auth.token.role == role ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role
+      );
+    }
+
+    function isAdmin() {
+      return hasRole('admin') || (isSignedIn() && request.auth.token.admin == true);
+    }
+
+    // Strict User-Isolated Domain Rules (ABAC / Owner-Bound)
+    match /users/{userId} {
+      // User Profile Document
+      allow read, write: if isOwner(userId);
+
+      // Multi-Turn Journal Sessions
+      match /sessions/{sessionId} {
+        allow read, write: if isOwner(userId);
+
+        // Session Messages
+        match /messages/{messageId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+
+      // Backward Compatibility: Legacy Interactions
+      match /interactions/{interactionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Cryptographic Trust Timeline & Audit Logs (Append-only by owner, immutable)
+      match /auditEvents/{eventId} {
+        allow read, create: if isOwner(userId);
+        allow update, delete: if false;
+      }
+
+      // Deadman & Future Time Capsules
+      match /timeCapsules/{capsuleId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Honey Vault Intrusion Detection Logs
+      match /honeyPotLogs/{logId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Elevated System & Telemetry Tier (RBAC Protected)
+    match /system/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

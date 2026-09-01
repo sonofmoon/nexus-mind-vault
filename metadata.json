@@ -1,0 +1,1 @@
+{"name":"Nexus Mind Vault","description":"Zero-trust cognitive journal featuring dual-tier protected and real vault isolation, interactive D3 semantic memory graph, and cryptographically time-locked future capsules with multimodal attachments.","requestFramePermissions":["camera","microphone","geolocation"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
