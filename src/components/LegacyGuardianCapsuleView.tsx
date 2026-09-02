@@ -1,3 +1,5 @@
+import { generateSecureClaimLink, dispatchEmergencyNotice } from '../services/guardianDispatchService';
+import { Link, Copy } from 'lucide-react';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   LegacyGuardianPolicy,
@@ -401,14 +403,14 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
       reader.onload = () => {
         const newItem: AttachmentItem = {
           id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          name: file.name,
-          type: file.type.startsWith('image/') ? 'image' : 'file',
-          size: file.size,
+          name: (file as any).name,
+          type: (file as any).type.startsWith('image/') ? 'image' : 'file',
+          size: (file as any).size,
           data: reader.result as string,
         };
         setFormAttachments((prev) => [...prev, newItem]);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(file as Blob);
     });
 
     showToast(`Attached ${files.length} document(s).`, 'success');

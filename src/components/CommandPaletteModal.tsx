@@ -398,7 +398,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        shrink: 0,
+                        flexShrink: 0,
                       }}
                     >
                       {cmd.icon}
@@ -433,7 +433,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '12px', shrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '12px', flexShrink: 0 }}>
                     {cmd.shortcut && <kbd className="shortcut-key">{cmd.shortcut}</kbd>}
                     {isSelected && <ArrowRight className="w-3.5 h-3.5 text-blue-500" />}
                   </div>

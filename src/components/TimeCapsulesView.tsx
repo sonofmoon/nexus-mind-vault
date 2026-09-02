@@ -1,3 +1,5 @@
+import { authenticatedFetch } from '../services/apiClient';
+import { sanitizePlainText } from '../utils/sanitizeHtml';
 import React, { useState, useEffect, useMemo } from 'react';
 import { TimeCapsule, MoodType } from '../types';
 import { CreateTimeCapsuleView } from './CreateTimeCapsuleView';
@@ -208,7 +210,7 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
   const handleGenerateAiReflection = async (capsule: TimeCapsule) => {
     setIsLoadingAi((prev) => ({ ...prev, [capsule.id]: true }));
     try {
-      const response = await fetch('/api/functions/chatWithGemini', {
+      const response = await authenticatedFetch('/api/functions/chatWithGemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

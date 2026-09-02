@@ -1,0 +1,13 @@
+/* TEAM */
+Architect: Dr. RKC & Nexus Security Architecture Team
+Contact: security@nexusvault.app
+Location: Decentralized / Global
+
+/* THANKS */
+Google DeepMind & Antigravity Advanced Agentic Coding
+W3C Web Cryptography Working Group
+Tailwind & Lucide Icons Communities
+
+/* SITE */
+Standards: W3C WebCrypto, FIDO2 WebAuthn, PWA Manifest v3, OpenAPI 3.0.3
+Software: Vite, React 19, TypeScript, Vitest, Express

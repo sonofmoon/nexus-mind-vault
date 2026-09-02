@@ -6,9 +6,15 @@ export interface UserSession {
 }
 
 export interface VaultCredentials {
-  pin: string;
-  secret: string;
+  salt: string;              // Base64 16-byte CSPRNG random salt
+  pinHash: string;          // SHA-256 PIN verifier hash with salt
+  secretVerifier: string;   // SHA-256 Secret verifier hash with salt
   createdAt: string;
+  isZeroKnowledgeV2: boolean;
+  isEncryptedFormat?: boolean;
+  // Legacy backward-compatibility migration fields
+  pin?: string;
+  secret?: string;
 }
 
 export type VaultMode = 'protected' | 'real';
@@ -23,6 +29,7 @@ export interface VaultSettings {
   highEntropyKeyDerivation: boolean;
   tamperAuditLogging: boolean;
   autoHeartbeatOnUnlock?: boolean; // Automatically emit Proof-of-Life pulse on Secret Code unlock
+  aiSynthesisEnabled?: boolean;     // Opt-out toggle for server-side AI analysis
 }
 
 export type MoodType = 'calm' | 'focused' | 'creative' | 'anxious' | 'energetic' | 'tired' | 'neutral';
@@ -96,7 +103,9 @@ export interface TimeCapsule {
   locationTag?: string;
   isOpened: boolean;
   openedAt?: string;
-  integrityHash: string; // SHA-256 simulated seal fingerprint
+  integrityHash: string; // Genuine NIST FIPS 180-4 SHA-256 seal fingerprint
+  hmacSignature?: string; // Optional HMAC-SHA-256 tamper-evidence signature
+  isTampered?: boolean;   // Active read-time integrity flag
 }
 
 export interface JournalEntry {

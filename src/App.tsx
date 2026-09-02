@@ -1,3 +1,5 @@
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { clearActiveSessionKey } from './services/cryptoEngine';
 import React, { useState, useEffect, useCallback } from 'react';
 // Google Enterprise UI/UX Polish: Command Palette, Skeleton Shimmers & Fluid Hotkeys
 import { UserSession, VaultCredentials, VaultMode, TabType, JournalEntry, TimeCapsule, ToastMessage } from './types';
@@ -8,6 +10,7 @@ import {
   getJournalEntries,
   addJournalEntry,
   deleteJournalEntry,
+  updateJournalEntry,
   getTimeCapsules,
   addTimeCapsule,
   unlockTimeCapsule,
@@ -28,11 +31,15 @@ import { PVUnlockScreen } from './components/PVUnlockScreen';
 import { FirstTimeSetupModal } from './components/FirstTimeSetupModal';
 import { UnlockVaultModal } from './components/UnlockVaultModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { VaultDecryptionSequenceModal } from './components/VaultDecryptionSequenceModal';
 import { VaultSecurityHUD } from './components/VaultSecurityHUD';
 import { AmbientVaultCanvas } from './components/AmbientVaultCanvas';
 import { vaultAudio } from './utils/vaultAudioSynthesizer';
 import { ToastContainer } from './components/ToastContainer';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { initGlobalReminderMonitor, requestNotificationPermission } from './utils/notificationEngine';
 import { AutoLockWarningBanner } from './components/AutoLockWarningBanner';
 
 export function App() {
@@ -74,6 +81,8 @@ export function App() {
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isDecryptionSequenceOpen, setIsDecryptionSequenceOpen] = useState(false);
   const [sessionHash, setSessionHash] = useState('0x8F4A9C2B7E1D3F00');
   const [vaultSettings, setVaultSettings] = useState(() => getVaultSettings(user?.uid || 'guest'));
@@ -99,18 +108,6 @@ export function App() {
     return () => window.removeEventListener('vault_settings_updated', handleSettingsUpdated);
   }, [user]);
 
-  // Global Keyboard Shortcuts (Ctrl+K / Cmd+K) & Panic Lock (ESC / ESC+L)
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setIsCommandPaletteOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
-
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     const id = 'toast_' + Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
@@ -121,6 +118,65 @@ export function App() {
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // ⚡ ITEMS 21 & 22: Global Keyboard Shortcuts Engine
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // 1. Ctrl+K / Cmd+K: Toggle Command Palette
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      // 2. Escape: Dismiss any active modal
+      if (e.key === 'Escape') {
+        if (isCommandPaletteOpen) {
+          setIsCommandPaletteOpen(false);
+        } else if (isUnlockModalOpen) {
+          setIsUnlockModalOpen(false);
+        } else if (isSetupModalOpen) {
+          setIsSetupModalOpen(false);
+        } else if (isDecryptionSequenceOpen) {
+          setIsDecryptionSequenceOpen(false);
+        }
+        return;
+      }
+
+      // 3. Ctrl+N / Cmd+N: Quick New Entry
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        setActiveTab('journal');
+        showToast('Switched to Journal Canvas (Ctrl+N)', 'info');
+        return;
+      }
+
+      // 4. Ctrl+S / Cmd+S: Intercept browser save & dispatch vault save
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('vault_quick_save'));
+        showToast('⚡ Quick-Save triggered (Ctrl+S)', 'success');
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isCommandPaletteOpen, isUnlockModalOpen, isSetupModalOpen, isDecryptionSequenceOpen, showToast]);
+
+  // 🌓 ITEM 30: System Theme Auto-Detection & DOM Synchronization
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+      const saved = localStorage.getItem('vault_theme_mode');
+      if (!saved) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
   }, []);
 
   // Sync Global Theme to DOM
@@ -221,6 +277,9 @@ export function App() {
 
   // Lock Vault back to Protected Cover Mode or Lock Screen
   const handleLockVault = useCallback(() => {
+    // 🛡️ Zeroize Ephemeral PBKDF2 / AES-GCM CryptoKey from volatile RAM
+    clearActiveSessionKey();
+
     if (vaultMode === 'real') {
       setVaultMode('protected');
       if (activeTab !== 'journal' && activeTab !== 'insights') {
@@ -235,7 +294,8 @@ export function App() {
   }, [vaultMode, activeTab, showToast]);
   // ⚡ Panic Purge: Instant Emergency Duress Trap & Secret Gate Air-Gap
   const handlePanicPurge = useCallback(() => {
-    // 1. Instantly zeroize active cryptographic session
+    // 🛡️ 1. Instantly zeroize active cryptographic session & wipe RAM CryptoKey
+    clearActiveSessionKey();
     setSessionHash('');
     setAutoLockSecondsLeft(0);
 
@@ -349,16 +409,28 @@ export function App() {
   };
 
   // Entry Management
-  const handleAddEntry = (title: string, content: string, tags: string[], mood?: string) => {
+  const handleAddEntry = (entryOrTitle: any, content?: string, tags: string[] = [], mood?: string) => {
     if (!user) return;
-    const newEntry = addJournalEntry(user.uid, {
-      title,
-      content,
-      tags,
-      mood: mood as any,
-    });
+    let payload: any;
+    if (typeof entryOrTitle === 'object' && entryOrTitle !== null) {
+      payload = entryOrTitle;
+    } else {
+      payload = {
+        title: entryOrTitle || 'Untitled Reflection',
+        content: content || '',
+        tags: tags || [],
+        mood: (mood as any) || 'neutral',
+      };
+    }
+    const newEntry = addJournalEntry(user.uid, payload);
     setEntries((prev) => [newEntry, ...prev]);
     showToast("Journal reflection sealed and encrypted.", "success");
+  };
+
+  const handleUpdateEntry = (id: string, updatedFields: Partial<JournalEntry>) => {
+    if (!user) return;
+    const updated = updateJournalEntry(user.uid, id, updatedFields);
+    setEntries(updated);
   };
 
   const handleDeleteEntry = (id: string) => {
@@ -370,29 +442,35 @@ export function App() {
 
   // Time Capsule Management
   const handleAddCapsule = (
-    title: string,
-    message: string,
+    capsuleOrTitle: any,
+    message?: string,
     unlockDate?: string,
     unlockMood?: string,
     tags: string[] = []
   ) => {
     if (!user) return;
-    const newCapsule = addTimeCapsule(user.uid, {
-      title,
-      message,
-      unlockDate,
-      unlockMood: unlockMood as any,
-      tags,
-    });
+    let payload: any;
+    if (typeof capsuleOrTitle === 'object' && capsuleOrTitle !== null) {
+      payload = capsuleOrTitle;
+    } else {
+      payload = {
+        title: capsuleOrTitle || 'Untitled Capsule',
+        message: message || '',
+        unlockDate,
+        targetMood: unlockMood as any,
+        lockType: unlockDate && unlockMood ? 'both' : unlockDate ? 'time' : 'mood',
+      };
+    }
+    const newCapsule = addTimeCapsule(user.uid, payload);
     setCapsules((prev) => [newCapsule, ...prev]);
     showToast("Time Capsule cryptographically sealed with SHA-256 integrity seal.", "success");
   };
 
   const handleUnlockCapsule = (id: string) => {
     if (!user) return;
-    const unlocked = unlockTimeCapsule(user.uid, id);
-    if (unlocked) {
-      setCapsules((prev) => prev.map((c) => (c.id === id ? unlocked : c)));
+    const updated = unlockTimeCapsule(user.uid, id);
+    if (updated) {
+      setCapsules(updated);
       showToast("Time Capsule unlocked successfully!", "success");
     }
   };
@@ -405,8 +483,9 @@ export function App() {
   };
 
   return (
-    <div className="vault-app">
-      <AmbientVaultCanvas vaultMode={vaultMode} isUnlocked={vaultMode === 'real'} />
+    <ErrorBoundary>
+      <div className="vault-app">
+        <AmbientVaultCanvas />
 
       {/* Global Application Header */}
       <VaultHeader
@@ -480,6 +559,7 @@ export function App() {
                 entries={isDuressActive ? (parallelPersona.entries || []) : entries}
                 onAddEntry={handleAddEntry}
                 onDeleteEntry={handleDeleteEntry}
+            onUpdateEntry={handleUpdateEntry}
                 onOpenUnlockModal={handleOpenUnlockModal}
                 showToast={showToast}
               />
@@ -543,6 +623,8 @@ export function App() {
       )}
 
       {/* Global Command Palette Modal (Ctrl+K / Cmd+K) */}
+      <KeyboardShortcutsModal isOpen={isShortcutsModalOpen} onClose={() => setIsShortcutsModalOpen(false)} />
+      <PrivacyPolicyModal isOpen={isPrivacyModalOpen} onClose={() => setIsPrivacyModalOpen(false)} />
       <CommandPaletteModal
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
@@ -604,9 +686,11 @@ export function App() {
         />
       )}
 
-      {/* Toast Notifications */}
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      {/* Toast Notifications & PWA Install Banner */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+      <PWAInstallBanner />
     </div>
+    </ErrorBoundary>
   );
 }
 

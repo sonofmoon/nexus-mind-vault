@@ -1,5 +1,12 @@
+import { generateEntryShareLink } from '../utils/entrySharingEngine';
+import { ConfirmationModal } from './ConfirmationModal';
+import { Share2, Undo2, Printer } from 'lucide-react';
+import { authenticatedFetch } from '../services/apiClient';
+import { sanitizePlainText } from '../utils/sanitizeHtml';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { JournalEntry, MoodType, AttachmentItem, JournalDraft } from '../types';
+import { JournalEntry, MoodType, AttachmentItem, JournalDraft, VaultMode } from '../types';
+import { JOURNAL_TEMPLATES, calculateJournalStreak, JournalTemplate } from '../utils/journalTemplates';
+import { Edit } from 'lucide-react';
 import { InnovativeCameraStudioModal, CapturedPhotoResult } from './InnovativeCameraStudioModal';
 import {
   Edit3,
@@ -35,12 +42,16 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-export type CaptureTab = 'write' | 'talk';
+export type CaptureTab = 'write' | 'talk' | 'attach' | 'voice';
 
 export interface JournalViewProps {
+  userId?: string;
+  vaultMode?: VaultMode;
+  onOpenUnlockModal?: () => void;
   entries: JournalEntry[];
   onAddEntry: (entry: Omit<JournalEntry, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
   onDeleteEntry: (id: string) => void;
+  onUpdateEntry?: (id: string, updatedFields: Partial<JournalEntry>) => void;
   showToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
   journalTitle?: string;
   microcopy?: string;
@@ -73,6 +84,7 @@ export const JournalView: React.FC<JournalViewProps> = ({
   entries,
   onAddEntry,
   onDeleteEntry,
+  onUpdateEntry,
   showToast,
   journalTitle = "Nexus Mind Vault",
   microcopy = "End-to-end encrypted workspace with full features enabled.",
@@ -85,6 +97,92 @@ export const JournalView: React.FC<JournalViewProps> = ({
   className = "",
 }) => {
   const [activeTab, setActiveTab] = useState<CaptureTab>('write');
+  // 🔒 ITEM 24: Single-Entry Sharing State
+  const [sharingEntry, setSharingEntry] = useState<JournalEntry | null>(null);
+  const [sharePassphrase, setSharePassphrase] = useState('');
+  const [generatedShareUrl, setGeneratedShareUrl] = useState<string | null>(null);
+
+  // 🔒 ITEM 32: Undo Deletion State
+  const [recentlyDeleted, setRecentlyDeleted] = useState<JournalEntry | null>(null);
+  const [deleteConfirmEntry, setDeleteConfirmEntry] = useState<JournalEntry | null>(null);
+
+  const handleCreateShareLink = () => {
+    if (!sharingEntry) return;
+    const url = generateEntryShareLink(sharingEntry, sharePassphrase, 48);
+    setGeneratedShareUrl(url);
+    navigator.clipboard?.writeText(url);
+    showToast('Encrypted share link copied to clipboard (valid 48h)!', 'success');
+  };
+
+  const handleRequestDelete = (entry: JournalEntry) => {
+    setDeleteConfirmEntry(entry);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirmEntry) return;
+    const target = deleteConfirmEntry;
+    setRecentlyDeleted(target);
+    onDeleteEntry(target.id);
+    setDeleteConfirmEntry(null);
+    showToast(`Deleted "${target.title}". Undo available.`, 'info');
+  };
+
+  const handleUndoDelete = () => {
+    if (!recentlyDeleted) return;
+    onAddEntry({
+      title: recentlyDeleted.title,
+      content: recentlyDeleted.content,
+      mood: recentlyDeleted.mood,
+      tags: recentlyDeleted.tags,
+      folder: recentlyDeleted.folder,
+      attachments: recentlyDeleted.attachments,
+      reminderDate: recentlyDeleted.reminderDate,
+      reminderTime: recentlyDeleted.reminderTime,
+    });
+    showToast(`Restored "${recentlyDeleted.title}".`, 'success');
+    setRecentlyDeleted(null);
+  };
+
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editMood, setEditMood] = useState<MoodType>('neutral');
+  const [editTags, setEditTags] = useState('');
+
+  const streakStats = useMemo(() => calculateJournalStreak(entries), [entries]);
+
+  const handleApplyTemplate = (tmpl: JournalTemplate) => {
+    setEntryTitle(tmpl.templateTitle);
+    setWriteContent(tmpl.templateContent);
+    setSelectedMood(tmpl.defaultMood);
+    setEntryTags(tmpl.defaultTags.join(', '));
+    showToast(`Applied "${tmpl.name}" template.`, 'info');
+  };
+
+  const handleStartEdit = (entry: JournalEntry) => {
+    setEditingEntry(entry);
+    setEditTitle(entry.title);
+    setEditContent(entry.content);
+    setEditMood(entry.mood);
+    setEditTags((entry.tags || []).join(', '));
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry) return;
+    const tagArray = editTags.split(',').map(t => t.trim()).filter(Boolean);
+    if (onUpdateEntry) {
+      onUpdateEntry(editingEntry.id, {
+        title: editTitle,
+        content: editContent,
+        mood: editMood,
+        tags: tagArray,
+      });
+    }
+    showToast('Entry updated securely.', 'success');
+    setEditingEntry(null);
+  };
+
 
   // Form State
   const [writeContent, setWriteContent] = useState('');
@@ -499,7 +597,7 @@ export const JournalView: React.FC<JournalViewProps> = ({
     showToast("Sent reflection to Gemini AI...", "info");
 
     try {
-      const response = await fetch('/api/functions/chatWithGemini', {
+      const response = await authenticatedFetch('/api/functions/chatWithGemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1580,6 +1678,33 @@ export const JournalView: React.FC<JournalViewProps> = ({
                                 <Download className="w-3.5 h-3.5 text-blue-500" />
                                 <span>Download</span>
                               </button>
+                              <button
+                                type="button"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  fontSize: '13px',
+                                  color: 'var(--text)',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  minHeight: 'auto',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  window.print();
+                                }}
+                              >
+                                <Printer className="w-3.5 h-3.5 text-purple-500" />
+                                <span>Print Entry</span>
+                              </button>
+  
                             </div>
                           )}
                         </div>

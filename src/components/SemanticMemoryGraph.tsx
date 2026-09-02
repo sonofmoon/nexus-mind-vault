@@ -1,3 +1,4 @@
+import { authenticatedFetch } from '../services/apiClient';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
 import { JournalEntry, MemoryNode, MemoryLink, SemanticGraphData, ConceptCategory } from '../types';
@@ -5,6 +6,8 @@ import { extractSemanticGraph } from '../utils/graphExtractor';
 import { saveParallelPersona } from '../services/vaultStorage';
 import {
   Activity,
+  FileDown,
+  Image,
   Sparkles,
   Search,
   ZoomIn,
@@ -234,7 +237,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
 
     setIsSynthesizingNPPM(true);
     try {
-      const res = await fetch('/api/functions/translateParallelPersona', {
+      const res = await authenticatedFetch('/api/functions/translateParallelPersona', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -291,7 +294,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
     if (entries.length === 0 || isAiEnriching) return;
     setIsAiEnriching(true);
     try {
-      const res = await fetch('/api/functions/extractSemanticGraph', {
+      const res = await authenticatedFetch('/api/functions/extractSemanticGraph', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ entries }),
@@ -630,6 +633,67 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
   }, [filteredData, isFullscreen, canvasSize, isDarkTheme]);
 
   // Zoom Controls
+  
+  // ============================================================================
+  // 📸 ITEM 48: Mind Graph Export Engine (PNG, SVG, JSON)
+  // ============================================================================
+  const handleExportJSON = () => {
+    const dataStr = JSON.stringify(graphData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nexus-mind-graph-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast?.('Graph topology exported as JSON.', 'success');
+  };
+
+  const handleExportSVG = () => {
+    if (!svgRef.current) return;
+    const serializer = new XMLSerializer();
+    const source = serializer.serializeToString(svgRef.current);
+    const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nexus-mind-graph-${new Date().toISOString().split('T')[0]}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast?.('Vector graph exported as SVG.', 'success');
+  };
+
+  const handleExportPNG = () => {
+    if (!svgRef.current) return;
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svgRef.current);
+    const canvas = document.createElement('canvas');
+    const svgBounds = svgRef.current.getBoundingClientRect();
+    canvas.width = svgBounds.width * 2;
+    canvas.height = svgBounds.height * 2;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new (window as any).Image();
+    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      ctx.fillStyle = '#0b0f19';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+
+      const pngUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `nexus-mind-graph-${new Date().toISOString().split('T')[0]}.png`;
+      a.click();
+      showToast?.('High-resolution graph exported as PNG.', 'success');
+    };
+    img.src = url;
+  };
+
   const handleZoom = (factor: number) => {
     if (!svgRef.current || !zoomBehaviorRef.current) return;
     d3.select(svgRef.current)
@@ -944,6 +1008,33 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
             background: 'var(--bg-surface)',
           }}
         >
+          
+          {/* Graph Export Controls */}
+          <button
+            type="button"
+            onClick={handleExportPNG}
+            className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] transition-colors"
+            title="Export as PNG Image"
+          >
+            <Image className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleExportSVG}
+            className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] transition-colors"
+            title="Export as Scalable Vector (SVG)"
+          >
+            <FileDown className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleExportJSON}
+            className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] transition-colors"
+            title="Export Graph Topology (JSON)"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
+  
           <button
             type="button"
             onClick={() => handleZoom(1.3)}

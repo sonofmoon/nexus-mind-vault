@@ -1,1 +1,31 @@
-{"name":"Nexus Mind Vault","description":"Zero-trust cognitive journal featuring dual-tier protected and real vault isolation, interactive D3 semantic memory graph, and cryptographically time-locked future capsules with multimodal attachments.","requestFramePermissions":["camera","microphone","geolocation"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
+{
+  "name": "Nexus Mind Vault",
+  "slug": "nexus-mind-vault",
+  "version": "2.0.0",
+  "description": "Sovereign Zero-Knowledge Cryptographic Cognitive Mirror & Memory Enclave",
+  "license": "MIT",
+  "author": {
+    "name": "Dr. RKC & Nexus Architecture Team",
+    "url": "https://github.com/drrkc/nexus-mind-vault"
+  },
+  "cryptography": {
+    "cipher": "AES-GCM-256",
+    "keyDerivation": "PBKDF2-HMAC-SHA-256",
+    "pbkdf2Iterations": 100000,
+    "digest": "SHA-256",
+    "integrity": "HMAC-SHA-256",
+    "biometrics": "W3C WebAuthn FIDO2 / Touch ID / Windows Hello"
+  },
+  "capabilities": {
+    "zeroKnowledgePartitioning": true,
+    "offlineFirstSync": true,
+    "timeLockedCapsules": true,
+    "legacyGuardianDispatch": true,
+    "semanticMemoryGraph": true,
+    "pwaOfflineMode": true,
+    "airGappedAILadder": true,
+    "multiDeviceRevocation": true,
+    "gdprCcpaCompliant": true,
+    "totalAuditItemsDelivered": 50
+  }
+}

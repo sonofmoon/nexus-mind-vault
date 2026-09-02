@@ -1,0 +1,183 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Nexus Mind Vault — Zero-Trust Cryptographic Sovereign Enclave API",
+    "version": "2.0.0",
+    "description": "Production API specification for the Nexus Mind Vault zero-knowledge cognitive mirror and serverless AI ladder.",
+    "contact": {
+      "name": "Nexus Security Architecture Team",
+      "url": "https://github.com/drrkc/nexus-mind-vault"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Local / Cloud Run Sovereign Endpoint"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "System Health & Uptime Check",
+        "description": "Returns uptime, memory usage, and operational status.",
+        "responses": {
+          "200": {
+            "description": "Server is healthy and operational",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    },
+                    "uptimeSeconds": {
+                      "type": "number",
+                      "example": 124.5
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "example": "2026-09-02T15:00:00.000Z"
+                    },
+                    "environment": {
+                      "type": "string",
+                      "example": "production"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat": {
+      "post": {
+        "summary": "Zero-Knowledge Cognitive Mirror Chat",
+        "description": "Proxies prompt through resilient 4-stage Gemini model fallback ladder.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "prompt"
+                ],
+                "properties": {
+                  "prompt": {
+                    "type": "string",
+                    "description": "User query or reflection text"
+                  },
+                  "history": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "model"
+                          ]
+                        },
+                        "content": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "systemInstruction": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AI Reflection generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reply": {
+                      "type": "string"
+                    },
+                    "modelUsed": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request payload schema"
+          },
+          "401": {
+            "description": "Missing or invalid authorization token"
+          }
+        }
+      }
+    },
+    "/trends": {
+      "post": {
+        "summary": "Synthesize Cognitive Mood & Cognitive Trajectory Trends",
+        "description": "Analyzes reflection history to output mood vectors and cognitive growth suggestions.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "entries"
+                ],
+                "properties": {
+                  "entries": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "timeframe": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cognitive trends synthesized successfully"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Firebase Admin ID Token or Sovereign Session Token"
+      }
+    }
+  }
+}

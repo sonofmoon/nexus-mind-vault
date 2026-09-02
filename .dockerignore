@@ -1,9 +1,9 @@
 node_modules
 dist
 .git
-.gitignore
+.github
+.gemini
+*.log
 .env
 .env.local
-.gemini
-npm-debug.log
-firebase-debug.log
+scratch

@@ -1,0 +1,23 @@
+{
+  "name": "Nexus Mind Vault — Sovereign Journal",
+  "short_name": "NexusVault",
+  "description": "Zero-Knowledge Sovereign Journal & AI Cognitive Mind Vault",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f17",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "categories": [
+    "productivity",
+    "security",
+    "lifestyle"
+  ],
+  "icons": [
+    {
+      "src": "/nmv-logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

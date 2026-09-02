@@ -1,3 +1,4 @@
+import { authenticatedFetch } from '../services/apiClient';
 import React, { useState } from 'react';
 import { JournalEntry, TimeCapsule } from '../types';
 import { SemanticMemoryGraph } from './SemanticMemoryGraph';
@@ -89,7 +90,7 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
         date: e.createdAt,
       }));
 
-      const res = await fetch('/api/functions/chatWithGemini', {
+      const res = await authenticatedFetch('/api/functions/chatWithGemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

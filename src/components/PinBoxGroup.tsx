@@ -82,7 +82,7 @@ export const PinBoxGroup: React.FC<PinBoxGroupProps> = ({
               />
             )}
             <input
-              ref={(el) => (inputRefs.current[idx] = el)}
+              ref={(el) => { inputRefs.current[idx] = el; }}
               type={showPin ? "text" : "password"}
               maxLength={1}
               inputMode="numeric"

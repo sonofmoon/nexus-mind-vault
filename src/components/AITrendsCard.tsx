@@ -1,3 +1,4 @@
+import { authenticatedFetch } from '../services/apiClient';
 import React, { useState, useEffect, useCallback } from 'react';
 import { JournalEntry } from '../types';
 import {
@@ -73,7 +74,7 @@ export const AITrendsCard: React.FC<AITrendsCardProps> = ({ entries }) => {
         createdAt: e.createdAt,
       }));
 
-      const res = await fetch('/api/functions/generateTrends', {
+      const res = await authenticatedFetch('/api/functions/generateTrends', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

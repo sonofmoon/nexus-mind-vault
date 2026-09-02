@@ -1,4 +1,4 @@
-﻿// Web Audio API Sound Synthesizer for Zero-Knowledge Vault Operations
+// Web Audio API Sound Synthesizer for Zero-Knowledge Vault Operations
 // 100% native client-side synthesis: zero external audio assets or network latency
 
 class VaultAudioSynthesizer {
@@ -127,6 +127,31 @@ class VaultAudioSynthesizer {
 
       osc.start(now);
       osc.stop(now + 0.3);
+    } catch {}
+  }
+
+  playUnlockSuccess() {
+    this.playUnlockSound();
+  }
+
+  playErrorBuzzer() {
+    this.playPanicLockSound();
+  }
+
+  playKeyClick() {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(600, ctx.currentTime);
+      gain.gain.setValueAtTime(0.04, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.03);
     } catch {}
   }
 }

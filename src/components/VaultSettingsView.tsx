@@ -1,7 +1,17 @@
-import React, { useState } from 'react';
+import { isWebAuthnSupported, registerBiometricCredential } from '../utils/webAuthnHelper';
+import { exportEntriesAsMarkdown, exportEntriesAsCSV, exportEntriesAsJSON, exportCapsulesAsJSON, exportMindGraphAsJSON } from '../utils/vaultExportHelpers';
+import { getActiveDeviceSessions, revokeDeviceSession, revokeAllOtherDeviceSessions, DeviceSession } from '../services/deviceSessionManager';
+import { parseImportFile } from '../utils/vaultImportHelper';
+import { ConfirmationModal } from './ConfirmationModal';
+import { addJournalEntry } from '../services/vaultStorage';
+import { getVaultSchemaVersion, CURRENT_SCHEMA_VERSION, migrateVaultSchema } from '../services/vaultStorage';
+import { Laptop, Smartphone, MonitorX } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { UserSession, VaultCredentials, VaultSettings } from '../types';
 import {
   saveVaultCredentials,
+  getJournalEntries,
+  getTimeCapsules,
   getVaultSettings,
   saveVaultSettings,
   getLegacyGuardianPolicies,
@@ -24,6 +34,8 @@ import {
   Trash2,
   CheckCircle2,
   FileText,
+  FileSpreadsheet,
+  Network,
   Radio,
   Sliders,
   Sparkles,
@@ -58,6 +70,8 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
 }) => {
   const uid = user?.uid || 'guest';
   const [settings, setSettings] = useState<VaultSettings>(() => getVaultSettings(uid));
+  const entries = getJournalEntries(uid);
+  const capsules = getTimeCapsules(uid);
 
   // Change PIN state
   const [isChangingPin, setIsChangingPin] = useState(false);
@@ -81,6 +95,75 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
 
 
   // Zero-Trust Interactive Cryptographic Self-Audit State
+  // 🔒 ITEM 25: External Data Importer State
+  const [isImporting, setIsImporting] = useState(false);
+  const [isPanicConfirmOpen, setIsPanicConfirmOpen] = useState(false);
+
+  const handleImportFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsImporting(true);
+      const result = await parseImportFile(file);
+      result.entries.forEach(entry => {
+        addJournalEntry(uid, entry);
+      });
+      showToast(`Successfully imported ${result.entries.length} reflections from ${result.filename}!`, 'success');
+      onRefreshData();
+    } catch (err: any) {
+      showToast(err.message || 'Import failed.', 'error');
+    } finally {
+      setIsImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  // Multi-Device Sessions State
+  const [deviceSessions, setDeviceSessions] = useState<DeviceSession[]>(() => getActiveDeviceSessions(uid));
+  const [schemaVersion, setSchemaVersion] = useState<number>(() => getVaultSchemaVersion(uid));
+
+  const handleRevokeSession = (sessionId: string) => {
+    const updated = revokeDeviceSession(uid, sessionId);
+    setDeviceSessions(updated);
+    showToast('Device session revoked successfully.', 'success');
+  };
+
+  const handleRevokeAllOther = () => {
+    const updated = revokeAllOtherDeviceSessions(uid);
+    setDeviceSessions(updated);
+    showToast('All other remote device sessions revoked.', 'success');
+  };
+
+  const handleRunMigration = () => {
+    const result = migrateVaultSchema(uid);
+    if (result.migrated) {
+      setSchemaVersion(result.toVersion);
+      showToast(`Vault migrated to Schema v${result.toVersion} successfully.`, 'success');
+    } else {
+      showToast(`Vault is already up-to-date on Schema v${CURRENT_SCHEMA_VERSION}.`, 'info');
+    }
+  };
+
+  const [isWebAuthnAvailable, setIsWebAuthnAvailable] = useState(false);
+
+  useEffect(() => {
+    isWebAuthnSupported().then(setIsWebAuthnAvailable);
+  }, []);
+
+  const handleEnrollBiometrics = async () => {
+    try {
+      showToast('Awaiting biometric hardware touch (Touch ID / Windows Hello)...', 'info');
+      const success = await registerBiometricCredential(uid, user?.email || 'vault_user');
+      if (success) {
+        handleSaveSecuritySettings({ biometricsEnabled: true });
+        showToast('🔒 Hardware Biometrics Enrolled & Activated!', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Biometric enrollment cancelled.', 'error');
+    }
+  };
+
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditReport, setAuditReport] = useState<{
     completed: boolean;
@@ -262,11 +345,8 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   Current 6-Digit PIN
                 </label>
                 <PinBoxGroup
-                  length={6}
-                  value={currentPinInput}
-                  onChange={setCurrentPinInput}
-                  isMasked={true}
-                  autoFocus={true}
+                  digits={Array.from({ length: 6 }, (_, i) => currentPinInput[i] || '')}
+                  onChange={(digits) => setCurrentPinInput(digits.join(''))}
                 />
               </div>
 
@@ -275,10 +355,8 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   New 6-Digit PIN
                 </label>
                 <PinBoxGroup
-                  length={6}
-                  value={newPinInput}
-                  onChange={setNewPinInput}
-                  isMasked={true}
+                  digits={Array.from({ length: 6 }, (_, i) => newPinInput[i] || '')}
+                  onChange={(digits) => setNewPinInput(digits.join(''))}
                 />
               </div>
 
@@ -287,10 +365,8 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   Confirm New 6-Digit PIN
                 </label>
                 <PinBoxGroup
-                  length={6}
-                  value={confirmNewPinInput}
-                  onChange={setConfirmNewPinInput}
-                  isMasked={true}
+                  digits={Array.from({ length: 6 }, (_, i) => confirmNewPinInput[i] || '')}
+                  onChange={(digits) => setConfirmNewPinInput(digits.join(''))}
                 />
               </div>
 
@@ -433,10 +509,277 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                 style={{ width: '18px', height: '18px', accentColor: '#a855f7' }}
               />
             </div>
+
+            {/* ITEM 4: AI Cognitive Synthesis Privacy Disclosure & Opt-Out Toggle */}
+            <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+              <div style={{ maxWidth: '80%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>AI Cognitive Synthesis (Gemini API)</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: settings.aiSynthesisEnabled !== false ? 'rgba(37, 99, 235, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: settings.aiSynthesisEnabled !== false ? '#3b82f6' : '#ef4444' }}>
+                    {settings.aiSynthesisEnabled !== false ? 'TLS Connected' : 'Air-Gapped (0 Bytes Sent)'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Sends decrypted reflection prompts over TLS to Google AI Studio for cognitive synthesis. Disable to enforce 100% offline air-gapped sovereign mode.
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.aiSynthesisEnabled !== false}
+                onChange={(e) => handleSaveSecuritySettings({ aiSynthesisEnabled: e.target.checked })}
+                style={{ width: '18px', height: '18px', accentColor: '#3b82f6' }}
+              />
+            </div>
           </div>
         </div>
 
 
+
+        
+        {/* 🔒 ITEM 14: Hardware Biometric Authentication (WebAuthn / Touch ID / Windows Hello) */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                <Fingerprint className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>Hardware Biometrics (WebAuthn)</h2>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Touch ID, Windows Hello, Face ID, and FIDO2 platform keys</span>
+              </div>
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '100px', background: settings.biometricsEnabled ? 'rgba(34, 197, 94, 0.15)' : 'rgba(100, 116, 139, 0.15)', color: settings.biometricsEnabled ? '#22c55e' : '#94a3b8' }}>
+              {settings.biometricsEnabled ? 'Enrolled & Active' : 'Not Enrolled'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Enable hardware biometric quick unlock as a cryptographic alternative to entering your 6-digit PIN on this device.
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center', marginTop: '6px' }}
+              onClick={handleEnrollBiometrics}
+            >
+              <Fingerprint className="w-4 h-4" />
+              {settings.biometricsEnabled ? 'Re-Enroll Hardware Biometrics' : 'Enroll Touch ID / Windows Hello'}
+            </button>
+          </div>
+        </div>
+
+        {/* 🔒 ITEM 16: Selective Data Portability & Component Exports */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+              <Download className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>Selective Data Portability & Exports</h2>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Download specific partitions in Markdown, CSV, or JSON</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
+              onClick={() => {
+                exportEntriesAsMarkdown(entries);
+                showToast('Exported entries as Markdown (.md)', 'success');
+              }}
+            >
+              <FileText className="w-4 h-4 text-purple-400" />
+              Journal (.MD)
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
+              onClick={() => {
+                exportEntriesAsCSV(entries);
+                showToast('Exported entries as Spreadsheet (.csv)', 'success');
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              Journal (.CSV)
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
+              onClick={() => {
+                exportEntriesAsJSON(entries);
+                showToast('Exported entries as JSON', 'success');
+              }}
+            >
+              <FileText className="w-4 h-4 text-blue-400" />
+              Journal (.JSON)
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
+              onClick={() => {
+                exportCapsulesAsJSON(capsules);
+                showToast('Exported Time Capsules as JSON', 'success');
+              }}
+            >
+              <Clock className="w-4 h-4 text-amber-400" />
+              Time Capsules (.JSON)
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
+              onClick={() => {
+                exportMindGraphAsJSON({ nodes: entries.map(e => ({ id: e.id, title: e.title, tags: e.tags })) });
+                showToast('Exported Mind Graph as JSON', 'success');
+              }}
+            >
+              <Network className="w-4 h-4 text-cyan-400" />
+              Mind Graph (.JSON)
+            </button>
+          </div>
+        </div>
+
+        
+        {/* 🔒 ITEM 18: Multi-Device Sessions & Active Device Footprints */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                <Laptop className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>Multi-Device Sessions & Footprints</h2>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Active hardware sessions with remote revocation control</span>
+              </div>
+            </div>
+            {deviceSessions.length > 1 && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ fontSize: '11px', padding: '6px 12px', color: '#ef4444' }}
+                onClick={handleRevokeAllOther}
+              >
+                <MonitorX className="w-3.5 h-3.5 inline mr-1" />
+                Revoke All Other Devices
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {deviceSessions.map((session) => (
+              <div
+                key={session.sessionId}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  background: 'var(--bg-main)',
+                  border: session.isCurrentDevice ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border-subtle)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {session.deviceType === 'desktop' ? (
+                    <Laptop className="w-5 h-5 text-blue-400" />
+                  ) : (
+                    <Smartphone className="w-5 h-5 text-emerald-400" />
+                  )}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
+                        {session.os} — {session.browser}
+                      </span>
+                      {session.isCurrentDevice && (
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' }}>
+                          This Device
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Last active: {new Date(session.lastActiveAt).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {!session.isCurrentDevice && (
+                  <button
+                    type="button"
+                    className="btn btn-icon text-red-400"
+                    title="Revoke session"
+                    onClick={() => handleRevokeSession(session.sessionId)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 🔒 ITEM 19: Data Schema Versioning & Integrity Engine */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7' }}>
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>Data Schema Version & Compatibility</h2>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Automated migration and backward compatibility</span>
+              </div>
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '100px', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>
+              Schema v{schemaVersion} (Latest: v{CURRENT_SCHEMA_VERSION})
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Ensures zero-knowledge entries, tamper HMAC stamps, and cloud sync models are format-compliant.
+            </span>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '12px', padding: '6px 14px' }}
+              onClick={handleRunMigration}
+            >
+              Verify & Run Schema Migration
+            </button>
+          </div>
+        </div>
+
+        
+            {/* ITEM 25: External File Importer */}
+            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', display: 'block', marginBottom: '6px' }}>
+                Import Reflections (Markdown .md / JSON / Day One)
+              </span>
+              <label
+                className="btn btn-secondary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', padding: '8px 14px' }}
+              >
+                <Upload className="w-4 h-4 text-purple-400" />
+                {isImporting ? 'Parsing & Importing...' : 'Select Markdown / JSON File to Import'}
+                <input
+                  type="file"
+                  accept=".md,.json,.txt"
+                  style={{ display: 'none' }}
+                  onChange={handleImportFileInput}
+                  disabled={isImporting}
+                />
+              </label>
+            </div>
 
         {/* Card 5: Nexus Legacy Guardian Protocol */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>

@@ -1,3 +1,4 @@
+import { verifyPinCode } from '../services/cryptoEngine';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { UserSession, VaultCredentials } from '../types';
 import { NexusMindVaultLogo } from './NexusMindVaultLogo';
@@ -51,18 +52,18 @@ export const PVUnlockScreen: React.FC<PVUnlockScreenProps> = ({
 
   // Submit and verify PIN
   const handleVerifyPin = useCallback(
-    (enteredPin: string) => {
+    async (enteredPin: string) => {
       if (isLockedOut) return;
 
       const settings = getVaultSettings(user.uid);
       const targetDuress = settings?.duressPin || (credentials as any).duressPin || '999888';
-      const targetMaster = credentials.pin || (credentials as any).masterPin;
+      const isMasterPinValid = await verifyPinCode(enteredPin, credentials);
 
       if (enteredPin === targetDuress) {
         // Duress Mode: Seamless plausible deniability (Zero alarm)
         try { vaultAudio.playUnlockSuccess(); } catch {}
         onUnlockSuccess('duress');
-      } else if (enteredPin === targetMaster) {
+      } else if (isMasterPinValid) {
         // Standard Protected Vault Mode
         try { vaultAudio.playUnlockSuccess(); } catch {}
         onUnlockSuccess('standard');

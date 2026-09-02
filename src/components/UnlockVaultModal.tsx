@@ -1,6 +1,8 @@
+import { deriveKeyFromPassphrase, deriveHmacKeyFromPassphrase, setActiveSessionKey, setActiveHmacKey, base64ToBuffer, generateRandomSalt, verifySecretPassphrase } from '../services/cryptoEngine';
 import React, { useState } from 'react';
 import { NexusMindVaultLogo } from './NexusMindVaultLogo';
-import { Lock, ShieldCheck, X, Eye, EyeOff, RotateCcw, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Lock, ShieldCheck, X, Eye, EyeOff, RotateCcw, CheckCircle2, ArrowLeft, Fingerprint } from 'lucide-react';
+import { verifyBiometricCredential, isWebAuthnSupported } from '../utils/webAuthnHelper';
 import { VaultCredentials } from '../types';
 
 interface UnlockVaultModalProps {
@@ -10,7 +12,7 @@ interface UnlockVaultModalProps {
   onSuccess: () => void;
   onResetSecretCode?: (newSecret: string) => void;
   userEmail?: string;
-  showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  showToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
 export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
@@ -33,10 +35,30 @@ export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
   const [showNewSecret, setShowNewSecret] = useState(false);
   const [resetStep, setResetStep] = useState<'verify' | 'new_code'>('verify');
   const [securityAnswer, setSecurityAnswer] = useState('');
+  const [isBiometricsAvailable, setIsBiometricsAvailable] = useState(false);
+  React.useEffect(() => {
+    isWebAuthnSupported().then(setIsBiometricsAvailable);
+  }, []);
+
+  const handleBiometricUnlock = async () => {
+    try {
+      const verified = await verifyBiometricCredential('vault_user');
+      if (verified) {
+        showToast('🔒 Touch ID / Windows Hello verified!', 'success');
+        onSuccess();
+        onClose();
+      } else {
+        showToast('Biometric verification cancelled or failed.', 'error');
+      }
+    } catch {
+      showToast('Biometric verification failed.', 'error');
+    }
+  };
+
 
   if (!isOpen) return null;
 
-  const handleUnlock = (e: React.FormEvent) => {
+  const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsInvalid(false);
 
@@ -45,10 +67,27 @@ export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
       return;
     }
 
-    if (secretInput.trim() === credentials.secret) {
-      showToast("Secret Code Verified: Nexus MIND Vault Unlocked.", "success");
-      setSecretInput('');
-      onSuccess();
+    const isValid = await verifySecretPassphrase(secretInput.trim(), credentials);
+
+    if (isValid) {
+      // 🔒 Derive Real AES-GCM-256 Key via PBKDF2 (100,000 Iterations)
+      const salt = credentials.salt ? base64ToBuffer(credentials.salt) : generateRandomSalt(16);
+      try {
+        const [cryptoKey, hmacKey] = await Promise.all([
+          deriveKeyFromPassphrase(secretInput.trim(), salt, 100000),
+          deriveHmacKeyFromPassphrase(secretInput.trim(), salt, 100000),
+        ]);
+        setActiveSessionKey(cryptoKey);
+        setActiveHmacKey(hmacKey);
+        showToast("Secret Code, AES-256 & HMAC-SHA256 Keys Derived: Nexus MIND Vault Unlocked.", "success");
+        setSecretInput('');
+        onSuccess();
+      } catch (err) {
+        console.error('[CryptoEngine] Key derivation failed:', err);
+        showToast("Cryptographic derivation error. Unlocking in fallback mode.", "warning");
+        setSecretInput('');
+        onSuccess();
+      }
     } else {
       setIsInvalid(true);
       showToast("Incorrect Secret Code. Please try again.", "error");

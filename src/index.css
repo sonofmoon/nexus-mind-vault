@@ -1,2 +1,144 @@
 @import "tailwindcss";
 @import "../public/css/vault.css";
+
+/* ==========================================================================
+   ♿ ITEMS 27 & 34: ACCESSIBILITY & MOBILE TOUCH TARGET ENFORCEMENT
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* Enforce minimum 44px touch target on mobile buttons & inputs */
+  button,
+  .btn,
+  .nav-tab,
+  input[type="button"],
+  input[type="submit"],
+  .icon-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .nav-tab {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+/* Modal Accessibility & Focus Ring */
+[role="dialog"] {
+  outline: none;
+}
+
+[role="dialog"]:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-blue, #3b82f6);
+}
+
+/* High Contrast Focus Indication */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent-blue, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   ✨ ITEM 28 & 31: SKELETON SHIMMER & TOAST PROGRESS ANIMATIONS
+   ========================================================================== */
+
+@keyframes shimmerAnim {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmerAnim 1.6s infinite ease-in-out;
+}
+
+[data-theme="light"] .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.05) 25%,
+    rgba(0, 0, 0, 0.12) 50%,
+    rgba(0, 0, 0, 0.05) 75%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastProgress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+
+/* ============================================================================
+ * 🖨️ ITEM 49: High-Contrast Print Stylesheet (@media print)
+ * ============================================================================ */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Hide navigation, sidebars, controls, toasts, and action toolbars */
+  header,
+  nav,
+  aside,
+  button,
+  .toast-container,
+  .pin-box-group,
+  .command-palette,
+  .google-btn-primary,
+  .google-btn-secondary,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Optimize card & content printing */
+  .google-card,
+  article,
+  .journal-entry-card {
+    border: 1px solid #cccccc !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    margin-bottom: 20px !important;
+    padding: 16px !important;
+  }
+
+  h1, h2, h3 {
+    color: #000000 !important;
+  }
+
+  p {
+    color: #111111 !important;
+    font-size: 12pt !important;
+    line-height: 1.6 !important;
+  }
+}

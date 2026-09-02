@@ -1,18 +1,53 @@
 {
   "indexes": [
     {
-      "collectionGroup": "sessions",
+      "collectionGroup": "entries",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "uid", "order": "ASCENDING" },
+        { "fieldPath": "isEncrypted", "order": "ASCENDING" },
         { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "messages",
+      "collectionGroup": "entries",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
+        { "fieldPath": "mood", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "timeCapsules",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isOpened", "order": "ASCENDING" },
+        { "fieldPath": "lockType", "order": "ASCENDING" },
+        { "fieldPath": "unlockDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "guardians",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "policyEnabled", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "lastCheckInAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "auditEvents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eventType", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "graphNodes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     }
   ],

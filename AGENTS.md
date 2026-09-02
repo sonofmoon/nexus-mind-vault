@@ -1,23 +1,65 @@
-# AGENTS.md - Dual-Mode Security Architect Directives
+# 🧠 Nexus Mind Vault — Dual-Mode Security Architecture & Agent Directives
 
-You operate as an ultra-innovative Dual-Mode Security Architect (Builder + Attacker Red-Teamer).
+> **System Classification**: Sovereign Zero-Knowledge Cryptographic Enclave & Cognitive Mirror
+> **Standard Version**: 2.0.0 (Production Hardened)
 
-## Core Identity & Stance
-- **Mode A (Builder)**: Production-grade, scalable, clean, resilient code.
-- **Mode B (Attacker)**: Mental red-teaming before delivery. Continuous STRIDE analysis & blast radius mitigation.
+---
 
-## Mandatory Security Directives
-1. **THREAT MODEL FIRST**: For every feature, output a mini STRIDE analysis before code.
-2. **ZERO-TRUST BY DEFAULT**: No service trusts another. Every boundary validates strictly.
-3. **CRYPTOGRAPHIC ISOLATION**: Client-decryptable / key-isolated zero-knowledge schemas where keys/passphrases are never held in plaintext on servers.
-4. **SECRET ZERO-PATTERN**: Environment secrets & API keys handled via secure Cloud Secret Manager / isolated server proxies.
-5. **FIRESTORE RULES AS CODE**: Version-controlled, granular RBAC/ABAC rules.
-6. **INPUT SANITIZATION**: Treat ALL user input AND AI-generated output as hostile (DOMPurify, schema validation, zero injection).
-7. **OBSERVABILITY**: Audit logging for all auth changes, privilege elevations, & anomalies.
-8. **RESILIENCE**: Design for compromised admin SDK / blast-radius containment scenarios.
+## 🏛️ System Architecture Overview
 
-## Standard Feature Output Format
-- **Threat Model** (3 focused STRIDE bullets)
-- **Architecture Decision Record** (1 structured paragraph)
-- **Production Code**
-- **Security Test Cases**
+Nexus Mind Vault is an offline-first, zero-knowledge cognitive reflection platform designed around the **STRIDE Threat Modeling Matrix** and **W3C WebCrypto Standards**. The enclave segregates operational data across strict cryptographic partitions:
+
+```
++-------------------------------------------------------------------------+
+|                         Sovereign Web Client                            |
+|  +---------------------+  +--------------------+  +------------------+  |
+|  |   Journal & Canvas  |  |  Time Capsules     |  |  Mind Graph      |  |
+|  |   (Drafts, Audio)   |  |  (SHA-256 Sealed)  |  |  (D3 Interactive)|  |
+|  +---------------------+  +--------------------+  +------------------+  |
+|                             |                                           |
+|                             v                                           |
+|       +---------------------------------------------------------+       |
+|       |     W3C WebCrypto Authenticated Cryptographic Engine    |       |
+|       |  * PBKDF2 (100k rounds)  * AES-GCM-256  * HMAC-SHA-256  |       |
+|       +---------------------------------------------------------+       |
++-----------------------------------|-------------------------------------+
+                                    | Encrypted Ciphertext Only
+                                    v
++-------------------------------------------------------------------------+
+|                  Zero-Knowledge Backend Services                        |
+|  +----------------------------+    +---------------------------------+  |
+|  | Cloud Firestore Sync Engine|    | Resilient 4-Stage Gemini Ladder |  |
+|  | (Ciphertext + SHA Digests) |    | (Air-Gapped Proxy, Rate-Limited)|  |
+|  +----------------------------+    +---------------------------------+  |
++-------------------------------------------------------------------------+
+```
+
+---
+
+## 🔒 Cryptographic Security Contracts
+
+1. **Zero Plaintext Egress**: Plaintext reflections, passphrases, and PINs MUST NEVER be transmitted across HTTP boundaries.
+2. **Deterministic Tamper Rejection**: All data partitions calculate synchronous HMAC-SHA-256 or SHA-256 digests; modified ciphertext is rejected on read.
+3. **Duress Segregation**: Entering a decoy PIN unlocks an isolated, simulated decoy vault without exposing master secrets.
+4. **AI Air-Gap Isolation**: When AI features are toggled off by the user, zero network packets are dispatched to external inference endpoints.
+5. **Memory Hygiene**: Active `CryptoKey` instances reside in volatile RAM only and are zeroized upon Enclave Lock or Panic Purge.
+
+---
+
+## 🧭 Directory Structure & Component Hierarchy
+
+* **`src/components/`**:
+  * `JournalView.tsx`: Rich reflection canvas, templates, streak counter, search, audio notes.
+  * `TimeCapsulesView.tsx`: Cryptographically sealed time-locked vaults.
+  * `SemanticMemoryGraph.tsx`: D3.js physics force-directed concept graph with SVG/PNG exports.
+  * `LegacyGuardianCapsuleView.tsx`: Proof-of-life dead man's switch & claim token engine.
+  * `VaultSettingsView.tsx`: Multi-device manager, biometrics, theme, import/export, and privacy policies.
+  * `ErrorBoundary.tsx`: Enclave-level crash interceptor and session recovery.
+  * `KeyboardShortcutsModal.tsx`: Hotkey reference dialog (`?` key).
+  * `PrivacyPolicyModal.tsx`: GDPR / CCPA sovereign zero-knowledge compliance disclosure.
+* **`src/services/`**:
+  * `cryptoEngine.ts`: WebCrypto AES-GCM-256, PBKDF2, HMAC-SHA-256, and tamper checks.
+  * `vaultStorage.ts`: Local & Cloud Firestore persistence manager.
+  * `logger.ts`: Zero-knowledge structured telemetry logger with automatic redaction.
+* **`src/__tests__/`**:
+  * Vitest automated unit and integration test suite.

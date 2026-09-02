@@ -1,0 +1,4 @@
+# Nexus Mind Vault — Sovereign Privacy Enclave
+# Block all automated search crawlers and indexing bots to preserve user privacy
+User-agent: *
+Disallow: /
