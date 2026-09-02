@@ -1003,48 +1003,56 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
       <div style={{ position: 'relative', width: '100%', height: isFullscreen ? 'calc(100vh - 200px)' : '540px', minHeight: '480px' }}>
         {/* Floating Zoom & Simulation Controls */}
         <div
-          className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col gap-1.5 z-10 p-1.5 rounded-xl google-card"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col gap-1.5 z-10 p-2 rounded-xl google-card"
           style={{
             background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-card)',
+            minWidth: '42px',
           }}
         >
-          
-          {/* Graph Export Controls */}
+          {/* 🖼️ Export / Share PNG Button */}
           <button
             type="button"
             onClick={handleExportPNG}
-            className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] transition-colors"
-            title="Export as PNG Image"
-          >
-            <Image className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleExportSVG}
-            className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] transition-colors"
-            title="Export as Scalable Vector (SVG)"
-          >
-            <FileDown className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleExportJSON}
-            className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] transition-colors"
-            title="Export Graph Topology (JSON)"
+            className="rounded-lg hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-center"
+            style={{
+              width: '34px',
+              height: '34px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              padding: '6px 8px',
+              borderRadius: '6px',
+            }}
+            title="Export Graph as PNG Image"
           >
             <Share2 className="w-4 h-4" />
           </button>
-  
+
+          {/* Navigation & Simulation Controls */}
           <button
             type="button"
             onClick={() => handleZoom(1.3)}
+            className="rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
             style={{
               background: 'transparent',
               border: 'none',
               color: 'var(--text-primary)',
-              padding: '6px',
+              padding: '6px 8px',
               borderRadius: '6px',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '34px',
+              height: '34px',
+              margin: '0 auto',
             }}
             title="Zoom In"
           >
@@ -1053,13 +1061,20 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
           <button
             type="button"
             onClick={() => handleZoom(0.7)}
+            className="rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
             style={{
               background: 'transparent',
               border: 'none',
               color: 'var(--text-primary)',
-              padding: '6px',
+              padding: '6px 8px',
               borderRadius: '6px',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '34px',
+              height: '34px',
+              margin: '0 auto',
             }}
             title="Zoom Out"
           >
@@ -1068,29 +1083,42 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
           <button
             type="button"
             onClick={handleResetZoom}
+            className="rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
             style={{
               background: 'transparent',
               border: 'none',
               color: 'var(--text-primary)',
-              padding: '6px',
+              padding: '6px 8px',
               borderRadius: '6px',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '34px',
+              height: '34px',
+              margin: '0 auto',
             }}
             title="Center & Reset View"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '2px 0' }} />
           <button
             type="button"
             onClick={togglePhysics}
+            className="rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
             style={{
               background: 'transparent',
               border: 'none',
-              color: isPhysicsRunning ? '#34d399' : '#f87171',
-              padding: '6px',
+              color: isPhysicsRunning ? '#22c55e' : '#ef4444',
+              padding: '6px 8px',
               borderRadius: '6px',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '34px',
+              height: '34px',
+              margin: '0 auto',
             }}
             title={isPhysicsRunning ? 'Pause Physics' : 'Resume Physics Simulation'}
           >

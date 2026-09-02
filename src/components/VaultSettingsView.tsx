@@ -283,17 +283,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={onLockVault}
-            className="btn btn-secondary"
-            style={{ borderColor: 'rgba(217, 48, 37, 0.3)', color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px' }}
-          >
-            <Lock className="w-3.5 h-3.5" />
-            <span>Emergency Lock</span>
-          </button>
-        </div>
       </div>
 
       {/* Grid of Settings Modules */}
@@ -538,123 +527,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
 
 
         
-        
-        {/* ==================================================================== */}
-        {/* 🔔 ITEM 2 & 3: Server-Side Web Push & Scheduled Reminders Card */}
-        {/* ==================================================================== */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
-                <Bell className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>Web Push & Background Reminders</h2>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>RFC 8291 / 8292 encrypted push notifications with VAPID signatures</span>
-              </div>
-            </div>
-            <span style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: '100px',
-              background: typeof Notification !== 'undefined' && Notification.permission === 'granted' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-              color: typeof Notification !== 'undefined' && Notification.permission === 'granted' ? '#22c55e' : '#ef4444'
-            }}>
-              {typeof Notification !== 'undefined' ? `${Notification.permission.toUpperCase()}` : 'UNSUPPORTED'}
-            </span>
-          </div>
-
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-            Receive cognitive reflection prompts, legacy guardian proof-of-life alerts, and time capsule unlocks even when the browser tab is closed.
-          </p>
-
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              onClick={async () => {
-                if (typeof Notification === 'undefined') {
-                  showToast('Web Notifications are not supported in this browser.', 'error');
-                  return;
-                }
-                const perm = await Notification.requestPermission();
-                if (perm === 'granted') {
-                  showToast('🔔 Push Notifications Enabled! Device registered in Firestore.', 'success');
-                } else {
-                  showToast('Push permission denied by user.', 'warning');
-                }
-              }}
-            >
-              <Bell className="w-3.5 h-3.5" />
-              <span>Enable Push Notifications</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              onClick={() => {
-                if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                  new Notification('Nexus Mind Vault 🛡️', {
-                    body: 'Test Push: Your sovereign cognitive vault is active and encrypted.',
-                    icon: '/favicon.svg',
-                  });
-                  showToast('🚀 Test push notification dispatched to your desktop!', 'success');
-                } else {
-                  showToast('Please enable push notifications first.', 'warning');
-                }
-              }}
-            >
-              <span>Test Push Dispatch</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ==================================================================== */}
-        {/* 📖 ITEM 42: Interactive Swagger / OpenAPI Specification Card */}
-        {/* ==================================================================== */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c084fc' }}>
-              <Terminal className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>API Documentation & OpenAPI 3.0</h2>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Interactive Swagger UI and JSON contract for enterprise integrations</span>
-            </div>
-          </div>
-
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-            Inspect zero-trust authentication schemas, AI microservice contracts, and background scheduler signatures.
-          </p>
-
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <a
-              href="/api/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary"
-              style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Open Swagger UI (/api/docs)</span>
-            </a>
-
-            <a
-              href="/api/openapi.json"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary"
-              style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>OpenAPI Specification (/api/openapi.json)</span>
-            </a>
-          </div>
-        </div>
-
         {/* 🔒 ITEM 14: Hardware Biometric Authentication (WebAuthn / Touch ID / Windows Hello) */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -683,92 +555,10 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               onClick={handleEnrollBiometrics}
             >
               <Fingerprint className="w-4 h-4" />
-              {settings.biometricsEnabled ? 'Re-Enroll Hardware Biometrics' : 'Enroll Touch ID / Windows Hello'}
             </button>
           </div>
         </div>
 
-        {/* 🔒 ITEM 16: Selective Data Portability & Component Exports */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
-              <Download className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>Selective Data Portability & Exports</h2>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Download specific partitions in Markdown, CSV, or JSON</span>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
-              onClick={() => {
-                exportEntriesAsMarkdown(entries);
-                showToast('Exported entries as Markdown (.md)', 'success');
-              }}
-            >
-              <FileText className="w-4 h-4 text-purple-400" />
-              Journal (.MD)
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
-              onClick={() => {
-                exportEntriesAsCSV(entries);
-                showToast('Exported entries as Spreadsheet (.csv)', 'success');
-              }}
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-              Journal (.CSV)
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
-              onClick={() => {
-                exportEntriesAsJSON(entries);
-                showToast('Exported entries as JSON', 'success');
-              }}
-            >
-              <FileText className="w-4 h-4 text-blue-400" />
-              Journal (.JSON)
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
-              onClick={() => {
-                exportCapsulesAsJSON(capsules);
-                showToast('Exported Time Capsules as JSON', 'success');
-              }}
-            >
-              <Clock className="w-4 h-4 text-amber-400" />
-              Time Capsules (.JSON)
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '10px 14px', fontSize: '12px' }}
-              onClick={() => {
-                exportMindGraphAsJSON({ nodes: entries.map(e => ({ id: e.id, title: e.title, tags: e.tags })) });
-                showToast('Exported Mind Graph as JSON', 'success');
-              }}
-            >
-              <Network className="w-4 h-4 text-cyan-400" />
-              Mind Graph (.JSON)
-            </button>
-          </div>
-        </div>
-
-        
         {/* 🔒 ITEM 18: Multi-Device Sessions & Active Device Footprints */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
@@ -845,60 +635,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             ))}
           </div>
         </div>
-
-        {/* 🔒 ITEM 19: Data Schema Versioning & Integrity Engine */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7' }}>
-                <Layers className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>Data Schema Version & Compatibility</h2>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Automated migration and backward compatibility</span>
-              </div>
-            </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '100px', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>
-              Schema v{schemaVersion} (Latest: v{CURRENT_SCHEMA_VERSION})
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Ensures zero-knowledge entries, tamper HMAC stamps, and cloud sync models are format-compliant.
-            </span>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ fontSize: '12px', padding: '6px 14px' }}
-              onClick={handleRunMigration}
-            >
-              Verify & Run Schema Migration
-            </button>
-          </div>
-        </div>
-
-        
-            {/* ITEM 25: External File Importer */}
-            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', display: 'block', marginBottom: '6px' }}>
-                Import Reflections (Markdown .md / JSON / Day One)
-              </span>
-              <label
-                className="btn btn-secondary"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', padding: '8px 14px' }}
-              >
-                <Upload className="w-4 h-4 text-purple-400" />
-                {isImporting ? 'Parsing & Importing...' : 'Select Markdown / JSON File to Import'}
-                <input
-                  type="file"
-                  accept=".md,.json,.txt"
-                  style={{ display: 'none' }}
-                  onChange={handleImportFileInput}
-                  disabled={isImporting}
-                />
-              </label>
-            </div>
 
         {/* Card 5: Nexus Legacy Guardian Protocol */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>

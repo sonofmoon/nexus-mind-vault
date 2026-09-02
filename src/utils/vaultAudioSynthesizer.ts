@@ -138,6 +138,10 @@ class VaultAudioSynthesizer {
     this.playPanicLockSound();
   }
 
+  playKeypadBeep() {
+    this.playKeyClick();
+  }
+
   playKeyClick() {
     try {
       const ctx = this.getContext();

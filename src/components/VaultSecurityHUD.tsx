@@ -62,7 +62,7 @@ export const VaultSecurityHUD: React.FC<VaultSecurityHUDProps> = ({
     const startTime = Date.now();
     const duration = 1800; // 1.8 seconds hold
 
-    try { vaultAudio.playKeypadBeep(); } catch {}
+    try { vaultAudio.playKeyClick(); } catch {}
 
     holdTimerRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;

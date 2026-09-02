@@ -80,7 +80,21 @@ export const SharedEntryViewerModal: React.FC<SharedEntryViewerModalProps> = ({
   if (!encodedData) return null;
 
   return (
-    <div className="modal-backdrop" style={{ zIndex: 1200 }} onClick={onClose}>
+    <div
+      className="modal-backdrop"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 12000,
+        background: 'rgba(15, 23, 42, 0.8)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+      }}
+      onClick={onClose}
+    >
       <div
         className="modal-content"
         style={{

@@ -1,6 +1,6 @@
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { clearActiveSessionKey } from './services/cryptoEngine';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 // Google Enterprise UI/UX Polish: Command Palette, Skeleton Shimmers & Fluid Hotkeys
 import { UserSession, VaultCredentials, VaultMode, TabType, JournalEntry, TimeCapsule, ToastMessage } from './types';
 import { initAuthListener, signOutUser } from './services/authService';
@@ -124,11 +124,28 @@ export function App() {
     return () => window.removeEventListener('vault_settings_updated', handleSettingsUpdated);
   }, [user]);
 
+  const recentToastsRef = useRef<Map<string, number>>(new Map());
+
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    if (!message) return;
+    const now = Date.now();
+    const lastTime = recentToastsRef.current.get(message);
+    if (lastTime && now - lastTime < 1500) {
+      return; // Deduplicate rapid identical toasts
+    }
+    recentToastsRef.current.set(message, now);
+
     const id = 'toast_' + Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => {
+      if (prev.some((t) => t.message === message)) {
+        return prev;
+      }
+      return [...prev, { id, message, type }];
+    });
+
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
+      recentToastsRef.current.delete(message);
     }, 4500);
   }, []);
 
@@ -209,13 +226,14 @@ export function App() {
   const handleToggleTheme = useCallback(() => {
     setTheme((prev) => {
       const next = prev === 'dark' ? 'light' : 'dark';
-      showToast(
-        next === 'dark' ? 'Switched to High-Contrast Security Dark Mode' : 'Switched to System Light Mode',
-        'info'
-      );
       return next;
     });
-  }, [showToast]);
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    showToast(
+      nextTheme === 'dark' ? 'Switched to High-Contrast Security Dark Mode' : 'Switched to System Light Mode',
+      'info'
+    );
+  }, [theme, showToast]);
 
   // Sync Auth state
   useEffect(() => {
@@ -703,6 +721,22 @@ export function App() {
       )}
 
       {/* Toast Notifications & PWA Install Banner */}
+            {/* 🔒 Single-Entry Sovereign Encrypted Shared Reflection Viewer Modal */}
+      {activeSharedEntryPayload && (
+        <SharedEntryViewerModal
+          encodedData={activeSharedEntryPayload}
+          onClose={() => {
+            setActiveSharedEntryPayload(null);
+            if (typeof window !== 'undefined' && window.history) {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('shared_entry');
+              window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+            }
+          }}
+          showToast={showToast}
+        />
+      )}
+
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
       <PWAInstallBanner />
     </div>

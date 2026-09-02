@@ -1,6 +1,6 @@
 import { generateEntryShareLink, generateEncryptedEntryShareLink } from '../utils/entrySharingEngine';
 import { ConfirmationModal } from './ConfirmationModal';
-import { Share2, Undo2, Printer, CheckCircle2 } from 'lucide-react';
+import { Share2, Undo2, Printer, CheckCircle2, Sparkles } from 'lucide-react';
 import { authenticatedFetch } from '../services/apiClient';
 import { sanitizePlainText } from '../utils/sanitizeHtml';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -706,7 +706,6 @@ export const JournalView: React.FC<JournalViewProps> = ({
     setRecordedAudioUrl(null);
     setVoiceStatus('idle');
     setRecordingSeconds(0);
-    showToast("Journal entry safely encrypted and saved to Vault.", "success");
   };
 
   // Attachment Checkbox Toggle
