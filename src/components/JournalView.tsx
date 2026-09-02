@@ -1517,7 +1517,73 @@ export const JournalView: React.FC<JournalViewProps> = ({
             {/* Entries List */}
             <div id="entries-list" style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
               {filteredEntries.length === 0 ? (
-                <div className="empty-state">{entriesEmptyText}</div>
+                <div
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: '1px dashed var(--border-subtle)',
+                    borderRadius: '20px',
+                    padding: '48px 24px',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '14px',
+                    boxShadow: 'var(--shadow-subtle)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '20px',
+                      background: 'rgba(59, 130, 246, 0.12)',
+                      color: 'var(--blue)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <BookOpen className="w-8 h-8 text-blue-500" />
+                  </div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    Your Sovereign Vault is Ready
+                  </h3>
+                  <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', maxWidth: '440px', margin: 0, lineHeight: 1.6 }}>
+                    {searchQuery
+                      ? `No reflections match '${searchQuery}'. Try searching another keyword or clearing your filters.`
+                      : 'Capture your thoughts, ideas, and reflections in complete privacy. Every memory is cryptographically sealed with AES-GCM-256 before saving.'}
+                  </p>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ padding: '10px 20px', borderRadius: '12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        const titleInput = document.getElementById('entry-title-input');
+                        if (titleInput) titleInput.focus();
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Write First Reflection</span>
+                    </button>
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '10px 18px', borderRadius: '12px', fontSize: '13px' }}
+                        onClick={() => {
+                          setSearchQuery('');
+                          setFilterFolder('');
+                          setFilterDate('');
+                          setFilterAttachments([]);
+                        }}
+                      >
+                        <span>Clear Search</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
               ) : (
                 filteredEntries.map((entry) => {
                   const moodObj = MOODS.find((m) => m.type === entry.mood) || MOODS[0];

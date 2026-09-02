@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { OnboardingCarouselModal } from './OnboardingCarouselModal';
 import { PinBoxGroup } from './PinBoxGroup';
 import { NexusMindVaultLogo } from './NexusMindVaultLogo';
 import { Shield, KeyRound, Lock, CheckCircle2, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react';
@@ -14,6 +15,7 @@ export const FirstTimeSetupModal: React.FC<FirstTimeSetupModalProps> = ({
   onComplete,
   showToast,
 }) => {
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const [step, setStep] = useState<1 | 2>(1);
   const [pinDigits, setPinDigits] = useState<string[]>(Array(6).fill(''));
   const [confirmPinDigits, setConfirmPinDigits] = useState<string[]>(Array(6).fill(''));
@@ -27,6 +29,10 @@ export const FirstTimeSetupModal: React.FC<FirstTimeSetupModalProps> = ({
   const [confirmPinInvalid, setConfirmPinInvalid] = useState(false);
 
   if (!isOpen) return null;
+
+  if (showOnboarding) {
+    return <OnboardingCarouselModal isOpen={true} onComplete={() => setShowOnboarding(false)} />;
+  }
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();

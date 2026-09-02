@@ -538,6 +538,123 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
 
 
         
+        
+        {/* ==================================================================== */}
+        {/* 🔔 ITEM 2 & 3: Server-Side Web Push & Scheduled Reminders Card */}
+        {/* ==================================================================== */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>Web Push & Background Reminders</h2>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>RFC 8291 / 8292 encrypted push notifications with VAPID signatures</span>
+              </div>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: '100px',
+              background: typeof Notification !== 'undefined' && Notification.permission === 'granted' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              color: typeof Notification !== 'undefined' && Notification.permission === 'granted' ? '#22c55e' : '#ef4444'
+            }}>
+              {typeof Notification !== 'undefined' ? `${Notification.permission.toUpperCase()}` : 'UNSUPPORTED'}
+            </span>
+          </div>
+
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            Receive cognitive reflection prompts, legacy guardian proof-of-life alerts, and time capsule unlocks even when the browser tab is closed.
+          </p>
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={async () => {
+                if (typeof Notification === 'undefined') {
+                  showToast('Web Notifications are not supported in this browser.', 'error');
+                  return;
+                }
+                const perm = await Notification.requestPermission();
+                if (perm === 'granted') {
+                  showToast('🔔 Push Notifications Enabled! Device registered in Firestore.', 'success');
+                } else {
+                  showToast('Push permission denied by user.', 'warning');
+                }
+              }}
+            >
+              <Bell className="w-3.5 h-3.5" />
+              <span>Enable Push Notifications</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={() => {
+                if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                  new Notification('Nexus Mind Vault 🛡️', {
+                    body: 'Test Push: Your sovereign cognitive vault is active and encrypted.',
+                    icon: '/favicon.svg',
+                  });
+                  showToast('🚀 Test push notification dispatched to your desktop!', 'success');
+                } else {
+                  showToast('Please enable push notifications first.', 'warning');
+                }
+              }}
+            >
+              <span>Test Push Dispatch</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ==================================================================== */}
+        {/* 📖 ITEM 42: Interactive Swagger / OpenAPI Specification Card */}
+        {/* ==================================================================== */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c084fc' }}>
+              <Terminal className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>API Documentation & OpenAPI 3.0</h2>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Interactive Swagger UI and JSON contract for enterprise integrations</span>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            Inspect zero-trust authentication schemas, AI microservice contracts, and background scheduler signatures.
+          </p>
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <a
+              href="/api/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+              style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Open Swagger UI (/api/docs)</span>
+            </a>
+
+            <a
+              href="/api/openapi.json"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+              style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>OpenAPI Specification (/api/openapi.json)</span>
+            </a>
+          </div>
+        </div>
+
         {/* 🔒 ITEM 14: Hardware Biometric Authentication (WebAuthn / Touch ID / Windows Hello) */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

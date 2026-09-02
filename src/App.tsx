@@ -41,6 +41,7 @@ import { ToastContainer } from './components/ToastContainer';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { initGlobalReminderMonitor, requestNotificationPermission } from './utils/notificationEngine';
 import { AutoLockWarningBanner } from './components/AutoLockWarningBanner';
+import { SharedEntryViewerModal } from './components/SharedEntryViewerModal';
 
 export function App() {
   const [user, setUser] = useState<UserSession | null>(null);
@@ -53,6 +54,21 @@ export function App() {
   const [capsules, setCapsules] = useState<TimeCapsule[]>([]);
   const [parallelPersona, setParallelPersona] = useState<any>(() => getParallelPersona('default_user'));
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // 🔒 ITEM 24: Single-Entry Sovereign Shared URL Interceptor
+  const [activeSharedEntryPayload, setActiveSharedEntryPayload] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const sharedParam = searchParams.get('shared_entry');
+      if (sharedParam && sharedParam.trim().length > 0) {
+        setActiveSharedEntryPayload(sharedParam.trim());
+      }
+    } catch (err) {
+      console.warn('Failed to parse incoming shared entry URL param:', err);
+    }
+  }, []);
 
   // Sync Parallel Persona on user change and via custom update event
   useEffect(() => {

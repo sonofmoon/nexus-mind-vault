@@ -52,6 +52,40 @@ export const VaultSecurityHUD: React.FC<VaultSecurityHUDProps> = ({
     }
   };
 
+  const [isHoldingPanic, setIsHoldingPanic] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdTimerRef = React.useRef<any>(null);
+
+  const startPanicHold = () => {
+    setIsHoldingPanic(true);
+    setHoldProgress(0);
+    const startTime = Date.now();
+    const duration = 1800; // 1.8 seconds hold
+
+    try { vaultAudio.playKeypadBeep(); } catch {}
+
+    holdTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(100, Math.round((elapsed / duration) * 100));
+      setHoldProgress(pct);
+
+      if (elapsed >= duration) {
+        clearInterval(holdTimerRef.current);
+        setIsHoldingPanic(false);
+        setHoldProgress(0);
+        handlePanicClick();
+      }
+    }, 50);
+  };
+
+  const cancelPanicHold = () => {
+    if (holdTimerRef.current) {
+      clearInterval(holdTimerRef.current);
+    }
+    setIsHoldingPanic(false);
+    setHoldProgress(0);
+  };
+
   const handlePanicClick = () => {
     try { vaultAudio.playPanicLockSound(); } catch {}
     if (onPanicLock) {
@@ -223,26 +257,48 @@ export const VaultSecurityHUD: React.FC<VaultSecurityHUDProps> = ({
         {/* 2. Emergency Panic Purge Button (Duress Trap) */}
         <button
           type="button"
-          onClick={handlePanicClick}
+          onMouseDown={startPanicHold}
+          onMouseUp={cancelPanicHold}
+          onMouseLeave={cancelPanicHold}
+          onTouchStart={startPanicHold}
+          onTouchEnd={cancelPanicHold}
           style={{
-            background: '#d93025',
+            position: 'relative',
+            background: isHoldingPanic ? '#991b1b' : '#d93025',
             border: 'none',
             color: '#ffffff',
             fontSize: '11px',
             fontWeight: 700,
-            padding: '3px 10px',
+            padding: '3px 12px',
             borderRadius: 'var(--radius-pill)',
             display: 'flex',
             alignItems: 'center',
-            gap: '4px',
+            gap: '5px',
             cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(217, 48, 37, 0.35)',
+            boxShadow: isHoldingPanic ? '0 0 12px rgba(220, 38, 38, 0.8)' : '0 2px 8px rgba(217, 48, 37, 0.35)',
             transition: 'all 0.15s ease',
+            userSelect: 'none',
+            overflow: 'hidden',
           }}
-          title="⚡ Emergency Panic Purge: Deploy Cover Decoy & Air-Gap Secret Gate immediately"
+          title="⚡ Emergency Panic Purge: Press & Hold for 2 seconds to zeroize memory & deploy cover decoy"
         >
+          {isHoldingPanic && (
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: `${holdProgress}%`,
+                background: 'rgba(255, 255, 255, 0.35)',
+                transition: 'width 50ms linear',
+              }}
+            />
+          )}
           <AlertOctagon className="w-3 h-3" />
-          <span>Panic Purge</span>
+          <span style={{ position: 'relative', zIndex: 2 }}>
+            {isHoldingPanic ? `HOLD (${holdProgress}%)...` : 'Panic Purge'}
+          </span>
         </button>
       </div>
     </div>

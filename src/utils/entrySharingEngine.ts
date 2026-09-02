@@ -73,11 +73,11 @@ export async function generateEncryptedEntryShareLink(
     ? btoa(unescape(encodeURIComponent(jsonStr)))
     : Buffer.from(jsonStr).toString('base64');
 
-  const origin = (typeof window !== 'undefined' && window.location && window.location.origin)
-    ? window.location.origin
+  const baseUrl = (typeof window !== 'undefined' && window.location)
+    ? `${window.location.origin}${window.location.pathname.replace(/\/apps\/nmv/, '')}`.replace(/\/$/, '')
     : 'http://localhost:5173';
 
-  return `${origin}/apps/nmv?shared_entry=${encodeURIComponent(encoded)}`;
+  return `${baseUrl}/?shared_entry=${encodeURIComponent(encoded)}`;
 }
 
 /**
@@ -107,11 +107,11 @@ export function generateEntryShareLink(
   const encoded = (typeof btoa !== 'undefined')
     ? btoa(unescape(encodeURIComponent(jsonStr)))
     : Buffer.from(jsonStr).toString('base64');
-  const origin = (typeof window !== 'undefined' && window.location && window.location.origin)
-    ? window.location.origin
+  const baseUrl = (typeof window !== 'undefined' && window.location)
+    ? `${window.location.origin}${window.location.pathname.replace(/\/apps\/nmv/, '')}`.replace(/\/$/, '')
     : 'http://localhost:5173';
 
-  return `${origin}/apps/nmv?shared_entry=${encodeURIComponent(encoded)}`;
+  return `${baseUrl}/?shared_entry=${encodeURIComponent(encoded)}`;
 }
 
 /**
