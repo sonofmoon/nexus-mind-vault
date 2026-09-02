@@ -19,6 +19,8 @@ import {
   calculateGuardianHeartbeat,
 } from '../services/vaultStorage';
 import {
+  Bell,
+  ExternalLink,
   Shield,
   ShieldCheck,
   Key,

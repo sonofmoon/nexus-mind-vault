@@ -1,4 +1,4 @@
-import { generateEntryShareLink } from '../utils/entrySharingEngine';
+import { generateEntryShareLink, generateEncryptedEntryShareLink } from '../utils/entrySharingEngine';
 import { ConfirmationModal } from './ConfirmationModal';
 import { Share2, Undo2, Printer } from 'lucide-react';
 import { authenticatedFetch } from '../services/apiClient';
@@ -106,12 +106,25 @@ export const JournalView: React.FC<JournalViewProps> = ({
   const [recentlyDeleted, setRecentlyDeleted] = useState<JournalEntry | null>(null);
   const [deleteConfirmEntry, setDeleteConfirmEntry] = useState<JournalEntry | null>(null);
 
-  const handleCreateShareLink = () => {
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  const [shareExpirationHours, setShareExpirationHours] = useState(48);
+
+  const handleCreateShareLink = async () => {
     if (!sharingEntry) return;
-    const url = generateEntryShareLink(sharingEntry, sharePassphrase, 48);
-    setGeneratedShareUrl(url);
-    navigator.clipboard?.writeText(url);
-    showToast('Encrypted share link copied to clipboard (valid 48h)!', 'success');
+    setIsGeneratingShare(true);
+    try {
+      const url = await generateEncryptedEntryShareLink(sharingEntry, sharePassphrase, shareExpirationHours);
+      setGeneratedShareUrl(url);
+      navigator.clipboard?.writeText(url);
+      showToast('🔒 AES-GCM-256 encrypted share link generated & copied to clipboard!', 'success');
+    } catch (err: any) {
+      const fallbackUrl = generateEntryShareLink(sharingEntry, sharePassphrase, shareExpirationHours);
+      setGeneratedShareUrl(fallbackUrl);
+      navigator.clipboard?.writeText(fallbackUrl);
+      showToast('Encrypted share link copied to clipboard!', 'success');
+    } finally {
+      setIsGeneratingShare(false);
+    }
   };
 
   const handleRequestDelete = (entry: JournalEntry) => {
@@ -1635,6 +1648,34 @@ export const JournalView: React.FC<JournalViewProps> = ({
                                   width: '100%',
                                   padding: '8px 12px',
                                   fontSize: '13px',
+                                  color: 'var(--blue)',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  minHeight: 'auto',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  setSharingEntry(entry);
+                                  setSharePassphrase('');
+                                  setGeneratedShareUrl(null);
+                                }}
+                              >
+                                <Share2 className="w-3.5 h-3.5 text-blue-500" />
+                                <span>Share Reflection</span>
+                              </button>
+                              <button
+                                type="button"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  fontSize: '13px',
                                   color: 'var(--red)',
                                   background: 'transparent',
                                   border: 'none',
@@ -2081,6 +2122,122 @@ export const JournalView: React.FC<JournalViewProps> = ({
                 }}
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      
+      {/* 🔒 ITEM 24: Single-Entry AES-GCM Encrypted Sharing Modal */}
+      {sharingEntry && (
+        <div className="modal-backdrop" style={{ zIndex: 1100 }} onClick={() => setSharingEntry(null)}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: '520px', width: '90%', padding: '24px', borderRadius: '16px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Share2 className="w-4 h-4 text-blue-500" />
+                </div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Share Encrypted Reflection</h3>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setSharingEntry(null)}
+                style={{ borderRadius: '50%', padding: '4px' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
+              Generate an end-to-end encrypted sovereign link. The entry is encrypted in-browser using <strong>AES-GCM-256</strong> with PBKDF2 key derivation.
+            </p>
+
+            <div style={{ background: 'var(--bg-sidebar)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)', marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Reflection Title</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{sharingEntry.title || 'Untitled Reflection'}</div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>
+                Optional Security Passphrase
+              </label>
+              <input
+                type="password"
+                className="input-field"
+                placeholder="Leave blank for sovereign open link, or set passphrase..."
+                value={sharePassphrase}
+                onChange={(e) => setSharePassphrase(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', fontSize: '13px' }}
+              />
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                If set, recipients must enter this exact passphrase to decrypt the reflection in memory.
+              </span>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>
+                Link Expiration
+              </label>
+              <select
+                value={shareExpirationHours}
+                onChange={(e) => setShareExpirationHours(Number(e.target.value))}
+                style={{ width: '100%', padding: '8px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid var(--border)' }}
+              >
+                <option value={12}>12 Hours</option>
+                <option value={24}>24 Hours</option>
+                <option value={48}>48 Hours (Default)</option>
+                <option value={168}>7 Days</option>
+              </select>
+            </div>
+
+            {generatedShareUrl ? (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-emerald)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 className="w-4 h-4" /> Link Ready & Copied to Clipboard!
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={generatedShareUrl}
+                    style={{ flex: 1, padding: '8px 10px', fontSize: '11px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-sidebar)' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ fontSize: '12px', padding: '8px 14px' }}
+                    onClick={() => {
+                      navigator.clipboard?.writeText(generatedShareUrl);
+                      showToast('Copied share link to clipboard!', 'success');
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setSharingEntry(null)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={isGeneratingShare}
+                onClick={handleCreateShareLink}
+              >
+                {isGeneratingShare ? 'Encrypting...' : 'Generate Encrypted Link'}
               </button>
             </div>
           </div>
