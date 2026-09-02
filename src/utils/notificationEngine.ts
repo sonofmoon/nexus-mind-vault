@@ -9,7 +9,7 @@ import { authenticatedFetch } from '../services/apiClient';
 
 // Sovereign Public VAPID Key (RFC 8292 Web Push Application Server Key)
 export const DEFAULT_VAPID_PUBLIC_KEY =
-  'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+  'BFxdF_jvygQI0M8MX84-fEujfGOtDNyzaGTnT3wz8rypEu2nIMIvx5iOKarM_-UJwy9LJOQUwCGG8bbdBBlngAE';
 
 /**
  * Converts a base64 string to a Uint8Array for PushManager subscription

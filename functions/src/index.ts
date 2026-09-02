@@ -1,4 +1,5 @@
 import { getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
 import { onRequest } from 'firebase-functions/v2/https';
 import { generateWithFallback } from './geminiEngine';
 import { onJournalEntryWritten } from './triggers/journalTriggers';
@@ -7,6 +8,28 @@ import { checkTimeCapsuleUnlocks } from './schedulers/capsuleScheduler';
 
 if (!getApps().length) {
   initializeApp();
+}
+
+/**
+ * 🔒 Zero-Trust Cryptographic Token Guard: Verifies Firebase RS256 Bearer ID Token
+ */
+async function authenticateRequest(req: any): Promise<DecodedIdToken | null> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.split('Bearer ')[1];
+  if (!token || token.trim() === '' || token === 'demo_session_token') {
+    return null;
+  }
+
+  try {
+    return await getAuth().verifyIdToken(token, true);
+  } catch (err: any) {
+    console.warn('[Cloud Functions Auth] Cryptographic token verification failed:', err.message);
+    return null;
+  }
 }
 
 function getSystemInstruction(mode: string): string {
@@ -22,7 +45,10 @@ function getSystemInstruction(mode: string): string {
   }
 }
 
-// 🔒 ITEM 1: AI Cognitive Microservices
+// ============================================================================
+// 🔒 AI Cognitive Microservices with Strict Zero-Trust Token Verification
+// ============================================================================
+
 export const chatWithGemini = onRequest(
   {
     cors: true,
@@ -33,6 +59,15 @@ export const chatWithGemini = onRequest(
   async (req, res) => {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const user = await authenticateRequest(req);
+    if (!user) {
+      res.status(401).json({
+        error: 'Unauthorized: Missing or invalid Firebase ID token.',
+        code: 'auth/unauthorized',
+      });
       return;
     }
 
@@ -74,6 +109,15 @@ export const generateTrends = onRequest(
       return;
     }
 
+    const user = await authenticateRequest(req);
+    if (!user) {
+      res.status(401).json({
+        error: 'Unauthorized: Missing or invalid Firebase ID token.',
+        code: 'auth/unauthorized',
+      });
+      return;
+    }
+
     try {
       const { entries = [] } = req.body;
       const prompt = `Analyze the emotional, psychological, and productivity trends across these journal entries: ${JSON.stringify(entries)}`;
@@ -100,6 +144,15 @@ export const extractSemanticGraph = onRequest(
   async (req, res) => {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const user = await authenticateRequest(req);
+    if (!user) {
+      res.status(401).json({
+        error: 'Unauthorized: Missing or invalid Firebase ID token.',
+        code: 'auth/unauthorized',
+      });
       return;
     }
 
@@ -133,11 +186,18 @@ export const translateParallelPersona = onRequest(
       return;
     }
 
+    const user = await authenticateRequest(req);
+    if (!user) {
+      res.status(401).json({
+        error: 'Unauthorized: Missing or invalid Firebase ID token.',
+        code: 'auth/unauthorized',
+      });
+      return;
+    }
+
     try {
       const { text, persona = 'stoic' } = req.body;
-      const prompt = `Reframe this reflection from the perspective of a ${persona} philosopher:
-
-${text}`;
+      const prompt = `Reframe this reflection from the perspective of a ${persona} philosopher:\n\n${text}`;
 
       const result = await generateWithFallback({
         contents: prompt,

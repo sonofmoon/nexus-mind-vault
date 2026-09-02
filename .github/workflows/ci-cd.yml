@@ -56,8 +56,12 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Deploy to Firebase Hosting & Functions
+      - name: Deploy to Firebase & Cloud Run (with Secret Manager Secrets)
         if: env.FIREBASE_TOKEN != ''
         run: npx firebase-tools deploy --only hosting,functions,firestore:indexes
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}

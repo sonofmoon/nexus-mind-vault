@@ -1,3 +1,4 @@
+import webpush from "web-push";
 /**
  * Full-Stack Dev & Production Server for Nexus Mind Vault
  * Binds to host 0.0.0.0 and dynamic PORT
@@ -10,6 +11,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
@@ -25,6 +27,9 @@ export const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   GEMINI_API_KEY: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().optional().default("neural-vault-22e16"),
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional().default("mailto:admin@nexusvault.app"),
 });
 
 const envValidation = EnvSchema.safeParse(process.env);
@@ -106,6 +111,19 @@ if (!getApps().length) {
   }
 }
 
+
+// 🔔 Configure Web Push RFC 8292 VAPID Credentials for Background Push Notifications
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BFxdF_jvygQI0M8MX84-fEujfGOtDNyzaGTnT3wz8rypEu2nIMIvx5iOKarM_-UJwy9LJOQUwCGG8bbdBBlngAE";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "m3QHW8hoJgPanjxhPEYmKrNiGdt3JXcqPd3MhRwWSVw";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@nexusvault.app";
+
+try {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  console.log("[Server] 🔔 Web-Push VAPID details configured successfully.");
+} catch (vapidErr: any) {
+  console.warn("[Server] Web-Push VAPID initialization warning:", vapidErr.message);
+}
+
 // 🔒 ITEM 5: Express Rate Limiting Middleware
 const globalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -176,6 +194,15 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
   // ============================================================================
   // 🔔 ITEM 13 & Server-Side Push Subscription & Dispatch Endpoints
   // ============================================================================
+  
+  // 🔔 Public VAPID Key Endpoint (Allows Client to dynamically acquire Secret Manager public key)
+  app.get("/api/notifications/vapid-public-key", (_req: Request, res: Response) => {
+    res.status(200).json({
+      publicKey: VAPID_PUBLIC_KEY,
+      subject: VAPID_SUBJECT,
+    });
+  });
+
   app.post("/api/notifications/subscribe", requireFirebaseAuth, async (req: Request, res: Response) => {
     try {
       const parsed = PushSubscriptionSchema.safeParse(req.body);
@@ -221,7 +248,7 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
     }
   });
 
-  app.post("/api/notifications/dispatch-push", requireFirebaseAuth, async (req: Request, res: Response) => {
+    app.post("/api/notifications/dispatch-push", requireFirebaseAuth, async (req: Request, res: Response) => {
     try {
       const parsed = PushDispatchSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -231,19 +258,64 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
       const uid = (req as any).user.uid;
       const { title, body, tag, url } = parsed.data;
 
-      const subsSnapshot = await getFirestore().collection("users").doc(uid).collection("push_subscriptions").where("active", "==", true).get();
+      const subsSnapshot = await getFirestore()
+        .collection("users")
+        .doc(uid)
+        .collection("push_subscriptions")
+        .where("active", "==", true)
+        .get();
+
       if (subsSnapshot.empty) {
         return res.status(200).json({ delivered: 0, message: "No active push subscriptions registered for user." });
       }
 
-      console.log(`[Push Server] 🚀 Dispatched push notification "${title}" to ${subsSnapshot.size} devices for user ${uid}`);
+      const pushPayload = JSON.stringify({
+        title,
+        body,
+        tag: tag || "nexus-reminder",
+        url: url || "/",
+        timestamp: Date.now(),
+      });
+
+      let delivered = 0;
+      let pruned = 0;
+
+      const sendPromises = subsSnapshot.docs.map(async (docSnap) => {
+        const subData = docSnap.data();
+        const pushSubscription = {
+          endpoint: subData.endpoint,
+          keys: {
+            p256dh: subData.keys.p256dh,
+            auth: subData.keys.auth,
+          },
+        };
+
+        try {
+          // 🔒 Authenticated RFC 8291 encrypted Web Push delivery with VAPID JWT signature
+          await webpush.sendNotification(pushSubscription, pushPayload);
+          delivered++;
+        } catch (err: any) {
+          console.warn(`[WebPush] Push failed for endpoint ${subData.endpoint.slice(0, 35)}...:`, err.message);
+          // Prune expired or unregistered endpoints automatically (HTTP 404 / 410)
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            await docSnap.ref.delete();
+            pruned++;
+          }
+        }
+      });
+
+      await Promise.allSettled(sendPromises);
+
+      console.log(`[Push Server] 🚀 Dispatched real Web-Push notification "${title}" (Delivered: ${delivered}, Pruned: ${pruned}) for user ${uid}`);
       res.status(200).json({
         success: true,
-        delivered: subsSnapshot.size,
+        delivered,
+        pruned,
         title,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (err: any) {
+      console.error("[Push Server] Failed to dispatch push notification:", err);
       res.status(500).json({ error: "Failed to dispatch push notification", details: err.message });
     }
   });
