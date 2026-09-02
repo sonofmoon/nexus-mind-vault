@@ -553,8 +553,10 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               className="btn btn-primary"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center', marginTop: '6px' }}
               onClick={handleEnrollBiometrics}
+              aria-label="Enroll Hardware Biometric Key"
             >
               <Fingerprint className="w-4 h-4" />
+              <span>Enroll Biometric Quick Unlock</span>
             </button>
           </div>
         </div>

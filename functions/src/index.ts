@@ -2,6 +2,7 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
 import { onRequest } from 'firebase-functions/v2/https';
 import { generateWithFallback } from './geminiEngine';
+import { applyRateLimitGuard } from './rateLimiter';
 import { onJournalEntryWritten } from './triggers/journalTriggers';
 import { checkLegacyGuardianHeartbeats } from './schedulers/guardianScheduler';
 import { checkTimeCapsuleUnlocks } from './schedulers/capsuleScheduler';
@@ -46,7 +47,7 @@ function getSystemInstruction(mode: string): string {
 }
 
 // ============================================================================
-// 🔒 AI Cognitive Microservices with Strict Zero-Trust Token Verification
+// 🔒 AI Cognitive Microservices with Strict Zero-Trust Token Verification & Rate Limiting
 // ============================================================================
 
 export const chatWithGemini = onRequest(
@@ -68,6 +69,11 @@ export const chatWithGemini = onRequest(
         error: 'Unauthorized: Missing or invalid Firebase ID token.',
         code: 'auth/unauthorized',
       });
+      return;
+    }
+
+    // 🛡️ Defense-in-Depth: Rate limiting directly on Cloud Function (Max 20 requests/minute per user/IP)
+    if (applyRateLimitGuard(req, res, user.uid, 20, 60000)) {
       return;
     }
 
@@ -118,6 +124,11 @@ export const generateTrends = onRequest(
       return;
     }
 
+    // 🛡️ Rate limit guard
+    if (applyRateLimitGuard(req, res, user.uid, 20, 60000)) {
+      return;
+    }
+
     try {
       const { entries = [] } = req.body;
       const prompt = `Analyze the emotional, psychological, and productivity trends across these journal entries: ${JSON.stringify(entries)}`;
@@ -153,6 +164,11 @@ export const extractSemanticGraph = onRequest(
         error: 'Unauthorized: Missing or invalid Firebase ID token.',
         code: 'auth/unauthorized',
       });
+      return;
+    }
+
+    // 🛡️ Rate limit guard
+    if (applyRateLimitGuard(req, res, user.uid, 20, 60000)) {
       return;
     }
 
@@ -192,6 +208,11 @@ export const translateParallelPersona = onRequest(
         error: 'Unauthorized: Missing or invalid Firebase ID token.',
         code: 'auth/unauthorized',
       });
+      return;
+    }
+
+    // 🛡️ Rate limit guard
+    if (applyRateLimitGuard(req, res, user.uid, 20, 60000)) {
       return;
     }
 

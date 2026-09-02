@@ -136,9 +136,40 @@ select:focus-visible {
     color: #000000 !important;
   }
 
-  p {
+    p {
     color: #111111 !important;
     font-size: 12pt !important;
     line-height: 1.6 !important;
+  }
+}
+
+/* ============================================================================
+ * 📱 Mobile Responsive Layout & Touch Optimizations
+ * ============================================================================ */
+@media (max-width: 640px) {
+  .journal-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .capture-tabs {
+    overflow-x: auto;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .capture-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .view-pane-title {
+    font-size: 1.25rem !important;
+  }
+
+  .google-card {
+    padding: 16px !important;
+    border-radius: 16px !important;
   }
 }

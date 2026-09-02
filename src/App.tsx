@@ -698,7 +698,7 @@ export function App() {
         credentials={credentials}
         onSuccess={handleUnlockSuccess}
         onResetSecretCode={handleResetSecretCode}
-        userEmail={user?.email}
+        userEmail={user?.email || undefined}
         showToast={showToast}
       />
 

@@ -274,6 +274,23 @@ body {
   flex-wrap: wrap;
 }
 
+.vault-header-nav-container {
+  display: flex;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  padding: 2px 4px;
+}
+
+.vault-header-nav-container::-webkit-scrollbar {
+  display: none;
+}
+
 .vault-header-nav {
   display: flex;
   align-items: center;
@@ -286,6 +303,7 @@ body {
   white-space: nowrap;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 
 .vault-header-nav button,
@@ -301,6 +319,40 @@ body {
   gap: 5px !important;
   white-space: nowrap !important;
   flex-shrink: 0 !important;
+}
+
+@media (max-width: 768px) {
+  .vault-header {
+    padding: 8px 12px;
+    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .brand-section {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .vault-header-nav-container {
+    width: 100%;
+    justify-content: flex-start;
+    order: 2;
+    padding: 4px 0;
+  }
+
+  .vault-header-nav {
+    width: max-content;
+    padding: 4px 6px;
+  }
+
+  .vault-header-auth {
+    width: 100%;
+    justify-content: space-between;
+    order: 3;
+    padding-top: 4px;
+    border-top: 1px solid var(--border-subtle);
+  }
 }
 
 .brand-section {

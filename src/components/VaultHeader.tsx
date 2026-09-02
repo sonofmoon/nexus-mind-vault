@@ -142,7 +142,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
 
       {/* Navigation Tabs (Rendered ONLY when user is authenticated) */}
       {user && (
-        <div style={{ display: 'flex', justifyContent: 'center', flex: '1 1 auto', minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
+        <div className="vault-header-nav-container">
           <nav
             className="vault-header-nav"
             style={{

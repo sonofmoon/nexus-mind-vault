@@ -460,11 +460,17 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
         d3
           .forceLink<MemoryNode, MemoryLink>(d3Links)
           .id((d) => d.id)
-          .distance((d) => 100 - (d.strength || 1) * 8)
+          .distance((d) => 110 - (d.strength || 1) * 8)
       )
-      .force('charge', d3.forceManyBody().strength(-240).distanceMax(400))
+      .force('charge', d3.forceManyBody().strength(-360).distanceMax(500))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius((d: any) => (d.val || 15) + 18));
+      .force(
+        'collision',
+        d3.forceCollide().radius((d: any) => {
+          const labelLen = (d.label || '').length;
+          return Math.max((d.val || 15) + 28, labelLen * 3.8 + 14);
+        })
+      );
 
     simulationRef.current = simulation;
 
@@ -584,24 +590,25 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
       .attr('pointer-events', 'none')
       .text((d) => d.label.charAt(0).toUpperCase());
 
-    // Node Labels
+    // Node Labels (Smart collision clearance & text outline)
     const label = labelGroup
       .selectAll<SVGTextElement, MemoryNode>('text')
       .data(d3Nodes)
       .enter()
       .append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', (d) => (d.val || 15) + 14)
+      .attr('dy', (d) => (d.val || 15) + 16)
       .attr('fill', isDarkTheme ? '#f8fafc' : '#1f1f1f')
-      .attr('font-size', '12px')
+      .attr('font-size', '11.5px')
       .attr('font-weight', '600')
+      .attr('letter-spacing', '0.01em')
       .attr('paint-order', 'stroke')
       .attr('stroke', isDarkTheme ? '#0b0f19' : '#ffffff')
-      .attr('stroke-width', '3px')
+      .attr('stroke-width', '3.5px')
       .attr('stroke-linecap', 'round')
       .attr('stroke-linejoin', 'round')
       .attr('pointer-events', 'none')
-      .text((d) => d.label);
+      .text((d) => (d.label && d.label.length > 22 ? d.label.slice(0, 20) + '…' : d.label));
 
     // Simulation Ticks
     simulation.on('tick', () => {
@@ -933,7 +940,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
         }}
       >
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto scrollbar-none" style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}>
           <button
             type="button"
             onClick={() => setSelectedCategory('all')}
