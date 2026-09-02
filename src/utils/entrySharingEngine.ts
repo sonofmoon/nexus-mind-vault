@@ -4,7 +4,14 @@
  * - Prevents plaintext exposure in URL parameters
  */
 import { JournalEntry } from '../types';
-import { deriveKeyFromPassphrase, encryptData, decryptData, EncryptedPayload } from '../services/cryptoEngine';
+import {
+  deriveKeyFromPassphrase,
+  encryptData,
+  decryptData,
+  generateRandomSalt,
+  base64ToBuffer,
+  EncryptedPayload,
+} from '../services/cryptoEngine';
 
 export interface EncryptedShareEnvelope {
   version: 2;
@@ -48,8 +55,9 @@ export async function generateEncryptedEntryShareLink(
     ? passphrase.trim()
     : 'nexus_open_sovereign_share_v2';
 
-  const derivedKey = await deriveKeyFromPassphrase(sharePassphrase);
-  const encryptedPayload = await encryptData(entryData, derivedKey);
+  const salt = generateRandomSalt(16);
+  const derivedKey = await deriveKeyFromPassphrase(sharePassphrase, salt);
+  const encryptedPayload = await encryptData(entryData, derivedKey, salt);
 
   const envelope: EncryptedShareEnvelope = {
     version: 2,
@@ -124,7 +132,8 @@ export async function decryptSharedEntryPayload(
       ? passphrase.trim()
       : 'nexus_open_sovereign_share_v2';
 
-    const derivedKey = await deriveKeyFromPassphrase(sharePassphrase, parsed.payload.salt);
+    const saltBytes = base64ToBuffer(parsed.payload.salt);
+    const derivedKey = await deriveKeyFromPassphrase(sharePassphrase, saltBytes);
     const decrypted = await decryptData<SharedEntryData>(parsed.payload, derivedKey);
     return decrypted;
   }
