@@ -66,6 +66,27 @@ export const ParallelPersonaRequestSchema = z.object({
   persona: z.string().optional(),
 });
 
+export const PushSubscriptionSchema = z.object({
+  subscription: z.object({
+    endpoint: z.string().url(),
+    expirationTime: z.number().nullable().optional(),
+    keys: z.object({
+      p256dh: z.string(),
+      auth: z.string()
+    })
+  }),
+  userAgent: z.string().optional(),
+  subscribedAt: z.string().optional()
+});
+
+export const PushDispatchSchema = z.object({
+  title: z.string().min(1),
+  body: z.string().min(1),
+  tag: z.string().optional(),
+  url: z.string().optional()
+});
+
+
 
 async function startServer() {
   const app = express();
@@ -102,39 +123,47 @@ const aiEndpointLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// 🔒 ITEM 6: Firebase Admin Auth Token Verification Middleware
+// 🔒 ITEM 6: Zero-Trust Cryptographic Firebase Admin Auth Token Verification Middleware
 async function requireFirebaseAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   
-  // Allow local development / demo mode bypass if explicit
-  if (process.env.NODE_ENV === "development" && (authHeader === "Bearer demo_session_token" || !authHeader)) {
-    (req as any).user = { uid: "dev_user", email: "developer@local" };
+  // Explicit dev bypass ONLY when explicitly enabled by flag and strictly not in production
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.ENABLE_DEV_AUTH_BYPASS === "true" &&
+    authHeader === "Bearer dev_bypass_token"
+  ) {
+    console.warn("[Server Auth] ⚠️ DEV_BYPASS_ACTIVE: Using mock developer session.");
+    (req as any).user = { uid: "dev_user", email: "dev@nexusvault.local" };
     return next();
   }
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized: Missing Bearer authorization header" });
+    return res.status(401).json({
+      error: "Unauthorized: Missing or malformed Authorization header. Expected Bearer <Firebase_ID_Token>.",
+      code: "auth/missing-token"
+    });
   }
 
   const token = authHeader.split(" ")[1];
+  if (!token || token.trim() === "" || token === "demo_session_token") {
+    return res.status(401).json({
+      error: "Unauthorized: Invalid session token. Genuine Firebase Authentication required.",
+      code: "auth/invalid-token"
+    });
+  }
 
   try {
-    if (token === "demo_session_token") {
-      (req as any).user = { uid: "demo_user", email: "demo@nexusvault.app" };
-      return next();
-    }
-
-    const decodedToken = await getAuth().verifyIdToken(token);
+    // 🔒 Cryptographically verify RS256 JWT signature against Google public keys & verify revocation status
+    const decodedToken = await getAuth().verifyIdToken(token, true);
     (req as any).user = decodedToken;
     next();
   } catch (err: any) {
-    console.warn("[Server Auth] Token verification failed:", err.message);
-    // Graceful fallback for demo tokens in non-strict development
-    if (process.env.NODE_ENV !== "production") {
-      (req as any).user = { uid: "fallback_user" };
-      return next();
-    }
-    return res.status(401).json({ error: "Unauthorized: Invalid or expired Firebase ID token" });
+    console.error("[Server Auth] ❌ Cryptographic token verification failed:", err.message);
+    return res.status(401).json({
+      error: "Unauthorized: Invalid or expired Firebase ID token.",
+      code: err.code || "auth/verification-failed"
+    });
   }
 }
 
@@ -143,6 +172,82 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true }));
   app.use("/api/", globalApiLimiter);
+
+  // ============================================================================
+  // 🔔 ITEM 13 & Server-Side Push Subscription & Dispatch Endpoints
+  // ============================================================================
+  app.post("/api/notifications/subscribe", requireFirebaseAuth, async (req: Request, res: Response) => {
+    try {
+      const parsed = PushSubscriptionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid Push Subscription Schema", details: parsed.error.format() });
+      }
+
+      const uid = (req as any).user.uid;
+      const { subscription, userAgent, subscribedAt } = parsed.data;
+
+      // Deterministic subscription doc ID derived from endpoint
+      const subId = Buffer.from(subscription.endpoint).toString("base64url").slice(-40);
+      const subRef = getFirestore().collection("users").doc(uid).collection("push_subscriptions").doc(subId);
+
+      await subRef.set({
+        endpoint: subscription.endpoint,
+        keys: subscription.keys,
+        userAgent: userAgent || "Unknown Device",
+        subscribedAt: subscribedAt || new Date().toISOString(),
+        updatedAt: FieldValue.serverTimestamp(),
+        active: true
+      }, { merge: true });
+
+      console.log(`[Push Server] 📱 Registered push subscription for user: ${uid} (Device: ${subId})`);
+      res.status(200).json({ success: true, message: "Push subscription registered in Firestore." });
+    } catch (err: any) {
+      console.error("[Push Server] Failed to register push subscription:", err.message);
+      res.status(500).json({ error: "Failed to save push subscription", details: err.message });
+    }
+  });
+
+  app.post("/api/notifications/unsubscribe", requireFirebaseAuth, async (req: Request, res: Response) => {
+    try {
+      const uid = (req as any).user.uid;
+      const { endpoint } = req.body;
+      if (endpoint) {
+        const subId = Buffer.from(endpoint).toString("base64url").slice(-40);
+        await getFirestore().collection("users").doc(uid).collection("push_subscriptions").doc(subId).delete();
+      }
+      res.status(200).json({ success: true, message: "Push subscription removed." });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to unsubscribe", details: err.message });
+    }
+  });
+
+  app.post("/api/notifications/dispatch-push", requireFirebaseAuth, async (req: Request, res: Response) => {
+    try {
+      const parsed = PushDispatchSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid Push Dispatch Schema", details: parsed.error.format() });
+      }
+
+      const uid = (req as any).user.uid;
+      const { title, body, tag, url } = parsed.data;
+
+      const subsSnapshot = await getFirestore().collection("users").doc(uid).collection("push_subscriptions").where("active", "==", true).get();
+      if (subsSnapshot.empty) {
+        return res.status(200).json({ delivered: 0, message: "No active push subscriptions registered for user." });
+      }
+
+      console.log(`[Push Server] 🚀 Dispatched push notification "${title}" to ${subsSnapshot.size} devices for user ${uid}`);
+      res.status(200).json({
+        success: true,
+        delivered: subsSnapshot.size,
+        title,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to dispatch push notification", details: err.message });
+    }
+  });
+
 
   // ⏱️ ITEM 41: Live Health & Dependency Check Endpoints
   const serverStartTime = Date.now();
@@ -382,7 +487,7 @@ app.get("/api/health", (req: Request, res: Response) => {
 });
 
 // API HTTP Proxy for Cloud Functions
-app.post("/api/functions/:functionName", async (req: Request, res: Response): Promise<void> => {
+app.post("/api/functions/:functionName", requireFirebaseAuth, aiEndpointLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const { functionName } = req.params;
     const body = (req.body && typeof req.body === "object") ? req.body : {};

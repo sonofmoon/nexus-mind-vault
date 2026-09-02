@@ -1,10 +1,32 @@
 /**
- * 🔔 Nexus Mind Vault — Native Desktop & In-App Notification Engine
+ * 🔔 Nexus Mind Vault — Native Desktop & Server-Side Web Push Notification Engine
+ * - Manages Browser Push Subscriptions via W3C PushManager (RFC 8291 / VAPID)
+ * - Persists device endpoints to Cloud Firestore via /api/notifications/subscribe
+ * - Coordinates scheduled reflection reminders and background dispatch
  */
 import { JournalEntry } from '../types';
+import { authenticatedFetch } from '../services/apiClient';
+
+// Sovereign Public VAPID Key (RFC 8292 Web Push Application Server Key)
+export const DEFAULT_VAPID_PUBLIC_KEY =
+  'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+
+/**
+ * Converts a base64 string to a Uint8Array for PushManager subscription
+ */
+export function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (!('Notification' in window)) {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
     return false;
   }
   if (Notification.permission === 'granted') {
@@ -18,7 +40,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 export function showDesktopNotification(title: string, options?: NotificationOptions) {
-  if (!('Notification' in window) || Notification.permission !== 'granted') {
+  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
 
@@ -39,6 +61,103 @@ export function showDesktopNotification(title: string, options?: NotificationOpt
     }
   } catch (err) {
     console.warn('[Notification] Could not display native notification:', err);
+  }
+}
+
+/**
+ * 🚀 Registers and saves a Web Push subscription with the server for background pushes
+ */
+export async function subscribeToPushNotifications(uid: string): Promise<PushSubscription | null> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[PushEngine] Web Push is not supported in this environment.');
+    return null;
+  }
+
+  const hasPermission = await requestNotificationPermission();
+  if (!hasPermission) {
+    console.warn('[PushEngine] Notification permission denied.');
+    return null;
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let subscription = await reg.pushManager.getSubscription();
+
+    if (!subscription) {
+      const applicationServerKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey as any,
+      });
+    }
+
+    if (subscription) {
+      // Persist subscription to server & Firestore
+      await authenticatedFetch('/api/notifications/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({
+          subscription: subscription.toJSON(),
+          userAgent: navigator.userAgent,
+          subscribedAt: new Date().toISOString(),
+        }),
+      });
+      console.info('[PushEngine] 🛡️ Web Push subscription registered & synced with enclave.');
+    }
+
+    return subscription;
+  } catch (err) {
+    console.error('[PushEngine] Failed to register push subscription:', err);
+    return null;
+  }
+}
+
+/**
+ * Unsubscribes from server-side Web Push notifications
+ */
+export async function unsubscribeFromPushNotifications(uid: string): Promise<boolean> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return false;
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const subscription = await reg.pushManager.getSubscription();
+    if (subscription) {
+      await subscription.unsubscribe();
+      await authenticatedFetch('/api/notifications/unsubscribe', {
+        method: 'POST',
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      });
+    }
+    return true;
+  } catch (e) {
+    console.warn('[PushEngine] Unsubscribe failed:', e);
+    return false;
+  }
+}
+
+/**
+ * Returns the current push notification capabilities and subscription state
+ */
+export async function getPushSubscriptionStatus(): Promise<{
+  isSupported: boolean;
+  isSubscribed: boolean;
+  permission: NotificationPermission;
+}> {
+  if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return { isSupported: false, isSubscribed: false, permission: 'denied' };
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return {
+      isSupported: true,
+      isSubscribed: !!sub,
+      permission: Notification.permission,
+    };
+  } catch {
+    return { isSupported: true, isSubscribed: false, permission: Notification.permission };
   }
 }
 
