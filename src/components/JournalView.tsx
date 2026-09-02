@@ -1,6 +1,6 @@
 import { generateEntryShareLink, generateEncryptedEntryShareLink } from '../utils/entrySharingEngine';
 import { ConfirmationModal } from './ConfirmationModal';
-import { Share2, Undo2, Printer } from 'lucide-react';
+import { Share2, Undo2, Printer, CheckCircle2 } from 'lucide-react';
 import { authenticatedFetch } from '../services/apiClient';
 import { sanitizePlainText } from '../utils/sanitizeHtml';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
