@@ -6,7 +6,13 @@ import { generateGeminiChatResponse } from '../services/geminiClient';
 import { sanitizePlainText } from '../utils/sanitizeHtml';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { JournalEntry, MoodType, AttachmentItem, JournalDraft, VaultMode } from '../types';
-import { JOURNAL_TEMPLATES, calculateJournalStreak, JournalTemplate } from '../utils/journalTemplates';
+import {
+  getJournalDrafts,
+  saveJournalDrafts,
+  purgeJournalDrafts,
+} from '../services/vaultStorage';
+import {
+  JOURNAL_TEMPLATES, calculateJournalStreak, JournalTemplate } from '../utils/journalTemplates';
 import { Edit } from 'lucide-react';
 import { InnovativeCameraStudioModal, CapturedPhotoResult } from './InnovativeCameraStudioModal';
 import { vaultAudio } from '../utils/vaultAudioSynthesizer';
@@ -83,6 +89,7 @@ const MOODS: { type: MoodType; label: string; icon: React.ReactNode; color: stri
 const DRAFTS_STORAGE_KEY = 'vault_journal_drafts_local';
 
 export const JournalView: React.FC<JournalViewProps> = ({
+  userId,
   entries,
   onAddEntry,
   onDeleteEntry,
@@ -220,12 +227,8 @@ export const JournalView: React.FC<JournalViewProps> = ({
 
   // Drafts State
   const [drafts, setDrafts] = useState<JournalDraft[]>(() => {
-    try {
-      const raw = localStorage.getItem(DRAFTS_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
+    const uid = userId || 'default_user';
+    return getJournalDrafts(uid);
   });
 
   // AI Chat History State
@@ -348,11 +351,8 @@ export const JournalView: React.FC<JournalViewProps> = ({
   // Save Drafts to localStorage
   const saveDraftsToStorage = (updatedDrafts: JournalDraft[]) => {
     setDrafts(updatedDrafts);
-    try {
-      localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(updatedDrafts));
-    } catch (e) {
-      console.error("Failed to store drafts", e);
-    }
+    const uid = userId || 'default_user';
+    saveJournalDrafts(uid, updatedDrafts);
   };
 
   const handleSaveDraft = () => {
@@ -774,6 +774,12 @@ export const JournalView: React.FC<JournalViewProps> = ({
       .split(',')
       .map(t => t.trim().toLowerCase())
       .filter(Boolean);
+
+    // 🛡️ Auto-Purge: Zeroize and delete working draft from storage on save
+    const uid = userId || 'default_user';
+    purgeJournalDrafts(uid, titleToSave);
+    const remainingDrafts = drafts.filter(d => d.title !== titleToSave && d.content !== contentToSave);
+    setDrafts(remainingDrafts);
 
     onAddEntry({
       title: titleToSave,

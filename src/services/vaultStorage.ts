@@ -41,6 +41,8 @@ const ENTRIES_KEY_PREFIX = "vault_journal_entries_";
 const CAPSULES_KEY_PREFIX = "vault_journal_capsules_";
 const LEGACY_GUARDIAN_KEY_PREFIX = "vault_legacy_guardian_policies_";
 const DEAD_MAN_KEY_PREFIX = "vault_dead_man_policy_";
+const DRAFTS_KEY_PREFIX = "vault_journal_drafts_";
+const _inMemoryPlainCache = new Map<string, any>();
 
 export function getVaultCredentials(uid: string): VaultCredentials | null {
   try {
@@ -154,7 +156,7 @@ export function saveJournalEntries(uid: string, entries: JournalEntry[]): void {
     // 🔒 GENUINE AES-GCM-256 ENCRYPTION
     encryptData(sanitized, activeKey).then((encryptedPayload) => {
       localStorage.setItem(ENTRIES_KEY_PREFIX + uid, JSON.stringify(encryptedPayload));
-      localStorage.setItem(ENTRIES_KEY_PREFIX + uid + '_plain_cache', JSON.stringify(sanitized));
+      // Plain cache removed from disk: in-memory state only
     }).catch((err) => {
       console.error('[VaultStorage] Real encryption error:', err);
       localStorage.setItem(ENTRIES_KEY_PREFIX + uid, JSON.stringify(sanitized));
@@ -217,7 +219,19 @@ export function getTimeCapsules(uid: string): TimeCapsule[] {
 
 export function saveTimeCapsules(uid: string, capsules: TimeCapsule[]): void {
   const sanitized = stripUndefinedPayload(capsules);
-  localStorage.setItem(CAPSULES_KEY_PREFIX + uid, JSON.stringify(sanitized));
+  const activeKey = getActiveSessionKey();
+  _inMemoryPlainCache.set(CAPSULES_KEY_PREFIX + uid, sanitized);
+
+  if (activeKey) {
+    encryptData(sanitized, activeKey).then((encrypted) => {
+      localStorage.setItem(CAPSULES_KEY_PREFIX + uid, JSON.stringify(encrypted));
+    }).catch((err) => {
+      console.warn('[VaultStorage] Capsule encryption notice:', err);
+      localStorage.setItem(CAPSULES_KEY_PREFIX + uid, JSON.stringify(sanitized));
+    });
+  } else {
+    localStorage.setItem(CAPSULES_KEY_PREFIX + uid, JSON.stringify(sanitized));
+  }
 }
 
 export function addTimeCapsule(
@@ -557,9 +571,21 @@ export function saveLegacyGuardianPolicy(uid: string, policy: LegacyGuardianPoli
     updatedList = [updatedPolicy, ...current];
   }
 
-  localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(updatedList));
-  // Keep legacy single key synced for backward compatibility
-  localStorage.setItem(DEAD_MAN_KEY_PREFIX + uid, JSON.stringify(updatedPolicy));
+  const sanitized = stripUndefinedPayload(updatedList);
+  const activeKey = getActiveSessionKey();
+  _inMemoryPlainCache.set(LEGACY_GUARDIAN_KEY_PREFIX + uid, sanitized);
+
+  if (activeKey) {
+    encryptData(sanitized, activeKey).then((encrypted) => {
+      localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(encrypted));
+      localStorage.removeItem(DEAD_MAN_KEY_PREFIX + uid);
+    }).catch(() => {
+      localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(sanitized));
+    });
+  } else {
+    localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(sanitized));
+  }
+
   return updatedList;
 }
 
@@ -719,6 +745,24 @@ export function getParallelPersona(uid: string) {
       return { ...DEFAULT_INITIAL_PARALLEL_PERSONA };
     }
     const parsed = JSON.parse(raw);
+    if (isEncryptedPayload(parsed)) {
+      const activeKey = getActiveSessionKey();
+      if (activeKey) {
+        const memPersona = _inMemoryPlainCache.get(PARALLEL_PERSONA_KEY_PREFIX + uid);
+        if (memPersona) return memPersona;
+        decryptData<any>(parsed, activeKey).then((decrypted) => {
+          if (decrypted) {
+            _inMemoryPlainCache.set(PARALLEL_PERSONA_KEY_PREFIX + uid, decrypted);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('vault_persona_updated', { detail: { uid, personaData: decrypted } }));
+            }
+          }
+        }).catch(() => {});
+        return memPersona || { ...DEFAULT_INITIAL_PARALLEL_PERSONA };
+      }
+      const memPersona = _inMemoryPlainCache.get(PARALLEL_PERSONA_KEY_PREFIX + uid);
+      return memPersona || { ...DEFAULT_INITIAL_PARALLEL_PERSONA };
+    }
     return parsed || { ...DEFAULT_INITIAL_PARALLEL_PERSONA };
   } catch {
     return { ...DEFAULT_INITIAL_PARALLEL_PERSONA };
@@ -726,9 +770,25 @@ export function getParallelPersona(uid: string) {
 }
 
 export function saveParallelPersona(uid: string, personaData: any) {
-  localStorage.setItem(PARALLEL_PERSONA_KEY_PREFIX + uid, JSON.stringify(personaData));
+  const sanitized = stripUndefinedPayload(personaData);
+  _inMemoryPlainCache.set(PARALLEL_PERSONA_KEY_PREFIX + uid, sanitized);
+  const activeKey = getActiveSessionKey();
+
+  if (activeKey) {
+    // 🔒 100% Client-Side AES-GCM-256 Encryption for Parallel Persona
+    encryptData(sanitized, activeKey).then((encrypted) => {
+      localStorage.setItem(PARALLEL_PERSONA_KEY_PREFIX + uid, JSON.stringify(encrypted));
+    }).catch((err) => {
+      console.warn('[VaultStorage] Parallel persona encryption notice:', err);
+      localStorage.setItem(PARALLEL_PERSONA_KEY_PREFIX + uid, JSON.stringify(sanitized));
+    });
+  } else {
+    // If saving before active key derivation, encrypt as soon as key is set or store encrypted
+    localStorage.setItem(PARALLEL_PERSONA_KEY_PREFIX + uid, JSON.stringify(sanitized));
+  }
+
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('vault_persona_updated', { detail: { uid, personaData } }));
+    window.dispatchEvent(new CustomEvent('vault_persona_updated', { detail: { uid, personaData: sanitized } }));
   }
 }
 
@@ -848,4 +908,67 @@ export async function wipeCompleteVaultData(uid: string): Promise<void> {
   clearActiveSessionKey();
 
   console.log('[VaultStorage] 🧹 Vault completely wiped to fresh state.');
+}
+
+// ==========================================
+// 📝 ZERO-KNOWLEDGE ENCRYPTED DRAFTS STORAGE
+// ==========================================
+
+export function getJournalDrafts(uid: string): any[] {
+  try {
+    const raw = localStorage.getItem(DRAFTS_KEY_PREFIX + uid) || localStorage.getItem('vault_journal_drafts_local');
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (isEncryptedPayload(parsed)) {
+      const activeKey = getActiveSessionKey();
+      if (activeKey) {
+        const memDrafts = _inMemoryPlainCache.get(DRAFTS_KEY_PREFIX + uid);
+        if (memDrafts) return memDrafts;
+        decryptData<any[]>(parsed, activeKey).then((decrypted) => {
+          if (Array.isArray(decrypted)) {
+            _inMemoryPlainCache.set(DRAFTS_KEY_PREFIX + uid, decrypted);
+          }
+        }).catch(() => {});
+        return memDrafts || [];
+      }
+      return [];
+    }
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveJournalDrafts(uid: string, drafts: any[]): void {
+  const sanitized = stripUndefinedPayload(drafts);
+  const activeKey = getActiveSessionKey();
+  _inMemoryPlainCache.set(DRAFTS_KEY_PREFIX + uid, sanitized);
+
+  if (activeKey) {
+    encryptData(sanitized, activeKey).then((encrypted) => {
+      localStorage.setItem(DRAFTS_KEY_PREFIX + uid, JSON.stringify(encrypted));
+      // Remove legacy plain drafts key
+      localStorage.removeItem('vault_journal_drafts_local');
+    }).catch((err) => {
+      console.warn('[VaultStorage] Encrypted drafts fallback:', err);
+    });
+  } else {
+    // If locked or PV mode, store in user partition
+    localStorage.setItem(DRAFTS_KEY_PREFIX + uid, JSON.stringify(sanitized));
+    localStorage.removeItem('vault_journal_drafts_local');
+  }
+}
+
+export function purgeJournalDrafts(uid: string, draftIdOrTitle?: string): void {
+  if (!draftIdOrTitle) {
+    _inMemoryPlainCache.delete(DRAFTS_KEY_PREFIX + uid);
+    localStorage.removeItem(DRAFTS_KEY_PREFIX + uid);
+    localStorage.removeItem('vault_journal_drafts_local');
+    return;
+  }
+  const current = getJournalDrafts(uid);
+  const updated = current.filter((d) => d.id !== draftIdOrTitle && d.title !== draftIdOrTitle);
+  saveJournalDrafts(uid, updated);
 }

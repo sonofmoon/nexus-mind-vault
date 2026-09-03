@@ -89,11 +89,11 @@ export function App() {
     return () => window.removeEventListener('vault_persona_updated', handlePersonaUpdated);
   }, [user]);
 
-  // Theme Mode: 'dark' (Security Dark) | 'light' (System Light)
+  // Theme Mode: 'light' (Default Google M3 Light) | 'dark' (Security Dark)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('vault_theme_mode');
     if (saved === 'dark' || saved === 'light') return saved;
-    return 'dark'; // Default to high-contrast Security Dark mode
+    return 'light'; // Default to Google Material 3 Light mode
   });
 
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
