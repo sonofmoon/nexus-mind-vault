@@ -56,7 +56,9 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
     {
       id: 'welcome-1',
       sender: 'assistant',
-      text: `⚡ Nexus Mind Protocol Active. Real Vault privileges verified.\n\nI have loaded your ${entries.length} encrypted vault reflections into the Semantic Memory Web. You can explore your conceptual nodes and synaptic links in the graph above, or chat with me to extract latent patterns.`,
+      text: entries.length > 0
+        ? `⚡ Nexus Mind Protocol Active. Real Vault privileges verified.\n\nI have loaded your ${entries.length} encrypted vault reflections into the Semantic Memory Web. You can explore your conceptual nodes and synaptic links in the graph above, or chat with me to extract latent patterns.`
+        : `⚡ Nexus Mind Protocol Active. Real Vault privileges verified.\n\nYour sovereign cognitive enclave is ready. Record your reflections in the Journal to generate cognitive nodes, or chat with me to extract insights and brainstorm ideas.`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       modelUsed: 'Gemini 3.6 Flash',
     },

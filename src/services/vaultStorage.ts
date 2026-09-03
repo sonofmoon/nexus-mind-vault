@@ -108,72 +108,29 @@ export async function setupVaultCredentialsSecure(
   return { creds, key };
 }
 
-const DEFAULT_INITIAL_ENTRIES: Omit<JournalEntry, 'userId'>[] = [
-  {
-    id: "demo-entry-1",
-    title: "Botanical Research & Calibration Notes",
-    content: "Adjusted nutrient balance and lighting schedules for indoor environmental bench B4. System parameters operating within normal parameters.",
-    mood: "focused",
-    tags: ["botany", "research", "setup"],
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-  {
-    id: "demo-entry-2",
-    title: "Reflections on Daily Focus & Study Habits",
-    content: "Establishing structured morning reflection periods has improved clarity throughout afternoon research sessions. Offline data logs remain organized.",
-    mood: "calm",
-    tags: ["productivity", "habits"],
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-  }
-];
+const DEFAULT_INITIAL_ENTRIES: Omit<JournalEntry, 'userId'>[] = [];
 
 export function getJournalEntries(uid: string): JournalEntry[] {
   try {
     const raw = localStorage.getItem(ENTRIES_KEY_PREFIX + uid);
     if (!raw) {
-      const initial = DEFAULT_INITIAL_ENTRIES.map(e => ({ ...e, userId: uid }));
-      localStorage.setItem(ENTRIES_KEY_PREFIX + uid, JSON.stringify(initial));
-      return initial;
+      return [];
     }
     const parsed = JSON.parse(raw);
     let entries: JournalEntry[] = [];
     if (isEncryptedPayload(parsed)) {
       const activeKey = getActiveSessionKey();
       if (activeKey) {
-        // Attempt synchronous cache read or fallback
         const cacheRaw = localStorage.getItem(ENTRIES_KEY_PREFIX + uid + '_plain_cache');
         entries = cacheRaw ? JSON.parse(cacheRaw) : [];
       } else {
-        // Without active key in memory, real entries remain encrypted and unreadable
         const cacheRaw = localStorage.getItem(ENTRIES_KEY_PREFIX + uid + '_plain_cache');
         entries = cacheRaw ? JSON.parse(cacheRaw) : [];
       }
     } else if (Array.isArray(parsed)) {
       entries = parsed;
     }
-    let modified = false;
-    const cleaned = entries.map((e) => {
-      if (
-        e.content.includes("dual-layer isolation") ||
-        e.content.includes("Nexus Mind is locked") ||
-        e.content.includes("6-digit PIN")
-      ) {
-        modified = true;
-        return {
-          ...e,
-          title: "Hydroponic Crop Calibration Notes",
-          content: "Configured automated nutrient monitoring protocol for garden bench B4. pH levels stabilized with consistent spectrum cycles.",
-          tags: ["botany", "hydroponics", "setup"],
-        };
-      }
-      return e;
-    });
-    if (modified) {
-      localStorage.setItem(ENTRIES_KEY_PREFIX + uid, JSON.stringify(cleaned));
-    }
-    return cleaned;
+    return entries;
   } catch {
     return [];
   }
@@ -232,52 +189,16 @@ export function deleteJournalEntry(uid: string, entryId: string): JournalEntry[]
 // ⏳ TIME CAPSULES STORAGE & CRYPTOGRAPHIC SEAL
 // ==========================================
 
-const DEFAULT_INITIAL_CAPSULES: Omit<TimeCapsule, 'userId'>[] = [
-  {
-    id: "capsule_vision_2027",
-    title: "Letter to Future Self: Milestones & Core Principles",
-    message: "If you are reading this, time has unfolded and you have navigated through crucial milestones. Remember why we started: zero-trust privacy, intentional deep work, and staying grounded. Did you build the quantum-resilient protocol? Are you making time for morning walks and mindful reflections? Never compromise on your foundational principles.",
-    sealedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    lockType: "both",
-    unlockDate: new Date(Date.now() + 86400000 * 14).toISOString(), // Unlocks in 14 days
-    targetMood: "calm",
-    moodUnlockPrompt: "Open when you are feeling calm and receptive to past wisdom.",
-    isOpened: false,
-    integrityHash: "sha256_8f9a2b71c40de92138a0e8d0e74b3a2f912c9b3a4e1d2c3b4a5f6e7d8c9b0a1f",
-    locationTag: "Nexus Core Lab (Silicon Valley)",
-    photos: [],
-    attachments: [
-      {
-        id: "att_1",
-        name: "foundational_manifesto.pdf",
-        type: "file",
-        size: 142000,
-      }
-    ]
-  },
-  {
-    id: "capsule_anxious_grounding",
-    title: "Emergency Reassurance: Open When Overwhelmed",
-    message: "Breathe in deeply. Whatever challenge feels insurmountable right now is temporary. You have faced high-stakes deadlines and uncertainty before and came out stronger. Step away from the screen for 10 minutes, hydrate, and recalibrate your focus on one single next step.",
-    sealedAt: new Date(Date.now() - 86400000 * 7).toISOString(),
-    lockType: "mood",
-    targetMood: "anxious",
-    moodUnlockPrompt: "Calibrated to unlock specifically when you check in with an 'Anxious' or 'Overwhelmed' state.",
-    isOpened: false,
-    integrityHash: "sha256_e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    locationTag: "Mind Vault Sanctuarium",
-  }
-];
+const DEFAULT_INITIAL_CAPSULES: Omit<TimeCapsule, 'userId'>[] = [];
 
 export function getTimeCapsules(uid: string): TimeCapsule[] {
   try {
     const raw = localStorage.getItem(CAPSULES_KEY_PREFIX + uid);
     if (!raw) {
-      const initial = DEFAULT_INITIAL_CAPSULES.map(c => ({ ...c, userId: uid }));
-      localStorage.setItem(CAPSULES_KEY_PREFIX + uid, JSON.stringify(initial));
-      return initial;
+      return [];
     }
     const capsules: TimeCapsule[] = JSON.parse(raw);
+    if (!Array.isArray(capsules)) return [];
 
     // 🔒 READ-TIME INTEGRITY VERIFICATION ON EVERY READ OPERATION
     return capsules.map((c) => {
@@ -772,61 +693,19 @@ export const calculateDeadManHeartbeat = calculateGuardianHeartbeat;
 const PARALLEL_PERSONA_KEY_PREFIX = "vault_parallel_persona_";
 
 export const DEFAULT_INITIAL_PARALLEL_PERSONA = {
-  targetDomain: "Botanical & Hydroponic Systems",
-  personaTitle: "Botanical Engineering & Flora Growth Journal",
+  targetDomain: "Personal Reflections",
+  personaTitle: "Personal Cover Journal",
   generatedAt: new Date().toISOString(),
-  entries: [
-    {
-      id: "persona_entry_101",
-      userId: "default_user",
-      title: "Automated pH & Nutrient Circulation Loop Calibration",
-      content: "Calibrated the automated dosing sensors for the urban hydroponic array. The nutrient solution is holding steady at pH 6.2 with EC 1.8 mS/cm. The solar-powered recirculation pump cycle runs 15 minutes every hour to maintain optimal oxygenation across root channels.",
-      mood: "focused" as const,
-      tags: ["hydroponics", "calibration", "ph-balance", "automation"],
-      createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-      updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    },
-    {
-      id: "persona_entry_102",
-      userId: "default_user",
-      title: "Microclimate Humidity & Spectrum Tuning Observations",
-      content: "Adjusted the full-spectrum LED canopy lighting to 6500K spectrum during the vegetative phase. Humidity levels in the sheltered greenhouse enclosure stabilized at 68% RH. Initial observations show robust internodal stem growth and vibrant leaf pigmentation.",
-      mood: "calm" as const,
-      tags: ["lighting", "microclimate", "spectrum-tuning", "botany"],
-      createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
-      updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
-    },
-    {
-      id: "persona_entry_103",
-      userId: "default_user",
-      title: "Vertical Trellis Expansion & Organic Pest Management",
-      content: "Constructed the secondary bamboo vertical trellis for climbing vines. Applied an organic neem oil and potassium silicate foliar spray to fortify cell walls against aphids. Yield metrics for the upcoming harvest look exceptionally promising.",
-      mood: "creative" as const,
-      tags: ["trellis", "pest-management", "harvest", "organic"],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  ],
+  entries: [],
   graph: {
-    nodes: [
-      { id: "ph_calibration", label: "pH Calibration", category: "project" as const, val: 22, summary: "Automated nutrient pH balance monitoring and dosing", entryCount: 2, entryIds: ["persona_entry_101"] },
-      { id: "spectrum_tuning", label: "Spectrum Tuning", category: "theme" as const, val: 18, summary: "LED light spectrum adjustments for vegetative growth", entryCount: 1, entryIds: ["persona_entry_102"] },
-      { id: "vertical_trellis", label: "Vertical Trellis", category: "entity" as const, val: 16, summary: "Bamboo frame structures for climbing flora", entryCount: 1, entryIds: ["persona_entry_103"] },
-      { id: "organic_foliar", label: "Organic Foliar", category: "insight" as const, val: 14, summary: "Potassium silicate and neem oil cell wall fortification", entryCount: 1, entryIds: ["persona_entry_103"] },
-      { id: "growth_focus", label: "Botanical Rigor", category: "emotion" as const, val: 15, summary: "Methodical approach to plant care and system tracking", entryCount: 3, entryIds: ["persona_entry_101", "persona_entry_102", "persona_entry_103"] }
-    ],
-    links: [
-      { source: "ph_calibration", target: "spectrum_tuning", relationship: "Reinforces", strength: 4, coOccurrences: 2, contextExcerpt: "Nutrient absorption scales directly with optimized light spectrum" },
-      { source: "spectrum_tuning", target: "vertical_trellis", relationship: "Influences", strength: 5, coOccurrences: 1, contextExcerpt: "Light height dictates trellis expansion dimensions" },
-      { source: "vertical_trellis", target: "organic_foliar", relationship: "Triggers", strength: 3, coOccurrences: 1, contextExcerpt: "Expanded canopy requires proactive foliar protection" },
-      { source: "growth_focus", target: "ph_calibration", relationship: "Clarifies", strength: 4, coOccurrences: 2, contextExcerpt: "Systematic mindset ensures tight sensor tolerances" }
-    ],
+    nodes: [],
+    links: [],
     metrics: {
-      totalConcepts: 5,
-      totalConnections: 4,
-      clustersCount: 2,
-      semanticDensity: 0.8,
-      centralConcept: "pH Calibration",
+      totalConcepts: 0,
+      totalConnections: 0,
+      clustersCount: 0,
+      semanticDensity: 0,
+      centralConcept: "None",
     }
   }
 };
@@ -837,7 +716,8 @@ export function getParallelPersona(uid: string) {
     if (!raw) {
       return { ...DEFAULT_INITIAL_PARALLEL_PERSONA };
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return parsed || { ...DEFAULT_INITIAL_PARALLEL_PERSONA };
   } catch {
     return { ...DEFAULT_INITIAL_PARALLEL_PERSONA };
   }
