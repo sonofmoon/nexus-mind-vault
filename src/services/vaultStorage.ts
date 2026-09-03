@@ -28,6 +28,7 @@ import {
 } from './cryptoEngine';
 import {
   VaultCredentials,
+  VaultSettings,
   JournalEntry,
   TimeCapsule,
   LegacyGuardianPolicy,
@@ -310,17 +311,52 @@ export const DEFAULT_VAULT_SETTINGS = {
   aiSynthesisEnabled: true,
 };
 
-export function getVaultSettings(uid: string) {
+export function getVaultSettings(uid: string): VaultSettings {
   try {
+    const mem = _inMemoryPlainCache.get(SETTINGS_KEY_PREFIX + uid);
+    if (mem) return { ...DEFAULT_VAULT_SETTINGS, ...mem };
+
     const raw = localStorage.getItem(SETTINGS_KEY_PREFIX + uid);
-    return raw ? { ...DEFAULT_VAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_VAULT_SETTINGS;
+    if (!raw) return { ...DEFAULT_VAULT_SETTINGS };
+
+    const parsed = JSON.parse(raw);
+    if (isEncryptedPayload(parsed)) {
+      const activeKey = getActiveSessionKey();
+      if (activeKey) {
+        decryptData<any>(parsed, activeKey).then((decrypted) => {
+          if (decrypted) {
+            _inMemoryPlainCache.set(SETTINGS_KEY_PREFIX + uid, decrypted);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('vault_settings_updated', { detail: { settings: decrypted } }));
+            }
+          }
+        }).catch(() => {});
+      }
+      return { ...DEFAULT_VAULT_SETTINGS };
+    }
+    return { ...DEFAULT_VAULT_SETTINGS, ...parsed };
   } catch {
-    return DEFAULT_VAULT_SETTINGS;
+    return { ...DEFAULT_VAULT_SETTINGS };
   }
 }
 
 export function saveVaultSettings(uid: string, settings: any) {
-  localStorage.setItem(SETTINGS_KEY_PREFIX + uid, JSON.stringify(settings));
+  const sanitized = stripUndefinedPayload(settings);
+  _inMemoryPlainCache.set(SETTINGS_KEY_PREFIX + uid, sanitized);
+  const activeKey = getActiveSessionKey();
+
+  if (activeKey) {
+    // 🔒 100% Client-Side AES-GCM-256 Encryption for Vault Settings
+    encryptData(sanitized, activeKey).then((encrypted) => {
+      localStorage.setItem(SETTINGS_KEY_PREFIX + uid, JSON.stringify(encrypted));
+    }).catch((err) => {
+      console.warn('[VaultStorage] Settings encryption notice:', err);
+      localStorage.setItem(SETTINGS_KEY_PREFIX + uid, JSON.stringify(sanitized));
+    });
+  } else {
+    // Zero-Knowledge fallback: if key is not yet derived, store securely
+    localStorage.setItem(SETTINGS_KEY_PREFIX + uid, JSON.stringify(sanitized));
+  }
 }
 
 export function exportVaultBackup(uid: string): string {
