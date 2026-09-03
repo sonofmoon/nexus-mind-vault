@@ -70,7 +70,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
   };
 
   return (
-    <header className="vault-header">
+    <header className={`vault-header ${vaultMode === 'real' ? 'vault-header-nmv' : 'vault-header-pv'}`}>
       {/* Brand & Status Section */}
       <div className="brand-section">
         {/* Brand Logo - Secret Gate for Real Vault (Completely covert: no hover hints, no cursor change, no visual holding state) */}
@@ -146,15 +146,10 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
           <nav
             className="vault-header-nav"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
               gap: '4px',
               background: 'var(--bg-sidebar)',
               padding: '3px 6px',
-              borderRadius: 'var(--radius-pill)',
               border: '1px solid var(--border-subtle)',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
             }}
           >
           {/* Item 1: 📝 Journal */}
@@ -162,11 +157,9 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
             type="button"
             className="btn"
             style={{
-              padding: '6px 14px',
+              padding: '6px 12px',
               fontSize: '12px',
               fontWeight: activeTab === 'journal' ? 600 : 500,
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
               borderRadius: 'var(--radius-pill)',
               background: activeTab === 'journal' ? 'var(--blue)' : 'transparent',
               color: activeTab === 'journal' ? '#ffffff' : 'var(--text-secondary)',
@@ -176,7 +169,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
             }}
             onClick={() => onTabChange('journal')}
           >
-            <BookOpen className={`w-3.5 h-3.5 inline mr-1.5 ${activeTab === 'journal' ? 'text-white' : 'text-blue-500'}`} />
+            <BookOpen className={`w-3.5 h-3.5 inline mr-1 ${activeTab === 'journal' ? 'text-white' : 'text-blue-500'}`} />
             <span>Journal</span>
           </button>
 
@@ -185,11 +178,9 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
             type="button"
             className="btn"
             style={{
-              padding: '6px 14px',
+              padding: '6px 12px',
               fontSize: '12px',
               fontWeight: activeTab === 'insights' ? 600 : 500,
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
               borderRadius: 'var(--radius-pill)',
               background: activeTab === 'insights' ? 'var(--blue)' : 'transparent',
               color: activeTab === 'insights' ? '#ffffff' : 'var(--text-secondary)',
@@ -199,7 +190,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
             }}
             onClick={() => onTabChange('insights')}
           >
-            <BarChart2 className={`w-3.5 h-3.5 inline mr-1.5 ${activeTab === 'insights' ? 'text-white' : 'text-emerald-500'}`} />
+            <BarChart2 className={`w-3.5 h-3.5 inline mr-1 ${activeTab === 'insights' ? 'text-white' : 'text-emerald-500'}`} />
             <span>Insights</span>
           </button>
 
@@ -209,11 +200,9 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
               type="button"
               className="btn"
               style={{
-                padding: '6px 14px',
+                padding: '6px 12px',
                 fontSize: '12px',
                 fontWeight: (activeTab === 'graph' || activeTab === 'nexus') ? 600 : 500,
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
                 borderRadius: 'var(--radius-pill)',
                 background: (activeTab === 'graph' || activeTab === 'nexus') ? 'var(--blue)' : 'transparent',
                 color: (activeTab === 'graph' || activeTab === 'nexus') ? '#ffffff' : 'var(--text-secondary)',
@@ -223,7 +212,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
               }}
               onClick={() => onTabChange('graph')}
             >
-              <Share2 className={`w-3.5 h-3.5 inline mr-1.5 ${(activeTab === 'graph' || activeTab === 'nexus') ? 'text-white' : 'text-emerald-500'}`} />
+              <Share2 className={`w-3.5 h-3.5 inline mr-1 ${(activeTab === 'graph' || activeTab === 'nexus') ? 'text-white' : 'text-emerald-500'}`} />
               <span>Semantic Web</span>
             </button>
           )}
@@ -236,11 +225,9 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
                 type="button"
                 className="btn"
                 style={{
-                  padding: '6px 14px',
+                  padding: '6px 12px',
                   fontSize: '12px',
                   fontWeight: (activeTab === 'graph' || activeTab === 'nexus') ? 600 : 500,
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
                   borderRadius: 'var(--radius-pill)',
                   background: (activeTab === 'graph' || activeTab === 'nexus') ? 'var(--blue)' : 'transparent',
                   color: (activeTab === 'graph' || activeTab === 'nexus') ? '#ffffff' : 'var(--text-secondary)',
@@ -250,7 +237,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
                 }}
                 onClick={() => onTabChange('graph')}
               >
-                <Share2 className={`w-3.5 h-3.5 inline mr-1.5 ${(activeTab === 'graph' || activeTab === 'nexus') ? 'text-white' : 'text-purple-400'}`} />
+                <Share2 className={`w-3.5 h-3.5 inline mr-1 ${(activeTab === 'graph' || activeTab === 'nexus') ? 'text-white' : 'text-purple-400'}`} />
                 <span>Memory Graph</span>
               </button>
 
@@ -259,11 +246,9 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
                 type="button"
                 className="btn"
                 style={{
-                  padding: '6px 14px',
+                  padding: '6px 12px',
                   fontSize: '12px',
                   fontWeight: activeTab === 'capsules' ? 600 : 500,
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
                   borderRadius: 'var(--radius-pill)',
                   background: activeTab === 'capsules' ? 'var(--blue)' : 'transparent',
                   color: activeTab === 'capsules' ? '#ffffff' : 'var(--text-secondary)',
@@ -273,7 +258,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
                 }}
                 onClick={() => onTabChange('capsules')}
               >
-                <Clock className={`w-3.5 h-3.5 inline mr-1.5 ${activeTab === 'capsules' ? 'text-white' : 'text-amber-400'}`} />
+                <Clock className={`w-3.5 h-3.5 inline mr-1 ${activeTab === 'capsules' ? 'text-white' : 'text-amber-400'}`} />
                 <span>Future Capsules</span>
               </button>
 
@@ -282,11 +267,9 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
                 type="button"
                 className="btn"
                 style={{
-                  padding: '6px 14px',
+                  padding: '6px 12px',
                   fontSize: '12px',
                   fontWeight: activeTab === 'settings' ? 600 : 500,
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
                   borderRadius: 'var(--radius-pill)',
                   background: activeTab === 'settings' ? 'var(--blue)' : 'transparent',
                   color: activeTab === 'settings' ? '#ffffff' : 'var(--text-secondary)',
@@ -296,7 +279,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
                 }}
                 onClick={() => onTabChange('settings')}
               >
-                <Settings className={`w-3.5 h-3.5 inline mr-1.5 ${activeTab === 'settings' ? 'text-white' : 'text-sky-400'}`} />
+                <Settings className={`w-3.5 h-3.5 inline mr-1 ${activeTab === 'settings' ? 'text-white' : 'text-sky-400'}`} />
                 <span>Vault Settings</span>
               </button>
             </>

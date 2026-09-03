@@ -939,24 +939,21 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
           background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)',
         }}
       >
-        {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto scrollbar-none" style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}>
+        {/* Category Filter Pills: 3 in a row on mobile grid, fluid row on desktop */}
+        <div className="grid grid-cols-3 gap-1.5 w-full md:flex md:items-center md:gap-2 md:overflow-x-auto md:w-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setSelectedCategory('all')}
+            className="w-full md:w-auto flex items-center justify-center gap-1.5 px-2 py-1.5 md:px-3.5 md:py-1 rounded-full text-[10.5px] sm:text-xs font-semibold whitespace-nowrap transition-all"
             style={{
-              fontSize: '11.5px',
-              padding: '5px 14px',
-              borderRadius: '100px',
               border: '1px solid',
-              borderColor: selectedCategory === 'all' ? 'var(--accent-blue)' : 'var(--border-subtle)', background: selectedCategory === 'all' ? 'var(--accent-blue-subtle)' : 'transparent', color: selectedCategory === 'all' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+              borderColor: selectedCategory === 'all' ? 'var(--accent-blue)' : 'var(--border-subtle)',
+              background: selectedCategory === 'all' ? 'var(--accent-blue-subtle)' : 'transparent',
+              color: selectedCategory === 'all' ? 'var(--accent-blue)' : 'var(--text-secondary)',
               cursor: 'pointer',
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
             }}
           >
-            All Concepts ({graphData.nodes.length})
+            <span className="truncate">All Concepts ({graphData.nodes.length})</span>
           </button>
           {Object.entries(CATEGORY_CONFIG).map(([catKey, cfg]) => {
             const count = graphData.nodes.filter((n) => n.category === catKey).length;
@@ -966,23 +963,18 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
                 key={catKey}
                 type="button"
                 onClick={() => setSelectedCategory(catKey)}
+                className="w-full md:w-auto flex items-center justify-center gap-1 px-1.5 py-1.5 md:px-3.5 md:py-1 rounded-full text-[10.5px] sm:text-xs transition-all"
                 style={{
-                  fontSize: '11.5px',
-                  padding: '5px 14px',
-                  borderRadius: '100px',
                   border: '1px solid',
-                  borderColor: isSelected ? cfg.color : 'var(--border-subtle)', background: isSelected ? cfg.bg : 'transparent', color: isSelected ? cfg.color : 'var(--text-secondary)',
-                  cursor: 'pointer',
+                  borderColor: isSelected ? cfg.color : 'var(--border-subtle)',
+                  background: isSelected ? cfg.bg : 'transparent',
+                  color: isSelected ? cfg.color : 'var(--text-secondary)',
                   fontWeight: isSelected ? 600 : 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.15s ease',
+                  cursor: 'pointer',
                 }}
               >
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: cfg.color }} />
-                {cfg.label} ({count})
+                <span className="flex-shrink-0" style={{ width: '6px', height: '6px', borderRadius: '50%', background: cfg.color }} />
+                <span className="truncate">{cfg.label} ({count})</span>
               </button>
             );
           })}
