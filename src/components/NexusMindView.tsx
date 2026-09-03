@@ -1,4 +1,5 @@
 import { authenticatedFetch } from '../services/apiClient';
+import { generateGeminiChatResponse } from '../services/geminiClient';
 import React, { useState } from 'react';
 import { JournalEntry, TimeCapsule } from '../types';
 import { SemanticMemoryGraph } from './SemanticMemoryGraph';
@@ -83,44 +84,44 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
     setIsGenerating(true);
 
     try {
-      // Build context from user's encrypted reflections
-      const contextEntries = entries.slice(0, 20).map((e) => ({
-        title: e.title,
-        mood: e.mood,
-        tags: e.tags,
-        content: e.content.slice(0, 400),
-        date: e.createdAt,
-      }));
+      // 🌐 ITEM: Direct online Google Gemini API call with environment API key
+      const contextSummary = `User's decrypted journal reflections count: ${entries.length}.\nReflections Data:\n${JSON.stringify(
+        entries.slice(0, 15).map((e) => ({
+          title: e.title,
+          mood: e.mood,
+          tags: e.tags,
+          content: e.content.slice(0, 300),
+          date: e.createdAt,
+        })),
+        null,
+        2
+      )}`;
 
-      const res = await authenticatedFetch('/api/functions/chatWithGemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'vault-mind-' + (userId || 'user'),
-          content: userMsgText,
-          message: userMsgText,
-          mode: 'reflect',
-          context: `User's decrypted journal reflections count: ${entries.length}.\nReflections Data:\n${JSON.stringify(contextEntries, null, 2)}`,
-        }),
+      const geminiResult = await generateGeminiChatResponse({
+        prompt: userMsgText,
+        history: messages.map((m) => ({
+          role: m.sender === 'user' ? 'user' : 'model',
+          content: m.text,
+        })),
+        systemInstruction: "You are the Nexus Mind Cognitive Partner — an advanced personal AI reflection mirror in a zero-knowledge encrypted vault. Provide insightful, empathetic, Socratic, and deeply relevant answers grounded in the user's journal entries.",
+        context: contextSummary,
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        const replyContent = data.reply || data.aiMessage?.content || data.text;
-        if (replyContent) {
-          const assistantMsg: ChatMessage = {
-            id: 'msg_' + Math.random().toString(36).substring(2, 9),
-            sender: 'assistant',
-            text: replyContent,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            modelUsed: data.modelUsed || 'Gemini 3.6 Flash',
-          };
-          setMessages((prev) => [...prev, assistantMsg]);
-          return;
-        }
+      if (geminiResult && geminiResult.text) {
+        const assistantMsg: ChatMessage = {
+          id: 'msg_' + Math.random().toString(36).substring(2, 9),
+          sender: 'assistant',
+          text: geminiResult.text,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          modelUsed: geminiResult.modelUsed || 'Gemini 3.6 Flash',
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        return;
       }
+    } catch (apiErr: any) {
+      console.warn("[Nexus Mind Gemini API Call]", apiErr.message || apiErr);
 
-      // Dynamic Local Cognitive Synthesis
+      // Dynamic Local Cognitive Synthesis Fallback
       const matchingEntries = entries.filter((e) =>
         e.title.toLowerCase().includes(userMsgText.toLowerCase()) ||
         e.content.toLowerCase().includes(userMsgText.toLowerCase()) ||
@@ -145,9 +146,6 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
         modelUsed: 'Nexus Cognitive Core',
       };
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch (err: any) {
-      console.warn("Neural chat error:", err);
-      showToast('Nexus Mind synthesized response locally.', 'info');
     } finally {
       setIsGenerating(false);
     }

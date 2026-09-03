@@ -3,7 +3,9 @@ import { exportEntriesAsMarkdown, exportEntriesAsCSV, exportEntriesAsJSON, expor
 import { getActiveDeviceSessions, revokeDeviceSession, revokeAllOtherDeviceSessions, DeviceSession } from '../services/deviceSessionManager';
 import { parseImportFile } from '../utils/vaultImportHelper';
 import { ConfirmationModal } from './ConfirmationModal';
-import { addJournalEntry } from '../services/vaultStorage';
+import { addJournalEntry,
+  wipeCompleteVaultData
+} from '../services/vaultStorage';
 import { getVaultSchemaVersion, CURRENT_SCHEMA_VERSION, migrateVaultSchema } from '../services/vaultStorage';
 import { Laptop, Smartphone, MonitorX } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
@@ -87,6 +89,17 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
 
   // Nexus Legacy Guardian Policies state
   const [guardianPolicies, setGuardianPolicies] = useState(() => getLegacyGuardianPolicies(uid));
+
+  
+  const handleCleanSlateWipe = async () => {
+    setIsPanicConfirmOpen(false);
+    showToast('🧹 Purging all local and cloud records...', 'info');
+    await wipeCompleteVaultData(uid);
+    showToast('✅ Vault wiped clean! 100% fresh slate ready.', 'success');
+    setTimeout(() => {
+      window.location.reload();
+    }, 800);
+  };
 
   const handleQuickCheckIn = () => {
     if (guardianPolicies.length === 0) return;
@@ -288,6 +301,32 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
       {/* Grid of Settings Modules */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '20px' }}>
         
+        
+        {/* Card: Clean Slate Vault Purge */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: 'var(--shadow-card)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(217, 48, 37, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d93025' }}>
+              <Trash2 className="w-4 h-4 text-red-500" />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>Clean Slate Data Purge</h2>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Wipe all local and cloud data to test fresh client-side AES-GCM-256</span>
+            </div>
+          </div>
+          <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            Permanently erase all entries, time capsules, legacy guardian policies, and memory graphs from Local Storage and Cloud Firestore.
+          </p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ color: '#d93025', borderColor: 'rgba(217, 48, 37, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}
+            onClick={() => setIsPanicConfirmOpen(true)}
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Wipe All Local & Cloud Data (Clean Slate)</span>
+          </button>
+        </div>
+
         {/* Card 1: Master Credentials */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: 'var(--shadow-card)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

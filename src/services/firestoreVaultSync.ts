@@ -1,5 +1,7 @@
 import {
   doc,
+  getDocs,
+  writeBatch,
   collection,
   setDoc,
   deleteDoc,
@@ -276,4 +278,31 @@ export function checkFirestoreOfflineCapabilities(): {
     isPersistenceActive: true,
     cacheStorage: 'IndexedDB Multi-Tab Persistent Cache (persistentMultipleTabManager)',
   };
+}
+
+/**
+ * 🧹 Complete Zero-Knowledge Firestore Database Purge
+ * Deletes all encrypted records across entries, capsules, policies, graph nodes, and settings under users/{uid}.
+ */
+export async function clearAllFirestoreUserData(uid: string): Promise<void> {
+  if (!uid || uid === 'anonymous') return;
+
+  const subcollections = ['entries', 'capsules', 'policies', 'graphNodes', 'settings'];
+
+  try {
+    for (const subcol of subcollections) {
+      const colRef = collection(db, 'users', uid, subcol);
+      const snapshot = await getDocs(colRef);
+      if (!snapshot.empty) {
+        const batch = writeBatch(db);
+        snapshot.docs.forEach((docSnap) => {
+          batch.delete(docSnap.ref);
+        });
+        await batch.commit();
+      }
+    }
+    console.log(`[FirestoreSync] 🧹 All Firestore records for user ${uid} have been completely purged.`);
+  } catch (err) {
+    console.error('[FirestoreSync] Error purging Firestore user data:', err);
+  }
 }

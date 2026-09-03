@@ -1,9 +1,11 @@
 import { authenticatedFetch } from '../services/apiClient';
+import { generateGeminiParallelPersona } from '../services/geminiClient';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
 import { JournalEntry, MemoryNode, MemoryLink, SemanticGraphData, ConceptCategory } from '../types';
 import { extractSemanticGraph } from '../utils/graphExtractor';
-import { saveParallelPersona } from '../services/vaultStorage';
+import { saveParallelPersona, getParallelPersona } from '../services/vaultStorage';
+import { Calendar, PlusCircle } from 'lucide-react';
 import {
   Activity,
   FileDown,
@@ -46,7 +48,7 @@ interface SemanticMemoryGraphProps {
 }
 
 const CATEGORY_CONFIG: Record<
-  ConceptCategory,
+  string,
   { label: string; color: string; bg: string; border: string; glow: string; text: string }
 > = {
   theme: {
@@ -90,6 +92,33 @@ const CATEGORY_CONFIG: Record<
     text: '#f28b82',
   },
 };
+
+const GOOGLE_PALETTE = [
+  { id: 'g-blue', color: '#1a73e8', darkColor: '#174ea6', lightColor: '#8ab4f8', bg: 'rgba(26, 115, 232, 0.18)', border: '#8ab4f8', glow: 'rgba(26, 115, 232, 0.5)' },
+  { id: 'g-green', color: '#1e8e3e', darkColor: '#0d652d', lightColor: '#81c995', bg: 'rgba(30, 142, 62, 0.18)', border: '#81c995', glow: 'rgba(30, 142, 62, 0.5)' },
+  { id: 'g-amber', color: '#f9ab00', darkColor: '#b06000', lightColor: '#fdd663', bg: 'rgba(249, 171, 0, 0.18)', border: '#fdd663', glow: 'rgba(249, 171, 0, 0.5)' },
+  { id: 'g-red', color: '#ea4335', darkColor: '#a50e0e', lightColor: '#f28b82', bg: 'rgba(234, 67, 53, 0.18)', border: '#f28b82', glow: 'rgba(234, 67, 53, 0.5)' },
+  { id: 'g-purple', color: '#9334e6', darkColor: '#681da8', lightColor: '#c58af9', bg: 'rgba(147, 52, 230, 0.18)', border: '#c58af9', glow: 'rgba(147, 52, 230, 0.5)' },
+  { id: 'g-cyan', color: '#007b83', darkColor: '#004d40', lightColor: '#78d9ec', bg: 'rgba(0, 123, 131, 0.18)', border: '#78d9ec', glow: 'rgba(0, 123, 131, 0.5)' },
+  { id: 'g-coral', color: '#fa7b17', darkColor: '#b54d00', lightColor: '#fcad70', bg: 'rgba(250, 123, 23, 0.18)', border: '#fcad70', glow: 'rgba(250, 123, 23, 0.5)' },
+];
+
+const getNodeRadius = (d: any) => {
+  const base = d.val || 20;
+  return Math.max(28, Math.min(46, base * 1.5));
+};
+
+const getNodeColorConfig = (d: any, index: number) => {
+  const hashStr = String(d.domain || d.category || d.label || index);
+  let hash = 0;
+  for (let i = 0; i < hashStr.length; i++) {
+    hash = (hash << 5) - hash + hashStr.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % GOOGLE_PALETTE.length;
+  return GOOGLE_PALETTE[idx];
+};
+
 
 const COVER_DOMAINS = [
   { id: 'Botanical & Hydroponics', name: '🌿 Botanical & Hydroponic Systems', desc: 'pH sensors, nutrient loops, greenhouse microclimates, foliage yield' },
@@ -162,6 +191,17 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
   const [customPersonaProfile, setCustomPersonaProfile] = useState('');
   const [entryCount, setEntryCount] = useState<number>(5);
   const [isSynthesizingNPPM, setIsSynthesizingNPPM] = useState(false);
+  // 🧬 NPPM Multi-Domain Append & Date Range State
+  const [appendMode, setAppendMode] = useState<'append' | 'replace'>('append');
+  const [dateRangePreset, setDateRangePreset] = useState<'14d' | '30d' | '90d' | '180d' | 'custom'>('30d');
+  const [customStartDate, setCustomStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
 
   // Quick Inspiration Profiles (Max 6, LRU with persistence)
   const [quickInspirations, setQuickInspirations] = useState<QuickInspirationProfile[]>(() => {
@@ -226,7 +266,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
     setSelectedLink(null);
   }, [entries, initialGraphData]);
 
-  // Handle NPPM Synthesis Trigger
+  // Handle NPPM Synthesis Trigger (Multi-Domain Cumulative & Date Range Aware)
   const handleSynthesizeNPPM = async () => {
     if (isSynthesizingNPPM) return;
 
@@ -237,37 +277,97 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
 
     setIsSynthesizingNPPM(true);
     try {
-      const res = await authenticatedFetch('/api/functions/translateParallelPersona', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetDomain: chosenDomain,
-          domainKeywords: domainMode === 'custom' ? customDomainKeywords.trim() : undefined,
-          customPersonaProfile: customPersonaProfile.trim() || undefined,
-          entryCount: entryCount,
-          entries: entries.map((e) => ({
-            id: e.id,
-            title: e.title,
-            content: e.content,
-            mood: e.mood,
-            tags: e.tags,
-            createdAt: e.createdAt,
-          })),
-        }),
+      // 🌐 Direct online Google Gemini API call with environment API key
+      const data = await generateGeminiParallelPersona({
+        targetDomain: chosenDomain,
+        domainKeywords: domainMode === 'custom' ? customDomainKeywords.trim() : undefined,
+        customPersonaProfile: customPersonaProfile.trim() || undefined,
+        entryCount: entryCount,
+        dateRangeMode: dateRangePreset,
+        startDate: dateRangePreset === 'custom' ? customStartDate : undefined,
+        endDate: dateRangePreset === 'custom' ? customEndDate : undefined,
+        entries: entries.map((e) => ({
+          id: e.id,
+          title: e.title,
+          content: e.content,
+          mood: e.mood,
+          tags: e.tags,
+          createdAt: e.createdAt,
+        })),
       });
 
-      const data = await res.json();
-      if (data.success && data.graph) {
+      if (data && data.success && data.graph) {
+        const uid = userId || 'default_user';
+        const existingPersona = getParallelPersona(uid);
+        let finalEntries: any[] = [];
+        let finalNodes: any[] = [];
+        let finalLinks: any[] = [];
+        let allDomains: string[] = [];
+
+        if (appendMode === 'append' && existingPersona && Array.isArray(existingPersona.entries) && existingPersona.entries.length > 0) {
+          // 🧬 Multi-Domain Cumulative Merge
+          finalEntries = [...(data.entries || []), ...existingPersona.entries];
+          // Deduplicate by ID
+          const seenIds = new Set<string>();
+          finalEntries = finalEntries.filter((e) => {
+            if (seenIds.has(e.id)) return false;
+            seenIds.add(e.id);
+            return true;
+          });
+          // Sort by createdAt descending
+          finalEntries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+          // Merge Graph Nodes
+          const existingNodes = existingPersona.graph?.nodes || [];
+          const newNodes = data.graph.nodes || [];
+          const nodeMap = new Map<string, any>();
+          existingNodes.forEach((n: any) => nodeMap.set(n.id || n.label, n));
+          newNodes.forEach((n: any) => nodeMap.set(n.id || n.label, n));
+          finalNodes = Array.from(nodeMap.values());
+
+          // Merge Graph Links
+          const existingLinks = existingPersona.graph?.links || [];
+          const newLinks = data.graph.links || [];
+          const linkMap = new Map<string, any>();
+          existingLinks.forEach((l: any) => linkMap.set(`${l.source}->${l.target}`, l));
+          newLinks.forEach((l: any) => linkMap.set(`${l.source}->${l.target}`, l));
+          finalLinks = Array.from(linkMap.values());
+
+          const prevDomains = Array.isArray(existingPersona.domains)
+            ? existingPersona.domains
+            : (existingPersona.targetDomain ? [existingPersona.targetDomain] : []);
+          allDomains = Array.from(new Set([...prevDomains, chosenDomain]));
+        } else {
+          // 🔄 Replace / Clean Slate
+          finalEntries = data.entries || [];
+          finalNodes = data.graph.nodes || [];
+          finalLinks = data.graph.links || [];
+          allDomains = [chosenDomain];
+        }
+
         const personaPayload = {
-          targetDomain: data.targetDomain || chosenDomain,
-          personaTitle: data.personaTitle || `${chosenDomain} Field Journal`,
-          entries: data.entries || [],
-          graph: data.graph,
+          targetDomain: chosenDomain,
+          domains: allDomains,
+          personaTitle: allDomains.length > 1
+            ? `Multi-Domain Field Journal (${allDomains.join(' · ')})`
+            : (data.personaTitle || `${chosenDomain} Field Journal`),
+          entries: finalEntries,
+          graph: {
+            nodes: finalNodes,
+            links: finalLinks,
+            metrics: {
+              totalConcepts: finalNodes.length,
+              totalConnections: finalLinks.length,
+              clustersCount: new Set(finalNodes.map((n: any) => n.category || n.domain)).size,
+              semanticDensity: 45.0,
+              centralConcept: allDomains.join(' / '),
+            },
+          },
           generatedAt: new Date().toISOString(),
-          modelUsed: data.modelUsed || 'Gemini 3.7 Flash',
+          modelUsed: data.modelUsed || 'Gemini 3.6 Flash',
         };
 
-        saveParallelPersona(userId, personaPayload);
+        saveParallelPersona(uid, personaPayload);
 
         // Save into Quick Inspiration (LRU Max 6)
         if (domainMode === 'custom' || customDomainName.trim()) {
@@ -276,13 +376,14 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
 
         setIsNPPMModalOpen(false);
         if (showToast) {
-          showToast(`Parallel Persona Matrix synthesized (${data.entries?.length || entryCount} entries)! Protected Vault is now populated with the "${chosenDomain}" cover persona.`, 'success');
+          showToast(`Multi-Domain Persona Matrix updated! Total: ${finalEntries.length} cover entries across ${allDomains.length} domain(s).`, 'success');
         }
       } else {
         if (showToast) showToast('Failed to synthesize persona matrix.', 'error');
       }
     } catch (err: any) {
-      if (showToast) showToast(`NPPM Synthesis error: ${err.message}`, 'error');
+      console.warn('[NPPM Synthesis Error]', err);
+      if (showToast) showToast(`NPPM Synthesis error: ${err.message || 'Domain translation failed.'}`, 'error');
     } finally {
       setIsSynthesizingNPPM(false);
     }
@@ -341,15 +442,12 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
     }
   };
 
-  // Filtered nodes & links
+  // Filtered nodes & links (Search filter active, static zero-categories removed)
   const filteredData = useMemo(() => {
     let nodes = graphData.nodes;
-    if (selectedCategory !== 'all') {
-      nodes = nodes.filter((n) => n.category === selectedCategory);
-    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      nodes = nodes.filter((n) => n.label.toLowerCase().includes(q));
+      nodes = nodes.filter((n) => n.label.toLowerCase().includes(q) || (n.summary && n.summary.toLowerCase().includes(q)) || (n.domain && n.domain.toLowerCase().includes(q)));
     }
 
     const nodeIds = new Set(nodes.map((n) => n.id));
@@ -360,7 +458,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
     });
 
     return { nodes, links };
-  }, [graphData, selectedCategory, searchQuery]);
+  }, [graphData, searchQuery]);
 
   // Connected nodes map for fast highlighting
   const connectedMap = useMemo(() => {
@@ -393,7 +491,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
     return () => observer.disconnect();
   }, [isFullscreen]);
 
-  // Render / Update D3 Force Graph
+  // Render / Update D3 Force Graph (Google Enterprise Semantic Knowledge Graph)
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
 
@@ -411,26 +509,39 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
     // Background defs (Gradients, Arrow markers, Glow filters)
     const defs = svg.append('defs');
 
+    // Add vibrant Google radial gradients for each palette color
+    GOOGLE_PALETTE.forEach((p) => {
+      const radGrad = defs
+        .append('radialGradient')
+        .attr('id', `grad-${p.id}`)
+        .attr('cx', '35%')
+        .attr('cy', '35%')
+        .attr('r', '65%');
+      radGrad.append('stop').attr('offset', '0%').attr('stop-color', p.lightColor);
+      radGrad.append('stop').attr('offset', '55%').attr('stop-color', p.color);
+      radGrad.append('stop').attr('offset', '100%').attr('stop-color', p.darkColor);
+    });
+
     // Arrow markers for links
-    Object.entries(CATEGORY_CONFIG).forEach(([cat, cfg]) => {
+    GOOGLE_PALETTE.forEach((cfg) => {
       defs
         .append('marker')
-        .attr('id', `arrow-${cat}`)
+        .attr('id', `arrow-${cfg.id}`)
         .attr('viewBox', '0 -5 10 10')
-        .attr('refX', 24)
+        .attr('refX', 30)
         .attr('refY', 0)
-        .attr('markerWidth', 5)
-        .attr('markerHeight', 5)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
         .attr('orient', 'auto')
         .append('path')
         .attr('d', 'M0,-5L10,0L0,5')
         .attr('fill', cfg.color)
-        .attr('opacity', 0.6);
+        .attr('opacity', 0.7);
     });
 
     // Node Glow filter
     const filter = defs.append('filter').attr('id', 'node-glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
-    filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'coloredBlur');
+    filter.append('feGaussianBlur').attr('stdDeviation', '5').attr('result', 'coloredBlur');
     const feMerge = filter.append('feMerge');
     feMerge.append('feMergeNode').attr('in', 'coloredBlur');
     feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
@@ -452,7 +563,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
     const d3Nodes: MemoryNode[] = filteredData.nodes.map((d) => ({ ...d }));
     const d3Links: MemoryLink[] = filteredData.links.map((d) => ({ ...d }));
 
-    // Force Simulation Setup
+    // Force Simulation Setup with Google-grade spacing and breathability
     const simulation = d3
       .forceSimulation<MemoryNode, MemoryLink>(d3Nodes)
       .force(
@@ -460,34 +571,34 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
         d3
           .forceLink<MemoryNode, MemoryLink>(d3Links)
           .id((d) => d.id)
-          .distance((d) => 110 - (d.strength || 1) * 8)
+          .distance((d) => Math.max(140, 180 - (d.strength || 1) * 10))
       )
-      .force('charge', d3.forceManyBody().strength(-360).distanceMax(500))
+      .force('charge', d3.forceManyBody().strength(-650).distanceMax(700))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force(
         'collision',
         d3.forceCollide().radius((d: any) => {
+          const r = getNodeRadius(d);
           const labelLen = (d.label || '').length;
-          return Math.max((d.val || 15) + 28, labelLen * 3.8 + 14);
+          return Math.max(r + 34, labelLen * 4.2 + 20);
         })
       );
 
     simulationRef.current = simulation;
 
-    // Draw Cluster Background Halos / Force Field Rings
     const linkGroup = g.append('g').attr('class', 'links');
     const nodeGroup = g.append('g').attr('class', 'nodes');
     const labelGroup = g.append('g').attr('class', 'labels');
 
-    // Render Links
+    // Render Links with smooth opacity and interactive hover
     const link = linkGroup
       .selectAll<SVGLineElement, MemoryLink>('line')
       .data(d3Links)
       .enter()
       .append('line')
-      .attr('stroke', 'rgba(168, 85, 247, 0.25)')
-      .attr('stroke-width', (d) => Math.max(1.5, Math.min(4, d.strength * 1.2)))
-      .attr('stroke-dasharray', (d) => (d.relationship === 'Influences' ? '4 2' : 'none'))
+      .attr('stroke', isDarkTheme ? 'rgba(138, 180, 248, 0.35)' : 'rgba(26, 115, 232, 0.3)')
+      .attr('stroke-width', (d) => Math.max(2, Math.min(5, (d.strength || 1.5) * 1.5)))
+      .attr('stroke-dasharray', (d) => (d.relationship === 'Influences' ? '6 3' : 'none'))
       .attr('cursor', 'pointer')
       .on('click', (event, d) => {
         event.stopPropagation();
@@ -496,17 +607,17 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
       })
       .on('mouseenter', function (event, d) {
         d3.select(this)
-          .attr('stroke', '#a855f7')
-          .attr('stroke-width', 4)
+          .attr('stroke', '#1a73e8')
+          .attr('stroke-width', 5)
           .attr('opacity', 1);
       })
       .on('mouseleave', function (event, d) {
         d3.select(this)
-          .attr('stroke', 'rgba(168, 85, 247, 0.25)')
-          .attr('stroke-width', (d.strength || 1) * 1.2);
+          .attr('stroke', isDarkTheme ? 'rgba(138, 180, 248, 0.35)' : 'rgba(26, 115, 232, 0.3)')
+          .attr('stroke-width', Math.max(2, Math.min(5, (d.strength || 1.5) * 1.5)));
       });
 
-    // Render Nodes (with drag handler)
+    // Render Nodes (with smooth drag and hover)
     const drag = d3
       .drag<SVGGElement, MemoryNode>()
       .on('start', (event, d) => {
@@ -539,7 +650,6 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
       })
       .on('mouseenter', (event, d) => {
         setHoveredNode(d);
-        // Highlight active connections
         const activeNeighbors = connectedMap.get(d.id) || new Set();
         node.attr('opacity', (n) => (n.id === d.id || activeNeighbors.has(n.id) ? 1 : 0.25));
         link
@@ -551,64 +661,69 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
           .attr('stroke', (l: any) => {
             const sId = l.source.id || l.source;
             const tId = l.target.id || l.target;
-            return sId === d.id || tId === d.id ? '#a855f7' : 'rgba(168, 85, 247, 0.25)';
+            return sId === d.id || tId === d.id ? '#1a73e8' : (isDarkTheme ? 'rgba(138, 180, 248, 0.25)' : 'rgba(26, 115, 232, 0.2)');
           });
       })
       .on('mouseleave', () => {
         setHoveredNode(null);
         node.attr('opacity', 1);
-        link.attr('opacity', 1).attr('stroke', 'rgba(168, 85, 247, 0.25)');
+        link.attr('opacity', 1).attr('stroke', isDarkTheme ? 'rgba(138, 180, 248, 0.35)' : 'rgba(26, 115, 232, 0.3)');
       });
 
-    // Outer Aura Ring
+    // 1. Outer Aura Ring (Glowing Orbital Field)
     node
       .append('circle')
-      .attr('r', (d) => (d.val || 15) + 6)
-      .attr('fill', (d) => CATEGORY_CONFIG[d.category]?.bg || 'rgba(168, 85, 247, 0.15)')
-      .attr('stroke', (d) => CATEGORY_CONFIG[d.category]?.color || '#a855f7')
-      .attr('stroke-width', 1)
-      .attr('stroke-opacity', 0.4)
+      .attr('class', 'node-aura')
+      .attr('r', (d: any) => getNodeRadius(d) + 9)
+      .attr('fill', (d: any, idx: number) => getNodeColorConfig(d, idx).bg)
+      .attr('stroke', (d: any, idx: number) => getNodeColorConfig(d, idx).border)
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.55)
+      .attr('stroke-dasharray', '5 2.5')
       .attr('filter', 'url(#node-glow)');
 
-    // Core Node Circle
+    // 2. Core Node Circle (Glossy 3D Google Spherical Gradient)
     node
       .append('circle')
-      .attr('r', (d) => d.val || 15)
-      .attr('fill', (d) => CATEGORY_CONFIG[d.category]?.color || '#a855f7')
+      .attr('class', 'node-core')
+      .attr('r', (d: any) => getNodeRadius(d))
+      .attr('fill', (d: any, idx: number) => `url(#grad-${getNodeColorConfig(d, idx).id})`)
       .attr('stroke', '#ffffff')
-      .attr('stroke-width', 2)
-      .attr('shadow', '0 4px 10px rgba(0,0,0,0.3)');
+      .attr('stroke-width', 2.5)
+      .style('filter', 'drop-shadow(0 4px 10px rgba(0,0,0,0.35))');
 
-    // Inner icon / glyph
+    // 3. Inner Initial / Glyph Badge
     node
       .append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '0.35em')
+      .attr('dy', '0.36em')
       .attr('fill', '#ffffff')
-      .attr('font-size', (d) => Math.max(9, (d.val || 15) * 0.55))
-      .attr('font-weight', '700')
+      .attr('font-size', (d: any) => `${Math.max(13, getNodeRadius(d) * 0.52)}px`)
+      .attr('font-weight', '800')
+      .attr('font-family', "'Google Sans', 'Google Sans Text', -apple-system, BlinkMacSystemFont, sans-serif")
       .attr('pointer-events', 'none')
-      .text((d) => d.label.charAt(0).toUpperCase());
+      .text((d: any) => (d.label ? d.label.charAt(0).toUpperCase() : '•'));
 
-    // Node Labels (Smart collision clearance & text outline)
+    // 4. Prominent Google-Standard Node Labels (Crisp outline & high contrast)
     const label = labelGroup
       .selectAll<SVGTextElement, MemoryNode>('text')
       .data(d3Nodes)
       .enter()
       .append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', (d) => (d.val || 15) + 16)
-      .attr('fill', isDarkTheme ? '#f8fafc' : '#1f1f1f')
-      .attr('font-size', '11.5px')
-      .attr('font-weight', '600')
-      .attr('letter-spacing', '0.01em')
+      .attr('dy', (d: any) => getNodeRadius(d) + 18)
+      .attr('fill', isDarkTheme ? '#f8fafc' : '#0f172a')
+      .attr('font-size', '13px')
+      .attr('font-weight', '700')
+      .attr('font-family', "'Google Sans', 'Google Sans Text', -apple-system, BlinkMacSystemFont, sans-serif")
+      .attr('letter-spacing', '-0.01em')
       .attr('paint-order', 'stroke')
-      .attr('stroke', isDarkTheme ? '#0b0f19' : '#ffffff')
-      .attr('stroke-width', '3.5px')
+      .attr('stroke', isDarkTheme ? '#090d16' : '#ffffff')
+      .attr('stroke-width', '4.5px')
       .attr('stroke-linecap', 'round')
       .attr('stroke-linejoin', 'round')
       .attr('pointer-events', 'none')
-      .text((d) => (d.label && d.label.length > 22 ? d.label.slice(0, 20) + '…' : d.label));
+      .text((d: any) => (d.label && d.label.length > 26 ? d.label.slice(0, 24) + '…' : d.label));
 
     // Simulation Ticks
     simulation.on('tick', () => {
@@ -622,16 +737,32 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
       label.attr('x', (d: any) => d.x).attr('y', (d: any) => d.y);
     });
 
-    // Auto-fit initial zoom after tick settles
+    // Auto-fit initial zoom and perfectly center nodes
     const timeout = setTimeout(() => {
+      if (!d3Nodes.length) return;
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      d3Nodes.forEach((n: any) => {
+        if (n.x !== undefined) {
+          if (n.x < minX) minX = n.x;
+          if (n.x > maxX) maxX = n.x;
+          if (n.y < minY) minY = n.y;
+          if (n.y > maxY) maxY = n.y;
+        }
+      });
+      const graphWidth = (maxX - minX) + 140;
+      const graphHeight = (maxY - minY) + 140;
+      const midX = (minX + maxX) / 2 || width / 2;
+      const midY = (minY + maxY) / 2 || height / 2;
+      const scale = Math.min(1.2, Math.max(0.7, 0.88 / Math.max(graphWidth / width, graphHeight / height)));
+
       svg
         .transition()
-        .duration(750)
+        .duration(700)
         .call(
           zoom.transform,
-          d3.zoomIdentity.translate(width / 2, height / 2).scale(0.9).translate(-width / 2, -height / 2)
+          d3.zoomIdentity.translate(width / 2, height / 2).scale(scale).translate(-midX, -midY)
         );
-    }, 400);
+    }, 380);
 
     return () => {
       simulation.stop();
@@ -932,56 +1063,22 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
         </div>
       </div>
 
-      {/* Control & Filter Sub-Bar */}
+      {/* Clean Google Control & Search Sub-Bar */}
       <div
-        className="p-2.5 sm:p-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3"
+        className="p-2.5 sm:p-3 flex items-center justify-between gap-3"
         style={{
           background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)',
         }}
       >
-        {/* Category Filter Pills: 3 in a row on mobile grid, fluid row on desktop */}
-        <div className="grid grid-cols-3 gap-1.5 w-full md:flex md:items-center md:gap-2 md:overflow-x-auto md:w-auto scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('all')}
-            className="w-full md:w-auto flex items-center justify-center gap-1.5 px-2 py-1.5 md:px-3.5 md:py-1 rounded-full text-[10.5px] sm:text-xs font-semibold whitespace-nowrap transition-all"
-            style={{
-              border: '1px solid',
-              borderColor: selectedCategory === 'all' ? 'var(--accent-blue)' : 'var(--border-subtle)',
-              background: selectedCategory === 'all' ? 'var(--accent-blue-subtle)' : 'transparent',
-              color: selectedCategory === 'all' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            <span className="truncate">All Concepts ({graphData.nodes.length})</span>
-          </button>
-          {Object.entries(CATEGORY_CONFIG).map(([catKey, cfg]) => {
-            const count = graphData.nodes.filter((n) => n.category === catKey).length;
-            const isSelected = selectedCategory === catKey;
-            return (
-              <button
-                key={catKey}
-                type="button"
-                onClick={() => setSelectedCategory(catKey)}
-                className="w-full md:w-auto flex items-center justify-center gap-1 px-1.5 py-1.5 md:px-3.5 md:py-1 rounded-full text-[10.5px] sm:text-xs transition-all"
-                style={{
-                  border: '1px solid',
-                  borderColor: isSelected ? cfg.color : 'var(--border-subtle)',
-                  background: isSelected ? cfg.bg : 'transparent',
-                  color: isSelected ? cfg.color : 'var(--text-secondary)',
-                  fontWeight: isSelected ? 600 : 500,
-                  cursor: 'pointer',
-                }}
-              >
-                <span className="flex-shrink-0" style={{ width: '6px', height: '6px', borderRadius: '50%', background: cfg.color }} />
-                <span className="truncate">{cfg.label} ({count})</span>
-              </button>
-            );
-          })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--accent-blue)', background: 'var(--accent-blue-subtle)', padding: '4px 12px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--accent-blue)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{filteredData.nodes.length} Knowledge Nodes Active</span>
+          </span>
         </div>
 
         {/* Live Search Input */}
-        <div className="relative w-full md:w-64 min-w-[180px]">
+        <div className="relative w-full md:w-72 min-w-[200px]">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -990,8 +1087,8 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
             placeholder="Filter concepts or entities..."
             style={{
               width: '100%',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-pill)', padding: '6px 12px 6px 30px', fontSize: '12px', color: 'var(--text-primary)',
+              background: 'var(--bg-main)',
+              border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-pill)', padding: '7px 14px 7px 32px', fontSize: '12.5px', color: 'var(--text-primary)',
               outline: 'none',
             }}
           />
@@ -1173,223 +1270,147 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
           />
         )}
 
-        {/* Node Inspection Drawer / Popup */}
+        {/* Google Material 3 Node Inspection Card */}
         {selectedNode && (
           <div
-            className="absolute top-3 left-3 sm:top-4 sm:left-4 w-[calc(100%-24px)] sm:w-80 max-h-[80vh] overflow-y-auto p-4 sm:p-5 rounded-2xl z-20"
-            style={{
-              background: 'var(--bg-card)',
-              backdropFilter: 'blur(16px)',
-              border: `1px solid ${CATEGORY_CONFIG[selectedNode.category]?.border || 'rgba(168, 85, 247, 0.4)'}`,
-              boxShadow: '0 12px 36px rgba(0, 0, 0, 0.6)',
-              color: '#ffffff',
-            }}
+            className="google-popup absolute top-3 left-3 sm:top-4 sm:left-4 z-20 max-h-[85vh] overflow-y-auto"
           >
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <div>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: CATEGORY_CONFIG[selectedNode.category]?.color,
-                    background: CATEGORY_CONFIG[selectedNode.category]?.bg,
-                    padding: '2px 8px',
-                    borderRadius: '100px',
-                    border: `1px solid ${CATEGORY_CONFIG[selectedNode.category]?.border}`,
-                  }}
-                >
-                  {CATEGORY_CONFIG[selectedNode.category]?.label}
-                </span>
-                <h3
-                  style={{
-                    fontSize: '18px',
-                    fontWeight: 600,
-                    margin: '6px 0 0 0',
-                    color: 'var(--text-primary)', fontFamily: '"Google Sans", "Google Sans Text", sans-serif',
-                  }}
-                >
-                  {selectedNode.label}
-                </h3>
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setSelectedNode(null)}
+              className="popup-close"
+              title="Close"
+            >
+              ✕
+            </button>
+
+            {/* Topic Chip */}
+            {(() => {
+              const categoryLabel = CATEGORY_CONFIG[selectedNode.category]?.label || selectedNode.domain || selectedNode.category || 'Knowledge Concept';
+              return (
+                <div className="topic-chip">
+                  {categoryLabel}
+                </div>
+              );
+            })()}
+
+            {/* Popup Title */}
+            <h3 className="popup-title">
+              {selectedNode.label}
+            </h3>
+
+            {/* Subtitle / Microcopy */}
+            <p className="popup-subtitle">
+              Latent cognitive concept synthesized across personal memories and reflections.
+            </p>
+
+            {/* Info Grid (Frequency & Tone) */}
+            <div className="info-grid">
+              <div className="info-card">
+                <div className="info-label">Frequency</div>
+                <div className="info-value frequency">{selectedNode.entryCount} Reflections</div>
               </div>
+              <div className="info-card">
+                <div className="info-label">Cognitive Tone</div>
+                <div className="info-value tone" style={{ textTransform: 'capitalize' }}>
+                  {selectedNode.sentiment || 'Constructive'}
+                </div>
+              </div>
+            </div>
+
+            {/* Context Card */}
+            <div className="context-title">Cognitive Context</div>
+            <div className="context-card" style={{ maxHeight: '140px', overflowY: 'auto' }}>
+              {selectedNode.summary || 'Latent semantic concept connected across your reflections, focus sessions, and active thoughts.'}
+            </div>
+
+            {/* Popup Actions */}
+            <div className="popup-actions">
               <button
                 type="button"
                 onClick={() => setSelectedNode(null)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                }}
+                className="btn-text"
               >
-                ✕
+                Close
               </button>
+              {onSelectConceptPrompt && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelectConceptPrompt(`Synthesize how the concept "${selectedNode.label}" influences my ongoing reflections, projects, and mindset patterns.`);
+                    setSelectedNode(null);
+                  }}
+                  className="btn-filled"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Synthesize with AI</span>
+                </button>
+              )}
             </div>
-
-            {/* Metrics Grid */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '8px',
-                marginBottom: '14px',
-                background: 'var(--bg-card)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                padding: '10px 12px',
-                borderRadius: '12px',
-                fontSize: '11.5px',
-              }}
-            >
-              <div>
-                <span style={{ color: 'var(--text-secondary)' }}>Occurrences:</span>{' '}
-                <strong style={{ color: '#8ab4f8' }}>{selectedNode.entryCount} Reflections</strong>
-              </div>
-              <div>
-                <span style={{ color: 'var(--text-secondary)' }}>Sentiment:</span>{' '}
-                <strong style={{ color: '#34a853', textTransform: 'capitalize' }}>
-                  {selectedNode.sentiment || 'Positive'}
-                </strong>
-              </div>
-            </div>
-
-            {/* Summary / Excerpts in Google Keep Card Style */}
-            <div style={{ marginBottom: '14px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                Cognitive Context
-              </span>
-              <p
-                style={{
-                  fontSize: '12.5px',
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.5,
-                  margin: '6px 0 0 0',
-                  maxHeight: '130px',
-                  overflowY: 'auto',
-                  background: 'var(--surface-hover)', border: '1px solid var(--border-subtle)',
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                }}
-              >
-                {selectedNode.summary || 'Associated across multiple journal reflections and focus sessions.'}
-              </p>
-            </div>
-
-            {/* Quick Nexus Prompt Generator (Real Mode) */}
-            {onSelectConceptPrompt && (
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectConceptPrompt(`Synthesize how the concept "${selectedNode.label}" influences my ongoing reflections, projects, and mindset patterns.`);
-                  setSelectedNode(null);
-                }}
-                style={{
-                  width: '100%',
-                  background: 'linear-gradient(135deg, #1a73e8, #7c3aed)',
-                  border: 'none',
-                  color: '#ffffff',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-pill)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 12px rgba(26, 115, 232, 0.3)',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Synthesize "{selectedNode.label}" with Gemini AI
-              </button>
-            )}
           </div>
         )}
 
-        {/* Link / Edge Inspection Drawer */}
+        {/* Google Material 3 Synaptic Relationship Popup */}
         {selectedLink && (
           <div
-            style={{
-              position: 'absolute',
-              top: '16px',
-              left: '16px',
-              width: '320px',
-              background: 'var(--bg-surface)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: '20px',
-              border: '1px solid rgba(138, 180, 248, 0.3)',
-              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
-              padding: '18px',
-              zIndex: 20,
-              color: '#ffffff',
-            }}
+            className="google-popup absolute top-3 left-3 sm:top-4 sm:left-4 z-20"
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8ab4f8' }} />
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#8ab4f8', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                  Synaptic Relationship
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedLink(null)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                }}
-              >
-                ✕
-              </button>
+            <button
+              type="button"
+              onClick={() => setSelectedLink(null)}
+              className="popup-close"
+              title="Close"
+            >
+              ✕
+            </button>
+
+            <div className="topic-chip" style={{ color: 'var(--md-frequency-blue)' }}>
+              Synaptic Relationship
             </div>
+
             <div
               style={{
+                marginTop: '16px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                marginBottom: '12px',
-                background: 'var(--bg-card)',
-                padding: '8px 12px',
-                borderRadius: '10px',
-                fontSize: '12.5px',
+                padding: '14px 16px',
+                borderRadius: '16px',
+                background: 'var(--md-surface-container)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: '14px',
               }}
             >
-              <strong style={{ color: 'var(--text-primary)' }}>
+              <strong style={{ color: 'var(--md-on-surface)' }}>
                 {typeof selectedLink.source === 'object' ? (selectedLink.source as MemoryNode).label : selectedLink.source}
               </strong>
-              <span style={{ fontSize: '11px', color: '#8ab4f8', fontWeight: 600 }}>
+              <span style={{ color: 'var(--md-primary)', fontWeight: 700 }}>
                 ➔ {selectedLink.relationship} ➔
               </span>
-              <strong style={{ color: 'var(--text-primary)' }}>
+              <strong style={{ color: 'var(--md-on-surface)' }}>
                 {typeof selectedLink.target === 'object' ? (selectedLink.target as MemoryNode).label : selectedLink.target}
               </strong>
             </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.5, margin: 0 }}>
+
+            <div className="context-title">Synaptic Excerpt</div>
+            <div className="context-card">
               {selectedLink.contextExcerpt || `Shared co-occurrence across ${selectedLink.coOccurrences} reflections.`}
-            </p>
+            </div>
+
+            <div className="popup-actions">
+              <button
+                type="button"
+                onClick={() => setSelectedLink(null)}
+                className="btn-text"
+              >
+                Done
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Neural Parallel Persona Matrix (NPPM) Modal (Enterprise Google M3 Architecture - Pinned Chrome & Smooth Single-Surface Body Scroll) */}
+                {/* Neural Parallel Persona Matrix (NPPM) Modal (Enterprise Google M3 Architecture - Pinned Chrome & Smooth Single-Surface Body Scroll) */}
         {isNPPMModalOpen && (
           <div
             style={{
@@ -1760,8 +1781,164 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
                     </div>
                   )}
 
-                  {/* Entry Generation Count Selector */}
+                  {/* Append Mode Toggle (Multi-Domain vs Replace) */}
                   <div style={{ marginTop: '18px', background: 'var(--bg-main)', padding: '16px 18px', borderRadius: '18px', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <PlusCircle className="w-4 h-4 text-emerald-500" />
+                        <span>Synthesis Mode (Multi-Domain Protection)</span>
+                      </label>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '3px 8px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border-subtle)' }}>
+                        {(() => {
+                          const p = getParallelPersona(userId || 'default_user');
+                          const c = p?.entries?.length || 0;
+                          const d = p?.domains?.length || (p?.targetDomain ? 1 : 0);
+                          return `PV: ${c} entries across ${d} domain(s)`;
+                        })()}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setAppendMode('append')}
+                        disabled={isSynthesizingNPPM}
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: '12px',
+                          border: `1.5px solid ${appendMode === 'append' ? 'var(--accent-emerald, #34a853)' : 'var(--border-subtle)'}`,
+                          background: appendMode === 'append' ? 'rgba(52, 168, 83, 0.12)' : 'var(--bg-surface)',
+                          color: appendMode === 'append' ? 'var(--accent-emerald, #34a853)' : 'var(--text-secondary)',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>🧬 Append & Accumulate</span>
+                          <span style={{ fontSize: '9px', background: 'var(--accent-emerald, #34a853)', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>Default</span>
+                        </div>
+                        <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 400 }}>
+                          Adds to existing PV cover logs to create a multi-domain journal
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setAppendMode('replace')}
+                        disabled={isSynthesizingNPPM}
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: '12px',
+                          border: `1.5px solid ${appendMode === 'replace' ? 'var(--accent-rose, #ea4335)' : 'var(--border-subtle)'}`,
+                          background: appendMode === 'replace' ? 'rgba(234, 67, 53, 0.12)' : 'var(--bg-surface)',
+                          color: appendMode === 'replace' ? 'var(--accent-rose, #ea4335)' : 'var(--text-secondary)',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>🔄 Replace All</span>
+                          <span style={{ fontSize: '9px', background: 'rgba(234, 67, 53, 0.2)', color: 'var(--accent-rose, #ea4335)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>Clean Slate</span>
+                        </div>
+                        <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 400 }}>
+                          Wipes previous cover logs and starts fresh with this single domain
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Date Range & Historical Timeline Selector */}
+                  <div style={{ marginTop: '14px', background: 'var(--bg-main)', padding: '16px 18px', borderRadius: '18px', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Calendar className="w-4 h-4 text-purple-500" />
+                        <span>Date Range & Historical Timeline</span>
+                      </label>
+                      <span style={{ fontSize: '11px', color: 'var(--accent-blue)', fontWeight: 700, background: 'var(--accent-blue-subtle)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--accent-blue)' }}>
+                        {dateRangePreset === 'custom' ? `${customStartDate} → ${customEndDate}` : `Span: ${dateRangePreset.toUpperCase()}`}
+                      </span>
+                    </div>
+
+                    {/* Presets Row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: dateRangePreset === 'custom' ? '12px' : '0' }}>
+                      {[
+                        { id: '14d', label: '14 Days' },
+                        { id: '30d', label: '30 Days' },
+                        { id: '90d', label: '90 Days' },
+                        { id: '180d', label: '180 Days' },
+                        { id: 'custom', label: 'Custom' },
+                      ].map((preset) => {
+                        const isSelected = dateRangePreset === preset.id;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setDateRangePreset(preset.id as any)}
+                            disabled={isSynthesizingNPPM}
+                            style={{
+                              padding: '8px 4px',
+                              borderRadius: '10px',
+                              border: `1.5px solid ${isSelected ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
+                              background: isSelected ? 'var(--accent-blue)' : 'var(--bg-surface)',
+                              color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                              fontSize: '11.5px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              textAlign: 'center',
+                            }}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Custom Date Pickers */}
+                    {dateRangePreset === 'custom' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px', padding: '10px', background: 'var(--bg-surface)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                            Start Date
+                          </label>
+                          <input
+                            type="date"
+                            value={customStartDate}
+                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            className="google-input"
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: '8px', fontSize: '12px', background: 'var(--bg-main)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                            End Date
+                          </label>
+                          <input
+                            type="date"
+                            value={customEndDate}
+                            onChange={(e) => setCustomEndDate(e.target.value)}
+                            className="google-input"
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: '8px', fontSize: '12px', background: 'var(--bg-main)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Entry Generation Count Selector */}
+                  <div style={{ marginTop: '14px', background: 'var(--bg-main)', padding: '16px 18px', borderRadius: '18px', border: '1px solid var(--border-subtle)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Sliders className="w-4 h-4 text-blue-500" />

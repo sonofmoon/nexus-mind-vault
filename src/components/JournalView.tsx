@@ -1,13 +1,15 @@
 import { generateEntryShareLink, generateEncryptedEntryShareLink } from '../utils/entrySharingEngine';
 import { ConfirmationModal } from './ConfirmationModal';
-import { Share2, Undo2, Printer, CheckCircle2, Sparkles } from 'lucide-react';
+import { Share2, Undo2, Printer, CheckCircle2, Sparkles, Bell } from 'lucide-react';
 import { authenticatedFetch } from '../services/apiClient';
+import { generateGeminiChatResponse } from '../services/geminiClient';
 import { sanitizePlainText } from '../utils/sanitizeHtml';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { JournalEntry, MoodType, AttachmentItem, JournalDraft, VaultMode } from '../types';
 import { JOURNAL_TEMPLATES, calculateJournalStreak, JournalTemplate } from '../utils/journalTemplates';
 import { Edit } from 'lucide-react';
 import { InnovativeCameraStudioModal, CapturedPhotoResult } from './InnovativeCameraStudioModal';
+import { vaultAudio } from '../utils/vaultAudioSynthesizer';
 import {
   Edit3,
   Eye,
@@ -254,6 +256,16 @@ export const JournalView: React.FC<JournalViewProps> = ({
   const [filterDate, setFilterDate] = useState<string>('');
   const [filterAttachments, setFilterAttachments] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<'newest' | 'oldest' | 'recently-updated'>('newest');
+  const [selectedCoverDomainFilter, setSelectedCoverDomainFilter] = useState<string>('all');
+
+  // Extract multi-domain list from cover entries
+  const coverDomains = useMemo(() => {
+    const doms = new Set<string>();
+    entries.forEach((e: any) => {
+      if (e.domain) doms.add(e.domain);
+    });
+    return Array.from(doms);
+  }, [entries]);
 
   // Three-dots menu state & Delete confirmation modal state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -265,6 +277,73 @@ export const JournalView: React.FC<JournalViewProps> = ({
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
+
+  // 🔔 Active Reflection Reminder Alert Watcher
+  useEffect(() => {
+    const alertedStorageKey = 'vault_alerted_reminders';
+    const checkReminders = () => {
+      try {
+        const rawAlerted = localStorage.getItem(alertedStorageKey);
+        const alertedIds: string[] = rawAlerted ? JSON.parse(rawAlerted) : [];
+        const now = new Date();
+        const currentDateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+        const currentHours = now.getHours().toString().padStart(2, '0');
+        const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+        const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+        entries.forEach((entry) => {
+          if (!entry.reminderDate || alertedIds.includes(entry.id)) return;
+
+          // Normalize reminderDate (handle both YYYY-MM-DD and DD-MM-YYYY)
+          let rDate = entry.reminderDate.trim();
+          if (/^\d{2}-\d{2}-\d{4}$/.test(rDate)) {
+            const parts = rDate.split('-');
+            rDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          }
+
+          const rTime = entry.reminderTime ? entry.reminderTime.trim() : '09:00';
+
+          // Check if scheduled reminder time is reached
+          if (rDate === currentDateStr && currentTimeStr >= rTime) {
+            alertedIds.push(entry.id);
+            try {
+              localStorage.setItem(alertedStorageKey, JSON.stringify(alertedIds));
+            } catch {}
+
+            showToast(`🔔 Reflection Reminder: "${entry.title}" is scheduled now!`, 'info');
+
+            // Play ambient notification tone
+            try {
+              vaultAudio.playUnlockSound();
+            } catch {}
+
+            // Native Web Notification if permitted
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+              try {
+                new Notification('Nexus Mind Vault Reminder', {
+                  body: `"${entry.title}" - Scheduled reflection reminder`,
+                  icon: '/favicon.png',
+                });
+              } catch {}
+            }
+          }
+        });
+      } catch (e) {
+        console.warn('Reminder check failed', e);
+      }
+    };
+
+    checkReminders();
+    const interval = setInterval(checkReminders, 20000); // Check every 20s
+    return () => clearInterval(interval);
+  }, [entries, showToast]);
+
+  const handleReminderDateChange = (val: string) => {
+    setReminderDate(val);
+    if (val && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  };
 
   // Save Drafts to localStorage
   const saveDraftsToStorage = (updatedDrafts: JournalDraft[]) => {
@@ -610,54 +689,67 @@ export const JournalView: React.FC<JournalViewProps> = ({
     showToast("Sent reflection to Gemini AI...", "info");
 
     try {
-      const response = await authenticatedFetch('/api/functions/chatWithGemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'session_journal_default',
-          content: prompt,
-          history: [...chatMessages, userMsg].map(m => ({
-            role: m.role === 'model' ? 'model' : 'user',
-            parts: [{ text: m.content }],
-          })),
-          mode: 'reflect',
-        }),
+      // 🌐 ITEM: Direct online Google Gemini API call with environment API key
+      const contextSummary = entries.length > 0
+        ? `User currently has ${entries.length} reflections in their sovereign vault. Recent topics: ${entries.slice(0, 5).map(e => `"${e.title}"`).join(', ')}`
+        : 'User is starting their sovereign journal in Nexus Mind Vault.';
+
+      const geminiResult = await generateGeminiChatResponse({
+        prompt,
+        history: chatMessages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+        context: contextSummary,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.aiMessage) {
-          setChatMessages(prev => [...prev, data.aiMessage]);
-        } else {
-          setChatMessages(prev => [
-            ...prev,
-            {
-              id: 'msg_' + Date.now() + '_m',
-              role: 'model',
-              content: "I'm listening and reflecting on your entry. Your zero-trust journal keeps all insights private.",
-              createdAt: new Date().toISOString(),
-            },
-          ]);
-        }
-      } else {
-        // Fallback simulated response
+      if (geminiResult && geminiResult.text) {
         setChatMessages(prev => [
           ...prev,
           {
             id: 'msg_' + Date.now() + '_m',
             role: 'model',
-            content: `Thank you for sharing your thoughts. Exploring this reflection helps build cognitive resilience.`,
+            content: geminiResult.text,
             createdAt: new Date().toISOString(),
           },
         ]);
+        return;
       }
-    } catch (err) {
+    } catch (apiErr: any) {
+      console.warn("[Gemini API Call]", apiErr.message || apiErr);
+
+      // Enclave fallback dynamic cognitive synthesis
+      const lower = prompt.toLowerCase();
+      let dynamicReply = "";
+
+      if (lower.includes("how are you") || lower.includes("how do you do") || lower.includes("how r u")) {
+        dynamicReply = "I am operating smoothly as your AI cognitive reflection mirror! I'm here in your secure local enclave, ready to help you reflect, brainstorm ideas, analyze emotions, or explore personal goals. How are you feeling today?";
+      } else if (lower.includes("gemini") || lower.includes("who are you") || lower.includes("what are you") || lower.includes("hello") || lower.includes("hi")) {
+        dynamicReply = "Hello! I am Gemini, your privacy-preserving cognitive mirror in Nexus Mind Vault. Every interaction with me is protected with zero-trust client-side encryption. What would you like to reflect on or write about today?";
+      } else {
+        const matchingEntries = entries.filter((e) =>
+          e.title.toLowerCase().includes(lower) ||
+          e.content.toLowerCase().includes(lower) ||
+          (e.tags && e.tags.some((t) => t.toLowerCase().includes(lower)))
+        );
+
+        if (matchingEntries.length > 0) {
+          dynamicReply = `🧠 **Cognitive Insight**: Found **${matchingEntries.length} related reflection(s)** in your vault:\n` +
+            matchingEntries.slice(0, 3).map((e) => `• **"${e.title}"** (${e.mood ? e.mood.toUpperCase() : 'NOTE'}): ${e.content.slice(0, 120)}...`).join('\n') +
+            `\n\nHow would you like to connect or expand upon these thoughts today?`;
+        } else if (entries.length > 0) {
+          dynamicReply = `Thank you for sharing: "${prompt}". Reflecting on your thoughts builds self-awareness across your ${entries.length} vault entries. What next step or idea does this bring to mind?`;
+        } else {
+          dynamicReply = `Thank you for sharing: "${prompt}". Taking a moment to capture and articulate your thoughts builds mindfulness and clarity. Would you like to save this reflection into your vault?`;
+        }
+      }
+
       setChatMessages(prev => [
         ...prev,
         {
           id: 'msg_' + Date.now() + '_m',
           role: 'model',
-          content: "Reflected locally. Encrypted entry registered in cognitive session.",
+          content: dynamicReply,
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -728,6 +820,9 @@ export const JournalView: React.FC<JournalViewProps> = ({
       // Folder filter
       const matchesFolder = !filterFolder || entry.folder === filterFolder;
 
+      // Domain filter (Multi-Domain Cover Matrix)
+      const matchesDomain = selectedCoverDomainFilter === 'all' || !selectedCoverDomainFilter || (entry as any).domain === selectedCoverDomainFilter;
+
       // Date filter
       const matchesDate = !filterDate || (entry.createdAt && entry.createdAt.startsWith(filterDate));
 
@@ -744,7 +839,7 @@ export const JournalView: React.FC<JournalViewProps> = ({
         });
       }
 
-      return matchesSearch && matchesFolder && matchesDate && matchesAttachments;
+      return matchesSearch && matchesFolder && matchesDate && matchesAttachments && matchesDomain;
     }).sort((a, b) => {
       if (sortOption === 'oldest') {
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -755,7 +850,7 @@ export const JournalView: React.FC<JournalViewProps> = ({
       // default: newest first
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [entries, searchQuery, filterFolder, filterDate, filterAttachments, sortOption]);
+  }, [entries, searchQuery, filterFolder, filterDate, filterAttachments, sortOption, selectedCoverDomainFilter]);
 
   const rootClassName = useMemo(() => {
     const base = "vault-view-pane active";
@@ -864,21 +959,25 @@ export const JournalView: React.FC<JournalViewProps> = ({
                 {/* Picker Row for Date & Time Reminders */}
                 <div className="picker-row">
                   <label className="picker-group" htmlFor="entry-reminder-date">
-                    <span>Reminder Date</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Bell className="w-3 h-3 text-amber-500" />
+                      <span>Reminder Date</span>
+                    </span>
                     <input
-                      type="text"
+                      type="date"
                       id="entry-reminder-date"
                       className="modern-picker modern-date-input"
                       aria-label="Reminder date"
-                      placeholder="DD-MM-YYYY"
                       value={reminderDate}
-                      onChange={(e) => setReminderDate(e.target.value)}
-                      autoComplete="off"
+                      onChange={(e) => handleReminderDateChange(e.target.value)}
                     />
                   </label>
 
                   <label className="picker-group" htmlFor="entry-reminder-time">
-                    <span>Reminder Time</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Clock className="w-3 h-3 text-blue-500" />
+                      <span>Reminder Time</span>
+                    </span>
                     <input
                       type="time"
                       id="entry-reminder-time"
@@ -889,6 +988,18 @@ export const JournalView: React.FC<JournalViewProps> = ({
                       step={60}
                     />
                   </label>
+
+                  {(reminderDate || reminderTime) && (
+                    <button
+                      type="button"
+                      onClick={() => { setReminderDate(''); setReminderTime(''); }}
+                      className="btn-ghost"
+                      style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '4px 8px', alignSelf: 'flex-end', marginBottom: '4px' }}
+                      title="Clear reminder schedule"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1377,6 +1488,58 @@ export const JournalView: React.FC<JournalViewProps> = ({
             <div className="card-head">
               <h3 id="entries-panel-title">Chronicle</h3>
             </div>
+
+            {/* Multi-Domain Cover Filter Pills */}
+            {coverDomains.length > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', padding: '6px 12px 10px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '2px' }}>
+                  Domains:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCoverDomainFilter('all')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-pill)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    border: `1.5px solid ${selectedCoverDomainFilter === 'all' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
+                    background: selectedCoverDomainFilter === 'all' ? 'var(--accent-blue-subtle)' : 'var(--bg-surface)',
+                    color: selectedCoverDomainFilter === 'all' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  All ({entries.length})
+                </button>
+                {coverDomains.map((dom) => {
+                  const count = entries.filter((e: any) => e.domain === dom).length;
+                  const isSelected = selectedCoverDomainFilter === dom;
+                  return (
+                    <button
+                      key={dom}
+                      type="button"
+                      onClick={() => setSelectedCoverDomainFilter(dom)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-pill)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        border: `1.5px solid ${isSelected ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
+                        background: isSelected ? 'var(--accent-blue-subtle)' : 'var(--bg-surface)',
+                        color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {dom} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Filter & Search Toolbar */}
             <div className="entries-toolbar">

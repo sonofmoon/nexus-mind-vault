@@ -1,4 +1,5 @@
 import { authenticatedFetch } from '../services/apiClient';
+import { generateGeminiTrendsAnalysis } from '../services/geminiClient';
 import React, { useState, useEffect, useCallback } from 'react';
 import { JournalEntry } from '../types';
 import {
@@ -64,43 +65,21 @@ export const AITrendsCard: React.FC<AITrendsCardProps> = ({ entries }) => {
     setError(null);
 
     try {
-      // Sanitize entry payloads
-      const sanitizedEntries = entries.slice(0, 25).map((e) => ({
-        id: e.id,
-        title: e.title || 'Untitled',
-        content: (e.content || '').slice(0, 500),
-        mood: e.mood || 'neutral',
-        tags: Array.isArray(e.tags) ? e.tags : [],
-        createdAt: e.createdAt,
-      }));
+      // 🌐 ITEM: Direct online Google Gemini API call with environment API key
+      const data = await generateGeminiTrendsAnalysis(entries);
 
-      const res = await authenticatedFetch('/api/functions/generateTrends', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ entries: sanitizedEntries }),
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `Server responded with status ${res.status}`);
-      }
-
-      const data = await res.json();
-      if (data.success && data.analysis) {
+      if (data && data.analysis) {
         setAnalysis(data.analysis);
-        setModelUsed(data.modelUsed || 'Gemini 3.7 Flash');
+        setModelUsed(data.modelUsed || 'Gemini 3.6 Flash');
         const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString();
         setLastGenerated(nowStr);
         localStorage.setItem('nexus_ai_trends_cache', JSON.stringify(data.analysis));
         localStorage.setItem('nexus_ai_trends_time', nowStr);
-      } else {
-        throw new Error(data.error || 'Failed to analyze trends');
+        return;
       }
     } catch (err: any) {
-      console.error('Error generating AI trends:', err);
-      setError(err.message || 'Unable to connect to AI trend analyzer');
+      console.warn('[Gemini Trends Fallback]', err);
+      // Fallback to local heuristic synthesis
 
       // Local fallback calculation so user gets immediate insights
       const moodStats: Record<string, number> = {};

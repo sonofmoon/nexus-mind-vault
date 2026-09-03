@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { JournalEntry } from '../types';
-import { BarChart3, ShieldCheck, Flame, BookOpen, Clock, Activity, TrendingUp, Calendar, Tag, Sun, Moon } from 'lucide-react';
+import { BarChart3, ShieldCheck, Flame, BookOpen, Clock, Activity, Calendar, Tag, Sun, Moon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AITrendsCard } from './AITrendsCard';
 
 interface InsightsViewProps {
@@ -9,6 +9,26 @@ interface InsightsViewProps {
 
 export const InsightsView: React.FC<InsightsViewProps> = ({ entries }) => {
   const totalEntries = entries.length;
+
+  // Active Month State for Reflection Frequency Calendar
+  const [activeMonthDate, setActiveMonthDate] = useState<Date>(() => new Date());
+
+  const handlePrevMonth = () => {
+    setActiveMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+  const handleNextMonth = () => {
+    setActiveMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+  const handleTodayMonth = () => {
+    setActiveMonthDate(new Date());
+  };
+
+  const activeYear = activeMonthDate.getFullYear();
+  const activeMonth = activeMonthDate.getMonth();
+  const monthName = activeMonthDate.toLocaleString('en-US', { month: 'long' });
+  const daysInMonth = new Date(activeYear, activeMonth + 1, 0).getDate();
+  const isCurrentCalendarMonth = new Date().getFullYear() === activeYear && new Date().getMonth() === activeMonth;
+  const todayDayNum = new Date().getDate();
 
   const moodCounts: Record<string, number> = {};
   entries.forEach((e) => {
@@ -26,56 +46,39 @@ export const InsightsView: React.FC<InsightsViewProps> = ({ entries }) => {
 
   const totalWords = entries.reduce((acc, e) => acc + (e.content || '').split(/\s+/).filter(Boolean).length, 0);
 
-  // 1. Mood Valence Trajectory calculation (Chronological last 14 entries)
-  const moodValenceMap: Record<string, number> = {
-    energetic: 95,
-    creative: 85,
-    focused: 80,
-    calm: 75,
-    neutral: 50,
-    tired: 30,
-    anxious: 15,
-  };
-
-  const sortedChronological = useMemo(() => {
-    return [...entries].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [entries]);
-
-  const recentMoodPoints = useMemo(() => {
-    const recent = sortedChronological.slice(-14);
-    if (recent.length === 0) return [];
-    return recent.map((e, idx) => ({
-      idx,
-      title: e.title,
-      date: new Date(e.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      mood: e.mood,
-      val: moodValenceMap[e.mood] || 50,
-    }));
-  }, [sortedChronological]);
-
-  // 2. 52-Week (or 16-Week) Contribution Heatmap Matrix
-  const heatmapDays = useMemo(() => {
-    const dayCounts: Record<string, number> = {};
+  // 1. Active Month Reflection Activity Days (1 to 28/29/30/31 in Ascending Order)
+  const monthDays = useMemo(() => {
+    const dayCounts: Record<number, number> = {};
     entries.forEach(e => {
-      const day = new Date(e.createdAt).toISOString().split('T')[0];
-      dayCounts[day] = (dayCounts[day] || 0) + 1;
+      const dateObj = new Date(e.createdAt);
+      if (dateObj.getFullYear() === activeYear && dateObj.getMonth() === activeMonth) {
+        const day = dateObj.getDate();
+        dayCounts[day] = (dayCounts[day] || 0) + 1;
+      }
     });
 
     const days = [];
-    const today = new Date();
-    for (let i = 111; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(today.getDate() - i);
-      const key = d.toISOString().split('T')[0];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(activeYear, activeMonth, day);
+      const weekday = d.toLocaleString('en-US', { weekday: 'narrow' });
+      const formatted = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      const count = dayCounts[day] || 0;
+      const isToday = isCurrentCalendarMonth && day === todayDayNum;
+
       days.push({
-        date: key,
-        dayOfWeek: d.getDay(),
-        count: dayCounts[key] || 0,
-        formatted: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        dayNum: day,
+        weekday,
+        count,
+        formatted,
+        isToday,
       });
     }
     return days;
-  }, [entries]);
+  }, [entries, activeYear, activeMonth, daysInMonth, isCurrentCalendarMonth, todayDayNum]);
+
+  const monthTotalReflections = useMemo(() => {
+    return monthDays.reduce((acc, d) => acc + d.count, 0);
+  }, [monthDays]);
 
   // 3. Top Tags Frequency Cloud
   const tagFrequency = useMemo(() => {
@@ -166,86 +169,102 @@ export const InsightsView: React.FC<InsightsViewProps> = ({ entries }) => {
       {/* AI Cognitive Trends & Executive Synthesis Card */}
       <AITrendsCard entries={entries} />
 
-      {/* 📈 ITEM 20: Mood Trajectory Interactive SVG Line Chart */}
-      <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 16px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <TrendingUp className="w-4 h-4 text-emerald-400" />
-          Emotional Valence & Mood Trajectory (Recent Reflections)
-        </h3>
 
-        {recentMoodPoints.length < 2 ? (
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>Add at least 2 journal entries to plot your longitudinal emotional trajectory curve.</p>
-        ) : (
-          <div style={{ width: '100%', overflowX: 'auto', paddingTop: '10px' }}>
-            <svg viewBox="0 0 700 160" style={{ width: '100%', height: '160px', overflow: 'visible' }}>
-              <defs>
-                <linearGradient id="valenceGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#a855f7" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-
-              {/* Grid lines */}
-              <line x1="40" y1="20" x2="680" y2="20" stroke="rgba(255,255,255,0.06)" strokeDasharray="4" />
-              <line x1="40" y1="75" x2="680" y2="75" stroke="rgba(255,255,255,0.06)" strokeDasharray="4" />
-              <line x1="40" y1="130" x2="680" y2="130" stroke="rgba(255,255,255,0.06)" strokeDasharray="4" />
-
-              {/* Connected Area Path */}
-              {(() => {
-                const points = recentMoodPoints.map((pt, i) => {
-                  const x = 50 + (i / (recentMoodPoints.length - 1)) * 620;
-                  const y = 140 - (pt.val / 100) * 115;
-                  return { x, y, pt };
-                });
-
-                const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-                const areaPath = `${linePath} L ${points[points.length - 1].x} 140 L ${points[0].x} 140 Z`;
-
-                return (
-                  <>
-                    <path d={areaPath} fill="url(#valenceGrad)" />
-                    <path d={linePath} fill="none" stroke="#a855f7" strokeWidth="3" strokeLinecap="round" />
-                    {points.map((p, i) => (
-                      <g key={i}>
-                        <circle cx={p.x} cy={p.y} r="5" fill="#3b82f6" stroke="#fff" strokeWidth="2" />
-                        <text x={p.x} y={155} fill="var(--text-muted)" fontSize="10" textAnchor="middle">{p.pt.date}</text>
-                      </g>
-                    ))}
-                  </>
-                );
-              })()}
-            </svg>
+      {/* 📅 Monthly Reflection Activity Matrix (e.g. September - 2026) */}
+      <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', marginBottom: '24px', boxShadow: 'var(--shadow-card)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar className="w-4 h-4 text-purple-400" />
+              <span>{monthName} - {activeYear}</span>
+            </h3>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--accent-purple, #a855f7)', background: 'rgba(168, 85, 247, 0.12)', padding: '2px 8px', borderRadius: '100px', border: '1px solid rgba(168, 85, 247, 0.25)' }}>
+              {monthTotalReflections} {monthTotalReflections === 1 ? 'Reflection' : 'Reflections'}
+            </span>
           </div>
-        )}
-      </div>
 
-      {/* 📅 ITEM 20: 16-Week Contribution Heatmap Calendar (GitHub Style) */}
-      <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 14px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Calendar className="w-4 h-4 text-purple-400" />
-          Reflection Frequency Calendar (112 Days)
-        </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            {/* Month Switcher Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg-main)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="btn btn-icon"
+                title="Previous Month"
+                style={{ width: '26px', height: '26px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}
+              >
+                <ChevronLeft className="w-4 h-4 text-secondary" />
+              </button>
+              <button
+                type="button"
+                onClick={handleTodayMonth}
+                className="btn"
+                style={{ fontSize: '11px', padding: '2px 8px', height: '26px', borderRadius: '6px', background: isCurrentCalendarMonth ? 'rgba(168, 85, 247, 0.2)' : 'transparent', color: isCurrentCalendarMonth ? '#a855f7' : 'var(--text-secondary)', fontWeight: 600 }}
+              >
+                Current
+              </button>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="btn btn-icon"
+                title="Next Month"
+                style={{ width: '26px', height: '26px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}
+              >
+                <ChevronRight className="w-4 h-4 text-secondary" />
+              </button>
+            </div>
 
-        <div style={{ display: 'grid', gridAutoFlow: 'column', gridTemplateRows: 'repeat(7, 12px)', gap: '4px', overflowX: 'auto', paddingBottom: '6px' }}>
-          {heatmapDays.map((d, i) => {
-            let bg = 'rgba(255,255,255,0.05)';
-            if (d.count === 1) bg = 'rgba(168, 85, 247, 0.4)';
-            else if (d.count === 2) bg = 'rgba(168, 85, 247, 0.7)';
-            else if (d.count >= 3) bg = '#a855f7';
+            {/* Less / More Legend */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+              <span>Less</span>
+              <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'rgba(128,128,128,0.12)' }} />
+              <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'rgba(168, 85, 247, 0.4)' }} />
+              <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'rgba(168, 85, 247, 0.7)' }} />
+              <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#a855f7' }} />
+              <span>More</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Days Grid (1 to 28/29/30/31 in Ascending Order) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(28px, 1fr))', gap: '6px' }}>
+          {monthDays.map((d) => {
+            let bg = 'rgba(128, 128, 128, 0.08)';
+            let border = d.isToday ? '1.5px solid var(--accent-purple, #a855f7)' : '1px solid var(--border-subtle)';
+            if (d.count === 1) { bg = 'rgba(168, 85, 247, 0.35)'; if (!d.isToday) border = '1px solid rgba(168, 85, 247, 0.5)'; }
+            else if (d.count === 2) { bg = 'rgba(168, 85, 247, 0.65)'; if (!d.isToday) border = '1px solid rgba(168, 85, 247, 0.8)'; }
+            else if (d.count >= 3) { bg = '#a855f7'; if (!d.isToday) border = '1px solid #c084fc'; }
 
             return (
               <div
-                key={i}
-                title={`${d.formatted}: ${d.count} entries`}
+                key={d.dayNum}
+                title={`${d.formatted}: ${d.count} ${d.count === 1 ? 'reflection' : 'reflections'}${d.isToday ? ' (Today)' : ''}`}
                 style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '2px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '6px 2px',
+                  borderRadius: '8px',
                   background: bg,
-                  transition: 'transform 0.15s ease',
+                  border: border,
+                  boxShadow: d.isToday ? '0 0 8px rgba(168, 85, 247, 0.3)' : 'none',
+                  transition: 'all 0.15s ease',
                   cursor: 'pointer',
+                  minHeight: '44px',
+                  position: 'relative',
                 }}
-              />
+              >
+                <span style={{ fontSize: '9px', textTransform: 'uppercase', color: d.isToday ? '#a855f7' : 'var(--text-muted)', fontWeight: 700, lineHeight: 1 }}>
+                  {d.weekday}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: d.isToday ? 800 : 600, color: d.count > 0 ? '#fff' : (d.isToday ? '#a855f7' : 'var(--text-secondary)'), marginTop: '2px' }}>
+                  {d.dayNum}
+                </span>
+                {d.count > 0 && (
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: d.count >= 3 ? '#fff' : '#c084fc', marginTop: '3px' }} />
+                )}
+              </div>
             );
           })}
         </div>

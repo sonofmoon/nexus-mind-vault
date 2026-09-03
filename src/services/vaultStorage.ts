@@ -4,6 +4,7 @@ import {
   syncTimeCapsuleToFirestore,
   syncGuardianPolicyToFirestore,
   syncVaultSettingsToFirestore,
+  clearAllFirestoreUserData,
 } from './firestoreVaultSync';
 import {
   deriveKeyFromPassphrase,
@@ -530,6 +531,7 @@ export function getLegacyGuardianPolicies(uid: string): LegacyGuardianPolicy[] {
       }
     }
 
+    // Clean slate: Return empty list if no policies are configured
     return [];
   } catch {
     return [];
@@ -812,4 +814,38 @@ export function migrateVaultSchema(uid: string): { migrated: boolean; fromVersio
     console.error('[Schema Migration Error]', err);
     return { migrated: false, fromVersion: currentVer, toVersion: currentVer };
   }
+}
+
+/**
+ * 🧹 Complete Clean-Slate Vault Purge (Local Storage + Cloud Firestore)
+ * Wipes all encrypted entries, cached plaintext, time capsules, guardian policies, and semantic graph clusters.
+ */
+export async function wipeCompleteVaultData(uid: string): Promise<void> {
+  // 1. Purge all localStorage keys for this user & application
+  const keysToPurge: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (
+      key.startsWith('vault_') ||
+      key.startsWith('pv_') ||
+      key.startsWith('nppm_') ||
+      key.includes(uid)
+    )) {
+      keysToPurge.push(key);
+    }
+  }
+
+  keysToPurge.forEach((key) => localStorage.removeItem(key));
+
+  // 2. Purge Cloud Firestore Database
+  try {
+    await clearAllFirestoreUserData(uid);
+  } catch (err) {
+    console.warn('[VaultStorage] Cloud Firestore wipe notice:', err);
+  }
+
+  // 3. Clear RAM active session keys
+  clearActiveSessionKey();
+
+  console.log('[VaultStorage] 🧹 Vault completely wiped to fresh state.');
 }

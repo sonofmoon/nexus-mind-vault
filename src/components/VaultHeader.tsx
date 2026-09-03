@@ -40,6 +40,11 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
 }) => {
   const longPressTimerRef = useRef<any>(null);
   const [isHolding, setIsHolding] = React.useState(false);
+  const [imgError, setImgError] = React.useState(false);
+
+  React.useEffect(() => {
+    setImgError(false);
+  }, [user?.photoURL]);
 
   const handlePressStart = () => {
     // 🛡️ Dual-Mode Security Directives:
@@ -142,7 +147,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
 
       {/* Navigation Tabs (Rendered ONLY when user is authenticated) */}
       {user && (
-        <div className="vault-header-nav-container">
+        <div className="vault-header-nav-container hidden md:flex">
           <nav
             className="vault-header-nav"
             style={{
@@ -349,11 +354,39 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {user.photoURL ? (
-                <img src={user.photoURL} alt="Avatar" style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
+              {user.photoURL && !imgError ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName || "User"}
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
+                  onError={() => setImgError(true)}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '1.5px solid var(--border-subtle)',
+                    display: 'block',
+                  }}
+                />
               ) : (
-                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-blue)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
-                  {user.displayName?.charAt(0).toUpperCase() || 'U'}
+                <div
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #1a73e8, #4285f4)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    border: '1.5px solid var(--border-subtle)',
+                  }}
+                >
+                  {user.displayName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                 </div>
               )}
               <span className="user-display-name" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>

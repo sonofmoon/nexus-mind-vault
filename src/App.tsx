@@ -16,10 +16,12 @@ import {
   unlockTimeCapsule,
   deleteTimeCapsule,
   getParallelPersona,
+  saveParallelPersona,
   getVaultSettings,
   recordGlobalHeartbeatPulse,
 } from './services/vaultStorage';
 import { VaultHeader } from './components/VaultHeader';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { JournalView } from './components/JournalView';
 import { InsightsView } from './components/InsightsView';
 import { NexusMindView } from './components/NexusMindView';
@@ -442,7 +444,7 @@ export function App() {
     showToast("Signed out successfully", "info");
   };
 
-  // Entry Management
+  // Entry Management (Partition-Aware: Protected Vault Cover vs Sovereign Real Vault)
   const handleAddEntry = (entryOrTitle: any, content?: string, tags: string[] = [], mood?: string) => {
     if (!user) return;
     let payload: any;
@@ -456,22 +458,68 @@ export function App() {
         mood: (mood as any) || 'neutral',
       };
     }
-    const newEntry = addJournalEntry(user.uid, payload);
-    setEntries((prev) => [newEntry, ...prev]);
-    showToast("Journal reflection sealed and encrypted.", "success");
+
+    if (vaultMode === 'protected') {
+      const newCoverEntry: JournalEntry = {
+        id: 'cover_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        title: payload.title || 'Untitled Reflection',
+        content: payload.content || '',
+        tags: payload.tags || [],
+        mood: payload.mood || 'focused',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...payload,
+      };
+      const updatedPersona = {
+        ...parallelPersona,
+        entries: [newCoverEntry, ...(parallelPersona?.entries || [])],
+      };
+      saveParallelPersona(user.uid, updatedPersona);
+      setParallelPersona(updatedPersona);
+      showToast("Cover journal reflection saved.", "success");
+    } else {
+      const newEntry = addJournalEntry(user.uid, payload);
+      setEntries((prev) => [newEntry, ...prev]);
+      showToast("Journal reflection sealed and encrypted.", "success");
+    }
   };
 
   const handleUpdateEntry = (id: string, updatedFields: Partial<JournalEntry>) => {
     if (!user) return;
-    const updated = updateJournalEntry(user.uid, id, updatedFields);
-    setEntries(updated);
+    if (vaultMode === 'protected') {
+      const updatedEntries = (parallelPersona?.entries || []).map((e: any) =>
+        e.id === id ? { ...e, ...updatedFields, updatedAt: new Date().toISOString() } : e
+      );
+      const updatedPersona = {
+        ...parallelPersona,
+        entries: updatedEntries,
+      };
+      saveParallelPersona(user.uid, updatedPersona);
+      setParallelPersona(updatedPersona);
+      showToast("Cover reflection updated.", "info");
+    } else {
+      const updated = updateJournalEntry(user.uid, id, updatedFields);
+      setEntries(updated);
+      showToast("Sovereign reflection updated.", "info");
+    }
   };
 
   const handleDeleteEntry = (id: string) => {
     if (!user) return;
-    deleteJournalEntry(user.uid, id);
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-    showToast("Entry purged securely.", "info");
+    if (vaultMode === 'protected') {
+      const updatedEntries = (parallelPersona?.entries || []).filter((e: any) => e.id !== id);
+      const updatedPersona = {
+        ...parallelPersona,
+        entries: updatedEntries,
+      };
+      saveParallelPersona(user.uid, updatedPersona);
+      setParallelPersona(updatedPersona);
+      showToast("Cover entry purged.", "info");
+    } else {
+      deleteJournalEntry(user.uid, id);
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      showToast("Entry purged securely.", "info");
+    }
   };
 
   // Time Capsule Management
@@ -584,13 +632,13 @@ export function App() {
           )}
 
           {/* Main Content Workspace */}
-          <main className="vault-main-content">
+          <main className="vault-main-content pb-20 md:pb-8">
             {/* Tab 1: 📝 Journal & Reflection */}
             {activeTab === 'journal' && (
               <JournalView
                 userId={user?.uid || 'default_user'}
                 vaultMode={vaultMode}
-                entries={isDuressActive ? (parallelPersona.entries || []) : entries}
+                entries={vaultMode === 'real' ? entries : (parallelPersona?.entries || [])}
                 onAddEntry={handleAddEntry}
                 onDeleteEntry={handleDeleteEntry}
             onUpdateEntry={handleUpdateEntry}
@@ -653,6 +701,24 @@ export function App() {
               />
             )}
           </main>
+
+          {/* Google Material 3 Adaptive Mobile Bottom Navigation */}
+          <MobileBottomNav
+            activeTab={activeTab}
+            onTabChange={(tab) => {
+              if (!isPVUnlocked) return;
+              if (isDuressActive && (tab === 'capsules' || tab === 'settings')) {
+                return;
+              }
+              if ((tab === 'capsules' || tab === 'settings') && vaultMode !== 'real') {
+                handleOpenUnlockModal();
+              } else {
+                setActiveTab(tab);
+              }
+            }}
+            vaultMode={vaultMode}
+            isDuressActive={isDuressActive}
+          />
         </div>
       )}
 

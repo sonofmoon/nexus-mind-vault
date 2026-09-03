@@ -149,12 +149,13 @@ export type ConceptCategory = 'theme' | 'emotion' | 'insight' | 'project' | 'ent
 export interface MemoryNode {
   id: string;
   label: string;
-  category: ConceptCategory;
+  category: ConceptCategory | string;
   val: number; // Node weight/radius based on frequency / centrality
   entryCount: number;
   entryIds: string[];
   sentiment?: string;
   summary?: string;
+  domain?: string;
   // D3 force simulation coordinate properties
   x?: number;
   y?: number;

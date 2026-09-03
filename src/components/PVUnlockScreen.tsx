@@ -26,7 +26,12 @@ export const PVUnlockScreen: React.FC<PVUnlockScreenProps> = ({
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isLockedOut, setIsLockedOut] = useState(false);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
+  const [imgError, setImgError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [user?.photoURL]);
 
   // Auto-focus input on mount and on clicks
   useEffect(() => {
@@ -208,11 +213,21 @@ export const PVUnlockScreen: React.FC<PVUnlockScreenProps> = ({
               marginBottom: '20px',
             }}
           >
-            {user.photoURL ? (
+            {user.photoURL && !imgError ? (
               <img
                 src={user.photoURL}
-                alt="Avatar"
-                style={{ width: '22px', height: '22px', borderRadius: '50%' }}
+                alt={user.displayName || "User"}
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
+                onError={() => setImgError(true)}
+                style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  display: 'block',
+                  border: '1px solid var(--border-subtle)',
+                }}
               />
             ) : (
               <div
@@ -220,16 +235,17 @@ export const PVUnlockScreen: React.FC<PVUnlockScreenProps> = ({
                   width: '22px',
                   height: '22px',
                   borderRadius: '50%',
-                  background: 'var(--accent-blue)',
+                  background: 'linear-gradient(135deg, #1a73e8, #4285f4)',
                   color: '#fff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '11px',
                   fontWeight: 700,
+                  border: '1px solid var(--border-subtle)',
                 }}
               >
-                {user.displayName?.charAt(0).toUpperCase() || 'U'}
+                {user.displayName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
               </div>
             )}
             <span

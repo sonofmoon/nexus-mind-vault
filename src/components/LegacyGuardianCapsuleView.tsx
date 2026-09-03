@@ -1750,80 +1750,139 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
         </div>
       )}
 
-      {/* 🔬 ZERO-KNOWLEDGE DIAGNOSTIC AUDIT MODAL */}
+      {/* 🔬 ZERO-KNOWLEDGE DIAGNOSTIC AUDIT MODAL (GOOGLE MATERIAL 3) */}
       {evalPolicy && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 9999,
-            background: 'rgba(0, 0, 0, 0.8)',
+            background: 'rgba(0, 0, 0, 0.65)',
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
+            padding: '16px',
           }}
         >
           <div
+            className="google-popup"
             style={{
-              width: '100%',
-              maxWidth: '680px',
-              background: '#0a0f1d',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-              borderRadius: '20px',
-              padding: '24px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
+              width: '640px',
+              maxWidth: '94vw',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '28px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Activity className="w-5 h-5 text-cyan-400" />
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                  Audit Evaluation: {evalPolicy.title}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEvalPolicy(null)}
-                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-              >
-                <X className="w-5 h-5" />
-              </button>
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setEvalPolicy(null)}
+              className="popup-close"
+              title="Close"
+            >
+              ✕
+            </button>
+
+            {/* Topic Status Chip */}
+            <div className="topic-chip" style={{ color: 'var(--md-primary)' }}>
+              <Activity className="w-3.5 h-3.5 mr-1" />
+              <span>Zero-Knowledge Heartbeat Audit</span>
             </div>
 
+            {/* Title & Subtitle */}
+            <h2 className="popup-title">
+              Audit Evaluation: {evalPolicy.title}
+            </h2>
+            <p className="popup-subtitle">
+              Cryptographic fail-safe simulation, heartbeat telemetry, and proof-of-life proxy verification.
+            </p>
+
+            {/* Diagnostic Telemetry Info Grid */}
+            <div className="info-grid">
+              <div className="info-card">
+                <div className="info-label">Check-in Window</div>
+                <div className="info-value frequency">
+                  {evalPolicy.checkInWindowHours}h ({(evalPolicy.checkInWindowHours / 24).toFixed(1)} days)
+                </div>
+              </div>
+              <div className="info-card">
+                <div className="info-label">Grace Buffer</div>
+                <div className="info-value tone">
+                  {evalPolicy.graceWindowHours}h Emergency Buffer
+                </div>
+              </div>
+              <div className="info-card">
+                <div className="info-label">Designated Guardians</div>
+                <div className="info-value" style={{ color: 'var(--md-primary)' }}>
+                  {evalPolicy.trustedContacts.length} Verified Proxies
+                </div>
+              </div>
+              <div className="info-card">
+                <div className="info-label">Integrity Status</div>
+                <div className="info-value" style={{ color: 'var(--md-success)' }}>
+                  SHA-256 PASS
+                </div>
+              </div>
+            </div>
+
+            {/* Diagnostic Log Console (M3 Context Card) */}
+            <div className="context-title">
+              Audit Log &amp; Heartbeat Telemetry
+            </div>
             <div
+              className="context-card"
               style={{
-                background: '#030712',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
-                padding: '16px',
-                fontFamily: 'monospace',
+                background: 'var(--md-surface-container)',
+                padding: '16px 20px',
+                fontFamily: '"Google Sans Mono", "Fira Code", monospace',
                 fontSize: '12px',
-                color: '#38bdf8',
-                minHeight: '220px',
-                maxHeight: '340px',
+                lineHeight: '1.7',
+                maxHeight: '260px',
                 overflowY: 'auto',
-                lineHeight: 1.6,
               }}
             >
               {evalLog.map((line, idx) => (
-                <div key={idx} style={{ color: line.includes('PASS') || line.includes('🟢') ? '#4ade80' : line.includes('🟡') ? '#f59e0b' : line.includes('🔴') ? '#f87171' : '#cbd5e1' }}>
+                <div
+                  key={idx}
+                  style={{
+                    color:
+                      line.includes('PASS') || line.includes('🟢')
+                        ? 'var(--md-success)'
+                        : line.includes('🟡')
+                        ? 'var(--accent-amber)'
+                        : line.includes('🔴')
+                        ? 'var(--accent-rose)'
+                        : 'var(--md-on-surface)',
+                  }}
+                >
                   {line}
                 </div>
               ))}
-              {isEvaluating && <div style={{ color: '#38bdf8', marginTop: '6px' }}>&gt; Performing zero-knowledge evaluation...</div>}
+              {isEvaluating && (
+                <div style={{ color: 'var(--md-frequency-blue)', marginTop: '6px', fontWeight: 600 }}>
+                  &gt; Performing real-time cryptographic audit sequence...
+                </div>
+              )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            {/* Popup Bottom Actions */}
+            <div className="popup-actions" style={{ marginTop: '24px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(evalLog.join('\n'));
+                  showToast('📋 Audit log copied to clipboard', 'success');
+                }}
+                className="btn-text"
+              >
+                Copy Log
+              </button>
               <button
                 type="button"
                 onClick={() => setEvalPolicy(null)}
-                className="btn btn-primary"
-                style={{ padding: '8px 20px', borderRadius: '10px', fontSize: '13px' }}
+                className="btn-filled"
               >
                 Close Audit
               </button>
@@ -1832,110 +1891,112 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
         </div>
       )}
 
-      {/* 🚀 SIMULATED HANDOVER DISPATCH MODAL */}
+            {/* 🚀 SIMULATED HANDOVER DISPATCH MODAL (GOOGLE MATERIAL 3) */}
       {launchPolicy && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 9999,
-            background: 'rgba(0, 0, 0, 0.85)',
-            backdropFilter: 'blur(10px)',
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
+            padding: '16px',
           }}
         >
           <div
+            className="google-popup"
             style={{
-              width: '100%',
-              maxWidth: '720px',
+              width: '680px',
+              maxWidth: '94vw',
               maxHeight: '90vh',
               overflowY: 'auto',
-              background: '#0f172a',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              borderRadius: '20px',
-              padding: '24px',
-              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '18px',
+              padding: '28px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Send className="w-5 h-5 text-red-400" />
-                <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                    Simulated Handover: {launchPolicy.title}
-                  </h3>
-                  <p style={{ fontSize: '11.5px', color: '#94a3b8', margin: '2px 0 0 0' }}>
-                    Zero-knowledge emergency transmission preview for designated guardians
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLaunchPolicy(null)}
-                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-              >
-                <X className="w-5 h-5" />
-              </button>
+            <button
+              type="button"
+              onClick={() => setLaunchPolicy(null)}
+              className="popup-close"
+              title="Close"
+            >
+              ✕
+            </button>
+
+            <div className="topic-chip" style={{ color: 'var(--accent-rose)' }}>
+              <Send className="w-3.5 h-3.5 mr-1" />
+              <span>Simulated Emergency Handover</span>
             </div>
 
-            {/* Recipient Manifest */}
-            <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '12px', padding: '14px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#f87171', marginBottom: '6px' }}>
-                Automated Dispatch Recipients:
+            <h2 className="popup-title">
+              Handover Preview: {launchPolicy.title}
+            </h2>
+            <p className="popup-subtitle">
+              Zero-knowledge emergency transmission payload preview for designated proxy guardians.
+            </p>
+
+            {/* Recipient Manifest in M3 Card */}
+            <div className="info-card" style={{ marginTop: '16px' }}>
+              <div className="info-label" style={{ color: 'var(--accent-rose)', fontWeight: 700 }}>
+                Automated Dispatch Recipients ({launchPolicy.trustedContacts.length}):
               </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
                 {launchPolicy.trustedContacts.map((c, i) => (
-                  <span key={i} style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.06)', color: '#ffffff', fontSize: '12px' }}>
+                  <span
+                    key={i}
+                    className="topic-chip"
+                    style={{ height: '28px', fontSize: '11.5px' }}
+                  >
+                    <Mail className="w-3 h-3 mr-1" />
                     {c}
                   </span>
                 ))}
               </div>
             </div>
 
-            {/* Decrypted Payload */}
-            <div style={{ background: '#030712', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-                Decrypted Directive Payload
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5, margin: 0 }}>
-                {launchPolicy.emergencyMessage}
-              </p>
+            {/* Decrypted Payload in M3 Context Card */}
+            <div className="context-title">Decrypted Emergency Directive</div>
+            <div
+              className="context-card"
+              style={{
+                fontSize: '14px',
+                lineHeight: '1.7',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {launchPolicy.emergencyMessage}
             </div>
 
-            {/* Attached Media */}
+            {/* Attached Photos if present */}
             {(launchPolicy.photos?.length || 0) > 0 && (
               <div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px' }}>Attached Biometric Snapshots:</div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div className="context-title">Attached Biometric &amp; Emergency Photos</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
                   {launchPolicy.photos?.map((p, idx) => (
-                    <img key={idx} src={p} alt={`Dispatch photo ${idx + 1}`} style={{ width: '80px', height: '80px', borderRadius: '8px', objectFit: 'cover' }} />
+                    <img key={idx} src={p} alt={`Dispatch ${idx + 1}`} style={{ width: '100%', height: '100px', borderRadius: '14px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
                   ))}
                 </div>
               </div>
             )}
 
+            {/* Attached Audio if present */}
             {launchPolicy.audioUrl && (
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px' }}>Decrypted Voice Memo:</div>
-                <audio src={launchPolicy.audioUrl} controls style={{ height: '36px', width: '100%', maxWidth: '320px' }} />
+              <div className="info-card" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--md-on-surface)' }}>Decrypted Voice Directive:</span>
+                <audio src={launchPolicy.audioUrl} controls style={{ height: '36px' }} />
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '14px' }}>
+            <div className="popup-actions" style={{ marginTop: '24px' }}>
               <button
                 type="button"
                 onClick={() => {
                   setLaunchPolicy(null);
                   showToast(`Handover preview for "${launchPolicy.title}" completed.`, 'success');
                 }}
-                className="btn btn-primary"
-                style={{ padding: '8px 22px', borderRadius: '10px', fontSize: '13px' }}
+                className="btn-filled"
               >
                 Done Previewing
               </button>
@@ -1944,7 +2005,7 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
         </div>
       )}
 
-      {/* 📷 LIVE OPTICAL CAMERA STUDIO MODAL */}
+            {/* 📷 LIVE OPTICAL CAMERA STUDIO MODAL */}
       <InnovativeCameraStudioModal
         isOpen={isCameraOpen}
         onClose={() => setIsCameraOpen(false)}

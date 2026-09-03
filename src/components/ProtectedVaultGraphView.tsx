@@ -19,6 +19,22 @@ export const ProtectedVaultGraphView: React.FC<ProtectedVaultGraphViewProps> = (
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'graph' | 'entries'>('graph');
+  const [selectedDomainFilter, setSelectedDomainFilter] = useState<string>('all');
+
+  // Extract all distinct domains from persona data
+  const allDomains = React.useMemo(() => {
+    const doms = new Set<string>();
+    if (Array.isArray((personaData as any).domains)) {
+      (personaData as any).domains.forEach((d: string) => doms.add(d));
+    }
+    if (personaData.targetDomain) {
+      doms.add(personaData.targetDomain);
+    }
+    (personaData.entries || []).forEach((e: any) => {
+      if (e.domain) doms.add(e.domain);
+    });
+    return Array.from(doms);
+  }, [personaData]);
 
   // Reload persona if userId changes or persona is updated in real-time
   useEffect(() => {
@@ -37,13 +53,19 @@ export const ProtectedVaultGraphView: React.FC<ProtectedVaultGraphViewProps> = (
     return () => window.removeEventListener('vault_persona_updated', handlePersonaUpdated);
   }, [userId]);
 
-  const filteredEntries = (personaData.entries || []).filter((entry) => {
+  const filteredEntries = (personaData.entries || []).filter((entry: any) => {
+    if (selectedDomainFilter !== 'all') {
+      const entryDomain = entry.domain || personaData.targetDomain;
+      if (entryDomain && entryDomain.toLowerCase() !== selectedDomainFilter.toLowerCase()) {
+        return false;
+      }
+    }
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       entry.title.toLowerCase().includes(q) ||
       entry.content.toLowerCase().includes(q) ||
-      (entry.tags && entry.tags.some((t) => t.toLowerCase().includes(q)))
+      (entry.tags && entry.tags.some((t: string) => t.toLowerCase().includes(q)))
     );
   });
 
@@ -111,7 +133,60 @@ export const ProtectedVaultGraphView: React.FC<ProtectedVaultGraphViewProps> = (
           </div>
         </div>
 
-        {/* View Toggle */}
+      {/* Multi-Domain Filter Pills */}
+      {allDomains.length > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', padding: '10px 0 6px 0', marginBottom: '8px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '4px' }}>
+            Domains:
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedDomainFilter('all')}
+            style={{
+              padding: '5px 12px',
+              borderRadius: 'var(--radius-pill)',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              border: `1.5px solid ${selectedDomainFilter === 'all' ? 'var(--accent-emerald, #34a853)' : 'var(--border-subtle)'}`,
+              background: selectedDomainFilter === 'all' ? 'rgba(52, 168, 83, 0.12)' : 'var(--bg-card)',
+              color: selectedDomainFilter === 'all' ? 'var(--accent-emerald, #34a853)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            All Domains ({personaData.entries?.length || 0})
+          </button>
+
+          {allDomains.map((dom) => {
+            const count = (personaData.entries || []).filter((e: any) => (e.domain || personaData.targetDomain) === dom).length;
+            const isSelected = selectedDomainFilter.toLowerCase() === dom.toLowerCase();
+            return (
+              <button
+                key={dom}
+                type="button"
+                onClick={() => setSelectedDomainFilter(dom)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: 'var(--radius-pill)',
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  border: `1.5px solid ${isSelected ? 'var(--accent-emerald, #34a853)' : 'var(--border-subtle)'}`,
+                  background: isSelected ? 'rgba(52, 168, 83, 0.12)' : 'var(--bg-card)',
+                  color: isSelected ? 'var(--accent-emerald, #34a853)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {dom} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* View Toggle */}
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-stretch sm:justify-end">
           <div
             className="flex w-full sm:w-auto"

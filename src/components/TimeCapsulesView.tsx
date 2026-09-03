@@ -956,14 +956,14 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
         </div>
       )}
 
-      {/* Modal 1: Inspect Capsule / Read Decrypted Letter Modal */}
+      {/* Google Material 3 Modal 1: Inspect Capsule / Read Decrypted Letter Modal */}
       {inspectingCapsule && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            backdropFilter: 'blur(10px)',
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -972,119 +972,76 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
           }}
         >
           <div
+            className="google-popup"
             style={{
-              maxWidth: '680px',
-              width: '100%',
+              width: '680px',
+              maxWidth: '94vw',
               maxHeight: '90vh',
               overflowY: 'auto',
-              background: 'var(--bg-surface)',
-              border: '1px solid',
-              borderColor: inspectingCapsule.isOpened ? 'rgba(56, 189, 248, 0.4)' : 'rgba(245, 158, 11, 0.4)',
-              borderRadius: '24px',
               padding: '28px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.85)',
-              color: '#ffffff',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
             }}
           >
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  {inspectingCapsule.isOpened ? (
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: '#38bdf8',
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        padding: '3px 10px',
-                        borderRadius: '100px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Unlock className="w-3.5 h-3.5" /> Decrypted &amp; Unsealed
-                    </span>
-                  ) : (
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: '#f59e0b',
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        padding: '3px 10px',
-                        borderRadius: '100px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Lock className="w-3.5 h-3.5" /> Sealed Future Capsule
-                    </span>
-                  )}
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setInspectingCapsule(null)}
+              className="popup-close"
+              title="Close"
+            >
+              ✕
+            </button>
 
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    Sealed {new Date(inspectingCapsule.sealedAt).toLocaleDateString()}
-                  </span>
+            {/* Topic Status Chip */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              {inspectingCapsule.isOpened ? (
+                <div className="topic-chip" style={{ color: 'var(--md-success)', background: 'var(--md-surface-container)' }}>
+                  <Unlock className="w-3.5 h-3.5 mr-1 inline" /> Decrypted &amp; Unsealed
                 </div>
+              ) : (
+                <div className="topic-chip" style={{ color: 'var(--accent-amber)', background: 'var(--md-surface-container)' }}>
+                  <Lock className="w-3.5 h-3.5 mr-1 inline" /> Sealed Future Capsule
+                </div>
+              )}
 
-                <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                  {inspectingCapsule.title}
-                </h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setInspectingCapsule(null)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '20px', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
+              <span style={{ fontSize: '12px', color: 'var(--md-on-surface-variant)' }}>
+                Sealed {new Date(inspectingCapsule.sealedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
             </div>
+
+            {/* Popup Title */}
+            <h2 className="popup-title" style={{ marginTop: '10px' }}>
+              {inspectingCapsule.title}
+            </h2>
 
             {/* If Unsealed: Show Message, Photos, Audio, AI Reflection */}
             {inspectingCapsule.isOpened ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                {/* Decrypted Note Body */}
-                <div
-                  style={{
-                    background: 'rgba(30, 41, 59, 0.7)',
-                    padding: '20px',
-                    borderRadius: '16px',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    fontSize: '14.5px',
-                    lineHeight: '1.7',
-                    color: 'var(--text-primary)',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                {/* Decrypted Note Body (M3 Context Card) */}
+                <div className="context-card" style={{ fontSize: '15px', lineHeight: '1.75', whiteSpace: 'pre-wrap', margin: 0, padding: '20px' }}>
                   {inspectingCapsule.message}
                 </div>
 
                 {/* Voice Note Player if present */}
                 {inspectingCapsule.audioUrl && (
                   <div
+                    className="info-card"
                     style={{
-                      background: 'rgba(244, 63, 94, 0.1)',
-                      border: '1px solid rgba(244, 63, 94, 0.3)',
-                      padding: '14px 18px',
-                      borderRadius: '14px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '12px',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <Volume2 className="w-5 h-5 text-rose-400" />
+                      <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--md-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Volume2 className="w-5 h-5 text-red-500" />
+                      </div>
                       <div>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'block' }}>
+                        <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--md-on-surface)', display: 'block' }}>
                           Voice Note from Past Self
                         </span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <span style={{ fontSize: '11.5px', color: 'var(--md-on-surface-variant)' }}>
                           Recorded on {new Date(inspectingCapsule.sealedAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -1096,12 +1053,12 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
                 {/* Photo Gallery if present */}
                 {inspectingCapsule.photos && inspectingCapsule.photos.length > 0 && (
                   <div>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                    <div className="context-title" style={{ marginTop: '8px', marginBottom: '8px' }}>
                       Attached Memories &amp; Photos ({inspectingCapsule.photos.length})
-                    </span>
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
                       {inspectingCapsule.photos.map((photo, i) => (
-                        <div key={i} style={{ borderRadius: '12px', overflow: 'hidden', height: '120px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                        <div key={i} style={{ borderRadius: '16px', overflow: 'hidden', height: '130px', border: '1px solid var(--border-subtle)' }}>
                           <img src={photo} alt={`Memory ${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                       ))}
@@ -1112,26 +1069,16 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
                 {/* Attached Documents if present */}
                 {inspectingCapsule.attachments && inspectingCapsule.attachments.length > 0 && (
                   <div>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                    <div className="context-title" style={{ marginTop: '8px', marginBottom: '8px' }}>
                       Attached Documents ({inspectingCapsule.attachments.length})
-                    </span>
+                    </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {inspectingCapsule.attachments.map((att) => (
                         <div
                           key={att.id}
-                          style={{
-                            background: 'rgba(59, 130, 246, 0.15)',
-                            border: '1px solid rgba(59, 130, 246, 0.3)',
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            color: '#60a5fa',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                          }}
+                          className="topic-chip"
                         >
-                          <FileText className="w-3.5 h-3.5" />
+                          <FileText className="w-3.5 h-3.5 mr-1" />
                           <span>{att.name}</span>
                         </div>
                       ))}
@@ -1139,22 +1086,21 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
                   </div>
                 )}
 
-                {/* AI Temporal Reflection Box */}
+                {/* AI Temporal Reflection Box (M3 High Container) */}
                 <div
+                  className="info-card"
                   style={{
-                    background: 'rgba(168, 85, 247, 0.1)',
-                    border: '1px solid rgba(168, 85, 247, 0.3)',
-                    borderRadius: '16px',
-                    padding: '18px',
+                    background: 'var(--md-surface-container-high)',
+                    padding: '20px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '10px',
+                    gap: '12px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Sparkles className="w-4 h-4 text-purple-400" />
-                      <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#c084fc' }}>
+                      <Sparkles className="w-4 h-4 text-purple-500" />
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--md-primary)' }}>
                         Temporal AI Reflection Synthesis
                       </span>
                     </div>
@@ -1164,8 +1110,8 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
                         type="button"
                         onClick={() => handleGenerateAiReflection(inspectingCapsule)}
                         disabled={isLoadingAi[inspectingCapsule.id]}
-                        className="btn btn-secondary"
-                        style={{ padding: '4px 12px', fontSize: '11.5px', borderRadius: '8px' }}
+                        className="btn-filled"
+                        style={{ height: '34px', padding: '0 16px', fontSize: '12px' }}
                       >
                         {isLoadingAi[inspectingCapsule.id] ? 'Synthesizing...' : 'Generate AI Reflection'}
                       </button>
@@ -1173,11 +1119,11 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
                   </div>
 
                   {aiReflection[inspectingCapsule.id] ? (
-                    <div style={{ fontSize: '13px', lineHeight: '1.6', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
+                    <div style={{ fontSize: '13.5px', lineHeight: '1.7', color: 'var(--md-on-surface)', whiteSpace: 'pre-wrap' }}>
                       {aiReflection[inspectingCapsule.id]}
                     </div>
                   ) : (
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                    <p style={{ fontSize: '12.5px', color: 'var(--md-on-surface-variant)', margin: 0 }}>
                       Synthesize insights on how much you have grown since writing this note in the past.
                     </p>
                   )}
@@ -1187,79 +1133,62 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
               /* If Sealed & Locked: Show Tamper-Proof Lock Shield */
               <div
                 style={{
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  borderRadius: '16px',
+                  marginTop: '18px',
+                  background: 'var(--md-surface-container)',
+                  borderRadius: '22px',
                   padding: '24px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   textAlign: 'center',
-                  gap: '14px',
+                  gap: '16px',
+                  border: '1px solid var(--border-subtle)',
                 }}
               >
                 <div
                   style={{
                     width: '64px',
                     height: '64px',
-                    borderRadius: '20px',
-                    background: 'rgba(245, 158, 11, 0.2)',
-                    color: '#f59e0b',
+                    borderRadius: '24px',
+                    background: 'var(--md-surface)',
+                    color: 'var(--accent-amber)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    boxShadow: 'var(--shadow)',
                   }}
                 >
                   <Lock className="w-8 h-8" />
                 </div>
 
                 <div>
-                  <h3 style={{ fontSize: '17px', fontWeight: 700, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 6px 0', color: 'var(--md-on-surface)' }}>
                     Cryptographically Locked Capsule
                   </h3>
-                  <p style={{ fontSize: '13px', color: 'var(--text-primary)', maxWidth: '440px', margin: 0 }}>
+                  <p style={{ fontSize: '13.5px', color: 'var(--md-on-surface-variant)', maxWidth: '440px', margin: 0, lineHeight: 1.5 }}>
                     Till the conditions are met, this capsule will never open and reveal its contents.
                   </p>
                 </div>
 
-                {/* Lock Requirements Status */}
-                <div
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-card)',
-                    borderRadius: '12px',
-                    padding: '14px',
-                    textAlign: 'left',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    fontSize: '12.5px',
-                  }}
-                >
+                {/* Lock Requirements Info Grid */}
+                <div className="info-grid" style={{ width: '100%', margin: 0 }}>
                   {inspectingCapsule.unlockDate && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>⏰ Time Condition:</span>
-                      <span style={{ color: '#f59e0b', fontWeight: 600 }}>
-                        {new Date(inspectingCapsule.unlockDate).toLocaleString()} ({formatCountdown(inspectingCapsule.unlockDate).text})
-                      </span>
+                    <div className="info-card" style={{ textAlign: 'left' }}>
+                      <div className="info-label">⏰ Time Condition</div>
+                      <div className="info-value frequency" style={{ fontSize: '12.5px' }}>
+                        {new Date(inspectingCapsule.unlockDate).toLocaleString()}
+                      </div>
                     </div>
                   )}
 
                   {inspectingCapsule.targetMood && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>🎭 Mood Requirement:</span>
-                      <span style={{ color: '#c084fc', fontWeight: 600, textTransform: 'capitalize' }}>
+                    <div className="info-card" style={{ textAlign: 'left' }}>
+                      <div className="info-label">🎭 Mood Requirement</div>
+                      <div className="info-value tone" style={{ textTransform: 'capitalize' }}>
                         {inspectingCapsule.targetMood}
-                      </span>
+                      </div>
                     </div>
                   )}
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '6px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Integrity Seal:</span>
-                    <span style={{ color: '#34d399', fontFamily: 'monospace', fontSize: '11px' }}>
-                      {inspectingCapsule.integrityHash.slice(0, 24)}...
-                    </span>
-                  </div>
                 </div>
 
                 {isReadyToUnseal(inspectingCapsule) && (
@@ -1269,35 +1198,43 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
                       setInspectingCapsule(null);
                       handleAttemptUnseal(inspectingCapsule);
                     }}
-                    className="btn"
+                    className="btn-filled"
                     style={{
-                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      background: 'var(--md-success)',
                       color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '12px',
-                      padding: '10px 24px',
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
+                      height: '44px',
+                      padding: '0 32px',
                     }}
                   >
-                    Unlock &amp; Decrypt Now
+                    <Unlock className="w-4 h-4" />
+                    <span>Unlock &amp; Decrypt Now</span>
                   </button>
                 )}
               </div>
             )}
+
+            {/* Popup Bottom Actions */}
+            <div className="popup-actions" style={{ marginTop: '20px' }}>
+              <button
+                type="button"
+                onClick={() => setInspectingCapsule(null)}
+                className="btn-text"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Modal 2: 🎭 Mood Calibration Check-In Modal */}
+      {/* Google Material 3 Modal 2: 🎭 Mood Calibration Check-In Modal */}
       {moodCheckInCapsule && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            backdropFilter: 'blur(10px)',
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1306,115 +1243,107 @@ export const TimeCapsulesView: React.FC<TimeCapsulesViewProps> = ({
           }}
         >
           <div
+            className="google-popup"
             style={{
-              maxWidth: '520px',
-              width: '100%',
-              background: 'var(--bg-surface)',
-              border: '1px solid rgba(168, 85, 247, 0.4)',
-              borderRadius: '24px',
+              width: '520px',
               padding: '28px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.85)',
-              color: '#ffffff',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '18px',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c084fc' }}>
-                  <Smile className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '17px', fontWeight: 700, margin: 0 }}>
-                    Emotional Calibration Check-In
-                  </h3>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    Verify current emotional state to calibrate seal release
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMoodCheckInCapsule(null)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '18px', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
+            <button
+              type="button"
+              onClick={() => setMoodCheckInCapsule(null)}
+              className="popup-close"
+              title="Close"
+            >
+              ✕
+            </button>
+
+            <div className="topic-chip">
+              <Smile className="w-3.5 h-3.5 mr-1" /> Emotional Calibration
             </div>
 
-            <div style={{ background: 'rgba(30, 41, 59, 0.7)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                Capsule Condition Target:
-              </span>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#c084fc' }}>
+            <h3 className="popup-title">
+              Verify Emotional State
+            </h3>
+
+            <p className="popup-subtitle">
+              Verify your current emotional state to calibrate seal release.
+            </p>
+
+            <div className="info-card" style={{ marginTop: '16px' }}>
+              <div className="info-label">Capsule Condition Target</div>
+              <div className="info-value tone" style={{ fontSize: '15px' }}>
                 "{moodCheckInCapsule.targetMood?.toUpperCase()}"
               </div>
               {moodCheckInCapsule.moodUnlockPrompt && (
-                <p style={{ fontSize: '12px', color: 'var(--text-primary)', margin: '4px 0 0 0', fontStyle: 'italic' }}>
+                <p style={{ fontSize: '12.5px', color: 'var(--md-on-surface-variant)', margin: '6px 0 0 0', fontStyle: 'italic' }}>
                   "{moodCheckInCapsule.moodUnlockPrompt}"
                 </p>
               )}
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px' }}>
+            <div style={{ marginTop: '18px' }}>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 700, color: 'var(--md-on-surface)', marginBottom: '10px' }}>
                 Select your authentic emotional state right now:
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                 {(
                   [
-                    { type: 'calm', label: 'Calm & Peaceful', color: '#38bdf8' },
-                    { type: 'focused', label: 'Deep Focus', color: '#10b981' },
-                    { type: 'creative', label: 'Creative Spark', color: '#a855f7' },
-                    { type: 'anxious', label: 'Anxious / Overwhelmed', color: '#f43f5e' },
-                    { type: 'energetic', label: 'High Energy', color: '#f59e0b' },
-                    { type: 'tired', label: 'Fatigued / Low Battery', color: 'var(--text-secondary)' },
-                  ] as Array<{ type: MoodType; label: string; color: string }>
-                ).map((m) => (
-                  <button
-                    key={m.type}
-                    type="button"
-                    onClick={() => setSelectedCurrentMood(m.type)}
-                    style={{
-                      padding: '10px',
-                      borderRadius: '12px',
-                      border: '1px solid',
-                      borderColor: selectedCurrentMood === m.type ? m.color : 'rgba(255, 255, 255, 0.1)',
-                      background: selectedCurrentMood === m.type ? 'rgba(168, 85, 247, 0.2)' : 'rgba(15, 23, 42, 0.6)',
-                      color: selectedCurrentMood === m.type ? '#ffffff' : '#cbd5e1',
-                      fontSize: '12.5px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                ))}
+                    { type: 'calm', label: 'Calm & Peaceful' },
+                    { type: 'focused', label: 'Deep Focus' },
+                    { type: 'creative', label: 'Creative Spark' },
+                    { type: 'anxious', label: 'Anxious / Overwhelmed' },
+                    { type: 'energetic', label: 'High Energy' },
+                    { type: 'tired', label: 'Fatigued / Low Battery' },
+                  ] as Array<{ type: MoodType; label: string }>
+                ).map((m) => {
+                  const isSelected = selectedCurrentMood === m.type;
+                  return (
+                    <button
+                      key={m.type}
+                      type="button"
+                      onClick={() => setSelectedCurrentMood(m.type)}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '16px',
+                        border: `1.5px solid ${isSelected ? 'var(--md-primary)' : 'var(--border-subtle)'}`,
+                        background: isSelected ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
+                        color: isSelected ? 'var(--md-on-primary-container)' : 'var(--md-on-surface)',
+                        fontSize: '12.5px',
+                        fontWeight: isSelected ? 700 : 500,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {m.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <button
-              type="button"
-              disabled={!selectedCurrentMood}
-              onClick={handleConfirmMoodUnlock}
-              className="btn"
-              style={{
-                width: '100%',
-                marginTop: '10px',
-                padding: '12px',
-                borderRadius: '14px',
-                background: selectedCurrentMood ? 'linear-gradient(135deg, #a855f7, #7c3aed)' : 'rgba(255, 255, 255, 0.1)',
-                color: '#ffffff',
-                border: 'none',
-                fontWeight: 700,
-                fontSize: '13.5px',
-                cursor: selectedCurrentMood ? 'pointer' : 'not-allowed',
-              }}
-            >
-              Verify &amp; Unseal Capsule
-            </button>
+            <div className="popup-actions" style={{ marginTop: '20px' }}>
+              <button
+                type="button"
+                onClick={() => setMoodCheckInCapsule(null)}
+                className="btn-text"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!selectedCurrentMood}
+                onClick={handleConfirmMoodUnlock}
+                className="btn-filled"
+                style={{
+                  opacity: selectedCurrentMood ? 1 : 0.5,
+                  cursor: selectedCurrentMood ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Verify &amp; Unseal
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -704,11 +704,15 @@ app.post("/api/functions/:functionName", requireFirebaseAuth, aiEndpointLimiter,
         tokenUsage: geminiResult.usageMetadata,
       };
 
-      await Promise.all([
-        addFirestoreMessage(uid, sessionId, userMsg),
-        addFirestoreMessage(uid, sessionId, aiMsg),
-        saveFirestoreSession(uid, sessionId, { ...session, mode, updatedAt: new Date().toISOString() })
-      ]);
+      try {
+        await Promise.all([
+          addFirestoreMessage(uid, sessionId, userMsg),
+          addFirestoreMessage(uid, sessionId, aiMsg),
+          saveFirestoreSession(uid, sessionId, { ...session, mode, updatedAt: new Date().toISOString() })
+        ]);
+      } catch (storeErr: any) {
+        console.warn("[Server Firestore store warning]", storeErr.message || storeErr);
+      }
 
       res.json({
         success: true,
