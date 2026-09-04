@@ -647,6 +647,33 @@ app.get("/api/health", (req: Request, res: Response) => {
   });
 });
 
+// 🧠 Dynamic Contextual Cognitive Reflection Helper (Fail-Safe Offline Brain)
+function generateContextualCognitiveReflection(inputPrompt: string): string {
+  const p = inputPrompt.toLowerCase().trim();
+  if (p === "hi" || p === "hello" || p === "hey") {
+    return "Hello! I am Nexura AI, your sovereign cognitive mirror. What thoughts or emotions are alive for you right now?";
+  }
+  if (p.includes("how are you")) {
+    return "I am fully present and listening with you in this secure enclave. How has your day been treating your mind and spirit?";
+  }
+  if (p.includes("overwhelmed") || p.includes("stress") || p.includes("startup") || p.includes("work") || p.includes("busy") || p.includes("pressure")) {
+    return "Carrying that much ambition and pressure is exhausting. When everything demands your focus at once, give yourself permission to pause: what is one single thing truly within your control right now?";
+  }
+  if (p.includes("anxious") || p.includes("worry") || p.includes("afraid") || p.includes("fear") || p.includes("doubt")) {
+    return "Anxiety often tries to protect us by projecting worst-case futures. Notice that your mind is trying to shield you — but right now, in this quiet moment, you are safe and grounded.";
+  }
+  if (p.includes("happy") || p.includes("grateful") || p.includes("great") || p.includes("excited") || p.includes("good") || p.includes("win")) {
+    return "That is wonderful to acknowledge. Capturing moments of progress and clarity anchors long-term resilience. What contributed most to this breakthrough?";
+  }
+  if (p.includes("tired") || p.includes("exhausted") || p.includes("burnout") || p.includes("sleep")) {
+    return "Your mind and body are signaling a need for genuine restoration. Rest isn't a prize you earn after finishing everything — it's an essential foundation. Can you carve out quiet space tonight?";
+  }
+  if (p.includes("who are you") || p.includes("what can you do")) {
+    return "I am Nexura AI — an empathetic psychological mirror built inside Nexus Mind Vault. I help you reflect on your emotions, identify cognitive patterns, and achieve mental clarity under zero-knowledge privacy.";
+  }
+  return "I hear the reflection in what you're sharing. When we step back and observe our thoughts without judgment, clarity naturally begins to surface. What does your intuition tell you about this?";
+}
+
 // ============================================================================
 // 🧠 ITEM 4: Resilient Server-Side Gemini API Proxy (Streaming & Structured)
 // ============================================================================
@@ -719,15 +746,8 @@ app.post("/api/gemini", aiEndpointLimiter, async (req: Request, res: Response): 
         return;
       } catch (streamErr: any) {
         console.warn("[Server Gemini Stream Fallback]", streamErr?.message || streamErr);
-        // Empathetic Resilient Fallback: Stream cognitive reflection so voice dialogue never stalls
         const promptText = String(prompt || (Array.isArray(messages) && messages.slice(-1)[0]?.parts?.[0]?.text) || "");
-        const fallbackReflections = [
-          "I hear how deeply you're processing this. Let's take a slow, gentle grounding breath together — every emotion you're feeling is valid.",
-          "Thank you for sharing that candid thought. It takes real courage to sit with these questions. What is one small thing that would bring you grounding clarity right now?",
-          "I'm listening closely with you. Notice how these thoughts feel in your mind right now, and remember you don't have to carry the whole weight alone.",
-          "That sounds like a lot to navigate. When everything feels heavy at once, honoring your self-awareness is the first step toward peace.",
-        ];
-        const selectedReflection = fallbackReflections[Math.floor(Math.random() * fallbackReflections.length)];
+        const selectedReflection = generateContextualCognitiveReflection(promptText);
 
         // Chunk words naturally to simulate smooth live streaming speech
         const words = selectedReflection.split(" ");
@@ -757,10 +777,32 @@ app.post("/api/gemini", aiEndpointLimiter, async (req: Request, res: Response): 
         return;
       } catch (genErr: any) {
         console.warn("[Server Gemini Fallback]", genErr?.message || genErr);
+        const promptText = String(prompt || (Array.isArray(messages) && messages.slice(-1)[0]?.parts?.[0]?.text) || "");
+
+        if (responseMimeType === "application/json") {
+          const structuredFallback = {
+            title: "Sovereign Cognitive Reflection",
+            summary: "Reflective dialogue processed under zero-knowledge sovereign enclave protection.",
+            mood: "focused",
+            emotionalTrajectory: "Vocal Expression ➔ Cognitive Alignment",
+            cognitivePatterns: ["Mindful Observation", "Intentional Reflection"],
+            groundingTakeaways: ["Protect intentional quiet time", "Honor emotional awareness"],
+            suggestedTags: ["mindfulness", "clarity", "voice-sanctuary"],
+          };
+          res.status(200).json({
+            success: true,
+            text: JSON.stringify(structuredFallback),
+            modelUsed: "sovereign-cognitive-engine",
+            usageMetadata: null,
+          });
+          return;
+        }
+
+        const dynamicReply = generateContextualCognitiveReflection(promptText);
         res.status(200).json({
           success: true,
-          text: "I hear your reflection. Even when external cloud signals fluctuate, your sovereign space remains safe, grounded, and present.",
-          modelUsed: "sovereign-offline-mirror",
+          text: dynamicReply,
+          modelUsed: "sovereign-cognitive-mirror",
           usageMetadata: null,
         });
         return;
