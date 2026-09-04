@@ -259,33 +259,15 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
         return;
       }
     } catch (apiErr: any) {
-      console.warn("[Nexus Mind Gemini API Call]", apiErr.message || apiErr);
-
-      // Dynamic Local Cognitive Synthesis Fallback
-      const matchingEntries = entries.filter((e) =>
-        e.title.toLowerCase().includes(userMsgText.toLowerCase()) ||
-        e.content.toLowerCase().includes(userMsgText.toLowerCase()) ||
-        (e.tags && e.tags.some((t) => t.toLowerCase().includes(userMsgText.toLowerCase())))
-      );
-
-      let dynamicInsight = "";
-      if (matchingEntries.length > 0) {
-        dynamicInsight = `Found **${matchingEntries.length} reflection(s)** directly connected to your query:\n` +
-          matchingEntries.slice(0, 3).map((e) => `• **"${e.title}"** (${e.mood ? e.mood.toUpperCase() : 'NOTE'}): ${e.content.slice(0, 120)}...`).join('\n');
-      } else {
-        dynamicInsight = `Across your **${entries.length} vault entries**, your focus centers on consistent self-observation, structured milestones, and cryptographic peace of mind.`;
-      }
-
-      const localResponse = `🧠 **Nexus Memory Synthesis**:\n\n${dynamicInsight}\n\n*Actionable Suggestion*: Consider creating a new reflection specifically focusing on your next iteration step to deepen your cognitive memory graph.`;
-
-      const assistantMsg: ChatMessage = {
+      console.error("[Nexus Mind Gemini API Call]", apiErr.message || apiErr);
+      const errorMsg: ChatMessage = {
         id: 'msg_' + Math.random().toString(36).substring(2, 9),
         sender: 'assistant',
-        text: localResponse,
+        text: `⚠️ **Gemini API Error**: ${apiErr.message || 'Unable to reach Gemini API with configured key.'}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        modelUsed: 'Nexus Cognitive Core',
+        modelUsed: 'API Error',
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsGenerating(false);
     }

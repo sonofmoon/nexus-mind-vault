@@ -422,57 +422,146 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
   });
 
 
-// Resilient Model Fallback Ladder
-const MODEL_FALLBACK_LADDER = [
-  "gemini-3.6-flash",          // Primary Directive
-  "gemini-3.1-flash-lite",      // High-Availability Fallback
-  "gemini-flash-latest",        // Dynamic Alias
-  "gemini-3.7-flash",           // Deep Reasoning Fallback
-  "gemini-2.5-flash",           // High-Speed Multimodal Production Model
-  "gemini-2.0-flash",           // Extended Resilient Fallback
-  "gemini-1.5-flash",           // Base Fallback
+// Configuration for Vertex AI & Generative Language
+const VERTEX_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || "neural-vault-22e16";
+const VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || process.env.CLOUD_RUN_REGION || "us-central1";
+
+const VERTEX_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro"];
+const GENAI_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-2.5-flash",
+  "gemini-flash-latest",
+  "gemini-3.1-flash-lite",
+  "gemini-3.7-flash",
 ];
 
-async function generateStreamWithFallback({
+async function* streamVertexAi({
+  apiKey,
+  model,
   contents,
   systemInstruction,
   temperature = 0.7,
   maxOutputTokens = 2048,
 }: {
-  contents: any;
+  apiKey: string;
+  model: string;
+  contents: any[];
   systemInstruction?: string;
   temperature?: number;
   maxOutputTokens?: number;
-}) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured on the server environment.");
+}): AsyncGenerator<string, void, unknown> {
+  const url = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT_ID}/locations/${VERTEX_LOCATION}/publishers/google/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+  const requestBody: any = {
+    contents,
+    generationConfig: {
+      temperature,
+      maxOutputTokens,
+    },
+  };
+
+  if (systemInstruction) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemInstruction }],
+    };
   }
 
-  const ai = getGenAIClient();
-  let lastError: any = null;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
+  });
 
-  for (const model of MODEL_FALLBACK_LADDER) {
-    try {
-      const responseStream = await ai.models.generateContentStream({
-        model,
-        contents,
-        config: {
-          ...(systemInstruction ? { systemInstruction } : {}),
-          temperature,
-          maxOutputTokens,
-        },
-      });
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "");
+    throw new Error(`Vertex AI Stream HTTP ${response.status}: ${errText}`);
+  }
 
-      return { stream: responseStream, modelUsed: model };
-    } catch (err: any) {
-      const errMsg = err.message || "";
-      console.warn(`[Server Gemini Stream Fallback] Model ${model} encountered status (${errMsg}). Cascading to next candidate.`);
-      lastError = err;
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("Vertex AI stream body unavailable");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("data: ")) {
+        const jsonStr = trimmed.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const chunkText = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (chunkText) {
+            yield chunkText;
+          }
+        } catch {
+          // ignore parsing error in mid-stream fragment
+        }
+      }
     }
   }
+}
 
-  throw new Error(`All Gemini models in fallback ladder failed for streaming. Last error: ${lastError?.message || "Unknown"}`);
+async function generateVertexAiContent({
+  apiKey,
+  model,
+  contents,
+  systemInstruction,
+  responseMimeType,
+  temperature = 0.7,
+  maxOutputTokens = 2048,
+}: {
+  apiKey: string;
+  model: string;
+  contents: any[];
+  systemInstruction?: string;
+  responseMimeType?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+}): Promise<{ text: string; modelUsed: string; usageMetadata: any }> {
+  const url = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT_ID}/locations/${VERTEX_LOCATION}/publishers/google/models/${model}:generateContent?key=${apiKey}`;
+
+  const requestBody: any = {
+    contents,
+    generationConfig: {
+      temperature,
+      maxOutputTokens,
+      ...(responseMimeType ? { responseMimeType } : {}),
+    },
+  };
+
+  if (systemInstruction) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemInstruction }],
+    };
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "");
+    throw new Error(`Vertex AI HTTP ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  return {
+    text: text.trim(),
+    modelUsed: model,
+    usageMetadata: data?.usageMetadata || null,
+  };
 }
 
 let aiClient: GoogleGenAI | null = null;
@@ -494,6 +583,92 @@ function getGenAIClient(): GoogleGenAI {
   return aiClient;
 }
 
+async function generateStreamWithFallback({
+  contents,
+  systemInstruction,
+  temperature = 0.7,
+  maxOutputTokens = 2048,
+}: {
+  contents: any;
+  systemInstruction?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+}): Promise<{ stream: any; modelUsed: string; isCustomGenerator: boolean }> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured on the server environment.");
+  }
+
+  let lastError: any = null;
+
+  // 1. Prioritize Vertex AI Express if key is AQ. (or Service Account bound)
+  if (apiKey.startsWith("AQ.") || apiKey.startsWith("ya29.") || !apiKey.startsWith("AIza")) {
+    for (const model of VERTEX_MODELS) {
+      try {
+        const stream = streamVertexAi({
+          apiKey,
+          model,
+          contents,
+          systemInstruction,
+          temperature,
+          maxOutputTokens,
+        });
+        return { stream, modelUsed: model, isCustomGenerator: true };
+      } catch (err: any) {
+        console.warn(`[Server Vertex AI Stream Fallback] Model ${model} error:`, err.message);
+        lastError = err;
+      }
+    }
+  }
+
+  // 2. Try Google GenAI SDK (Generative Language API)
+  try {
+    const ai = getGenAIClient();
+    for (const model of GENAI_MODELS) {
+      try {
+        const responseStream = await ai.models.generateContentStream({
+          model,
+          contents,
+          config: {
+            ...(systemInstruction ? { systemInstruction } : {}),
+            temperature,
+            maxOutputTokens,
+          },
+        });
+
+        return { stream: responseStream, modelUsed: model, isCustomGenerator: false };
+      } catch (err: any) {
+        const errMsg = err.message || "";
+        console.warn(`[Server GenAI Stream Fallback] Model ${model} encountered status (${errMsg}). Cascading to next candidate.`);
+        lastError = err;
+      }
+    }
+  } catch (sdkErr: any) {
+    lastError = sdkErr;
+  }
+
+  // 3. If standard GenAI failed and we haven't tried Vertex yet, try Vertex as last resort
+  if (apiKey.startsWith("AIza")) {
+    for (const model of VERTEX_MODELS) {
+      try {
+        const stream = streamVertexAi({
+          apiKey,
+          model,
+          contents,
+          systemInstruction,
+          temperature,
+          maxOutputTokens,
+        });
+        return { stream, modelUsed: model, isCustomGenerator: true };
+      } catch (vertexErr: any) {
+        lastError = vertexErr;
+      }
+    }
+  }
+
+  throw new Error(`All Gemini models in fallback ladder failed for streaming. Last error: ${lastError?.message || "Unknown"}`);
+}
+
 async function generateWithFallback({
   contents,
   systemInstruction,
@@ -502,55 +677,94 @@ async function generateWithFallback({
   contents: any;
   systemInstruction?: string;
   responseMimeType?: string;
-}) {
+}): Promise<{ text: string; modelUsed: string; usageMetadata: any }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured on the server environment.");
   }
 
-  const ai = getGenAIClient();
   let lastError: any = null;
 
-  for (const model of MODEL_FALLBACK_LADDER) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents,
-        config: {
-          ...(systemInstruction ? { systemInstruction } : {}),
-          ...(responseMimeType ? { responseMimeType } : {}),
-        },
-      });
+  // 1. Prioritize Vertex AI Express if key is AQ. (or Service Account bound)
+  if (apiKey.startsWith("AQ.") || apiKey.startsWith("ya29.") || !apiKey.startsWith("AIza")) {
+    for (const model of VERTEX_MODELS) {
+      try {
+        const normalizedContents = Array.isArray(contents)
+          ? contents
+          : [{ role: "user", parts: [{ text: String(contents) }] }];
 
-      const responseText = response.text ? response.text.trim() : "";
-      if (responseText) {
-        return {
-          text: responseText,
-          modelUsed: model,
-          usageMetadata: response.usageMetadata || null,
-        };
-      }
-    } catch (err: any) {
-      const errMsg = err.message || "";
-      const isRecoverable =
-        errMsg.includes("503") ||
-        errMsg.includes("UNAVAILABLE") ||
-        errMsg.includes("429") ||
-        errMsg.includes("RESOURCE_EXHAUSTED") ||
-        errMsg.includes("404") ||
-        errMsg.includes("NOT_FOUND") ||
-        errMsg.includes("500") ||
-        errMsg.includes("INTERNAL") ||
-        errMsg.includes("demand") ||
-        errMsg.includes("overloaded") ||
-        errMsg.includes("rate limit");
+        const result = await generateVertexAiContent({
+          apiKey,
+          model,
+          contents: normalizedContents,
+          systemInstruction,
+          responseMimeType,
+        });
 
-      if (isRecoverable) {
-        console.info(`[Server Gemini Fallback] Model ${model} encountered recoverable status (${errMsg}). Cascading to next candidate in fallback ladder.`);
-      } else {
-        console.warn(`[Server Gemini Fallback] Model ${model} error (${errMsg}). Cascading to next candidate.`);
+        if (result.text) {
+          return result;
+        }
+      } catch (err: any) {
+        console.warn(`[Server Vertex AI Fallback] Model ${model} error:`, err.message);
+        lastError = err;
       }
-      lastError = err;
+    }
+  }
+
+  // 2. Try Google GenAI SDK (Generative Language API)
+  try {
+    const ai = getGenAIClient();
+    for (const model of GENAI_MODELS) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            ...(systemInstruction ? { systemInstruction } : {}),
+            ...(responseMimeType ? { responseMimeType } : {}),
+          },
+        });
+
+        const responseText = response.text ? response.text.trim() : "";
+        if (responseText) {
+          return {
+            text: responseText,
+            modelUsed: model,
+            usageMetadata: response.usageMetadata || null,
+          };
+        }
+      } catch (err: any) {
+        const errMsg = err.message || "";
+        console.warn(`[Server GenAI Fallback] Model ${model} error (${errMsg}). Cascading to next candidate.`);
+        lastError = err;
+      }
+    }
+  } catch (sdkErr: any) {
+    lastError = sdkErr;
+  }
+
+  // 3. If standard GenAI failed and we haven't tried Vertex yet, try Vertex as last resort
+  if (apiKey.startsWith("AIza")) {
+    for (const model of VERTEX_MODELS) {
+      try {
+        const normalizedContents = Array.isArray(contents)
+          ? contents
+          : [{ role: "user", parts: [{ text: String(contents) }] }];
+
+        const result = await generateVertexAiContent({
+          apiKey,
+          model,
+          contents: normalizedContents,
+          systemInstruction,
+          responseMimeType,
+        });
+
+        if (result.text) {
+          return result;
+        }
+      } catch (vertexErr: any) {
+        lastError = vertexErr;
+      }
     }
   }
 
@@ -647,33 +861,6 @@ app.get("/api/health", (req: Request, res: Response) => {
   });
 });
 
-// 🧠 Dynamic Contextual Cognitive Reflection Helper (Fail-Safe Offline Brain)
-function generateContextualCognitiveReflection(inputPrompt: string): string {
-  const p = inputPrompt.toLowerCase().trim();
-  if (p === "hi" || p === "hello" || p === "hey") {
-    return "Hello! I am Nexura AI, your sovereign cognitive mirror. What thoughts or emotions are alive for you right now?";
-  }
-  if (p.includes("how are you")) {
-    return "I am fully present and listening with you in this secure enclave. How has your day been treating your mind and spirit?";
-  }
-  if (p.includes("overwhelmed") || p.includes("stress") || p.includes("startup") || p.includes("work") || p.includes("busy") || p.includes("pressure")) {
-    return "Carrying that much ambition and pressure is exhausting. When everything demands your focus at once, give yourself permission to pause: what is one single thing truly within your control right now?";
-  }
-  if (p.includes("anxious") || p.includes("worry") || p.includes("afraid") || p.includes("fear") || p.includes("doubt")) {
-    return "Anxiety often tries to protect us by projecting worst-case futures. Notice that your mind is trying to shield you — but right now, in this quiet moment, you are safe and grounded.";
-  }
-  if (p.includes("happy") || p.includes("grateful") || p.includes("great") || p.includes("excited") || p.includes("good") || p.includes("win")) {
-    return "That is wonderful to acknowledge. Capturing moments of progress and clarity anchors long-term resilience. What contributed most to this breakthrough?";
-  }
-  if (p.includes("tired") || p.includes("exhausted") || p.includes("burnout") || p.includes("sleep")) {
-    return "Your mind and body are signaling a need for genuine restoration. Rest isn't a prize you earn after finishing everything — it's an essential foundation. Can you carve out quiet space tonight?";
-  }
-  if (p.includes("who are you") || p.includes("what can you do")) {
-    return "I am Nexura AI — an empathetic psychological mirror built inside Nexus Mind Vault. I help you reflect on your emotions, identify cognitive patterns, and achieve mental clarity under zero-knowledge privacy.";
-  }
-  return "I hear the reflection in what you're sharing. When we step back and observe our thoughts without judgment, clarity naturally begins to surface. What does your intuition tell you about this?";
-}
-
 // ============================================================================
 // 🧠 ITEM 4: Resilient Server-Side Gemini API Proxy (Streaming & Structured)
 // ============================================================================
@@ -728,39 +915,39 @@ app.post("/api/gemini", aiEndpointLimiter, async (req: Request, res: Response): 
       res.setHeader("X-Accel-Buffering", "no");
 
       try {
-        const { stream: responseStream, modelUsed } = await generateStreamWithFallback({
+        const { stream: responseStream, modelUsed, isCustomGenerator } = await generateStreamWithFallback({
           contents,
           systemInstruction: effectiveSystemInstruction,
           temperature,
           maxOutputTokens,
         });
 
-        for await (const chunk of responseStream) {
-          const text = chunk.text;
-          if (text) {
-            res.write(`data: ${JSON.stringify({ text, model: modelUsed })}\n\n`);
+        if (isCustomGenerator) {
+          for await (const chunkText of (responseStream as any)) {
+            if (chunkText) {
+              res.write(`data: ${JSON.stringify({ text: chunkText, model: modelUsed })}\n\n`);
+            }
+          }
+        } else {
+          for await (const chunk of (responseStream as any)) {
+            const text = chunk.text;
+            if (text) {
+              res.write(`data: ${JSON.stringify({ text, model: modelUsed })}\n\n`);
+            }
           }
         }
         res.write("data: [DONE]\n\n");
         res.end();
         return;
       } catch (streamErr: any) {
-        console.warn("[Server Gemini Stream Fallback]", streamErr?.message || streamErr);
-        const promptText = String(prompt || (Array.isArray(messages) && messages.slice(-1)[0]?.parts?.[0]?.text) || "");
-        const selectedReflection = generateContextualCognitiveReflection(promptText);
-
-        // Chunk words naturally to simulate smooth live streaming speech
-        const words = selectedReflection.split(" ");
-        for (let i = 0; i < words.length; i += 3) {
-          const slice = words.slice(i, i + 3).join(" ") + " ";
-          res.write(`data: ${JSON.stringify({ text: slice, model: "sovereign-cognitive-mirror" })}\n\n`);
-        }
+        console.error("[Server Gemini Stream Error]", streamErr?.message || streamErr);
+        res.write(`data: ${JSON.stringify({ error: streamErr?.message || "Gemini streaming failed" })}\n\n`);
         res.write("data: [DONE]\n\n");
         res.end();
         return;
       }
     } else {
-      // 🔒 Structured JSON / Complete Content Generation with Graceful Degradation
+      // 🔒 Structured JSON / Complete Content Generation
       try {
         const result = await generateWithFallback({
           contents,
@@ -776,34 +963,10 @@ app.post("/api/gemini", aiEndpointLimiter, async (req: Request, res: Response): 
         });
         return;
       } catch (genErr: any) {
-        console.warn("[Server Gemini Fallback]", genErr?.message || genErr);
-        const promptText = String(prompt || (Array.isArray(messages) && messages.slice(-1)[0]?.parts?.[0]?.text) || "");
-
-        if (responseMimeType === "application/json") {
-          const structuredFallback = {
-            title: "Sovereign Cognitive Reflection",
-            summary: "Reflective dialogue processed under zero-knowledge sovereign enclave protection.",
-            mood: "focused",
-            emotionalTrajectory: "Vocal Expression ➔ Cognitive Alignment",
-            cognitivePatterns: ["Mindful Observation", "Intentional Reflection"],
-            groundingTakeaways: ["Protect intentional quiet time", "Honor emotional awareness"],
-            suggestedTags: ["mindfulness", "clarity", "voice-sanctuary"],
-          };
-          res.status(200).json({
-            success: true,
-            text: JSON.stringify(structuredFallback),
-            modelUsed: "sovereign-cognitive-engine",
-            usageMetadata: null,
-          });
-          return;
-        }
-
-        const dynamicReply = generateContextualCognitiveReflection(promptText);
-        res.status(200).json({
-          success: true,
-          text: dynamicReply,
-          modelUsed: "sovereign-cognitive-mirror",
-          usageMetadata: null,
+        console.error("[Server Gemini Error]", genErr?.message || genErr);
+        res.status(500).json({
+          error: "Gemini API execution failed",
+          details: genErr?.message || "Unknown error",
         });
         return;
       }
@@ -982,12 +1145,12 @@ app.post("/api/functions/:functionName", requireFirebaseAuth, aiEndpointLimiter,
           systemInstruction,
         });
       } catch (geminiError: any) {
-        console.warn("[Server Gemini Call Warning]", geminiError.message);
-        geminiResult = {
-          text: `Cognitive synthesis regarding: "${content}". (${geminiError.message || "Processed in local secure enclave."})`,
-          modelUsed: "gemini-3.6-flash (fallback)",
-          usageMetadata: null,
-        };
+        console.error("[Server Gemini Call Error]", geminiError.message);
+        res.status(500).json({
+          error: "Gemini API execution failed",
+          details: geminiError.message,
+        });
+        return;
       }
 
       const userMsg = {
