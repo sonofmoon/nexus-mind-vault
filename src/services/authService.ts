@@ -1,6 +1,13 @@
 import { UserSession } from "../types";
 import { auth } from "./firebaseConfig";
-import { GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut as fbSignOut,
+  onAuthStateChanged
+} from "firebase/auth";
 
 const LOCAL_STORAGE_USER_KEY = "vault_journal_session_user";
 
@@ -15,6 +22,23 @@ export function getStoredUserSession(): UserSession | null {
 
 export function initAuthListener(onUserChanged: (user: UserSession | null) => void): () => void {
   try {
+    // Process redirect result if returning from signInWithRedirect fallback
+    getRedirectResult(auth).then((result) => {
+      if (result?.user) {
+        const user = result.user;
+        const userSession: UserSession = {
+          uid: user.uid,
+          email: user.email || "user@gmail.com",
+          displayName: user.displayName || user.email?.split("@")[0] || "Vault User",
+          photoURL: user.photoURL || undefined
+        };
+        localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(userSession));
+        onUserChanged(userSession);
+      }
+    }).catch((err) => {
+      console.warn("[Auth Redirect Result Check]", err);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         const userSession: UserSession = {
@@ -60,14 +84,18 @@ export async function signInWithGoogle(): Promise<UserSession> {
     console.error("[Google Sign-In Error]", error);
     const errorCode = error.code || "unknown";
 
+    // Resilient fallback: If browser blocks popups, redirect to Google Sign-In
+    if (errorCode === "auth/popup-blocked" || errorCode === "auth/cancelled-popup-request") {
+      console.warn("[Google Sign-In] Popup was blocked by browser. Falling back to signInWithRedirect...");
+      await signInWithRedirect(auth, provider);
+      return new Promise(() => {}); // Pauses until browser navigates
+    }
+
     if (errorCode === "auth/unauthorized-domain") {
-      throw new Error(`Domain '${window.location.hostname}' is not authorized in Firebase Console -> Authentication -> Settings -> Authorized Domains. Please add 'localhost' or '${window.location.hostname}'.`);
+      throw new Error(`Domain '${window.location.hostname}' is not authorized in Firebase Console -> Authentication -> Settings -> Authorized Domains. Please add '${window.location.hostname}'.`);
     }
     if (errorCode === "auth/popup-closed-by-user") {
       throw new Error("Google Sign-in popup was closed before completing.");
-    }
-    if (errorCode === "auth/popup-blocked") {
-      throw new Error("Google Sign-in popup was blocked by browser. Please allow popups for localhost.");
     }
     throw error;
   }
