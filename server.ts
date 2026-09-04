@@ -227,6 +227,11 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
   app.use(express.urlencoded({ extended: true }));
   app.use("/api/", globalApiLimiter);
 
+  // ⏱️ Container Health Check Endpoint (For Cloud Run & Docker)
+  app.get("/health", (_req: Request, res: Response) => {
+    res.status(200).json({ status: "healthy", service: "nexus-mind-vault", timestamp: new Date().toISOString() });
+  });
+
   // ============================================================================
   // 🔔 ITEM 13 & Server-Side Push Subscription & Dispatch Endpoints
   // ============================================================================
