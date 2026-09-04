@@ -3019,7 +3019,6 @@ body.dark-theme {
   box-shadow: 0 2px 3px rgba(0, 0, 0, .12), 0 8px 24px rgba(0, 0, 0, .08);
   border: 1px solid var(--border-subtle, #dadce0);
   padding: 24px;
-  position: relative;
   font-family: "Google Sans", "Google Sans Text", Roboto, sans-serif;
   color: var(--md-on-surface, var(--text, #1f1f1f));
   box-sizing: border-box;

@@ -19,7 +19,7 @@ export interface VaultCredentials {
 
 export type VaultMode = 'protected' | 'real';
 
-export type TabType = 'journal' | 'insights' | 'graph' | 'capsules' | 'settings' | 'nexus' | 'login';
+export type TabType = 'journal' | 'voice' | 'insights' | 'graph' | 'capsules' | 'settings' | 'nexus' | 'login';
 
 export interface VaultSettings {
   autoLockMinutes: number; // e.g. 5, 15, 30, 0 (disabled)

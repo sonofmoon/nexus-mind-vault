@@ -18,8 +18,15 @@ import {
   getParallelPersona,
   saveParallelPersona,
   getVaultSettings,
+  getLegacyGuardianPolicies,
   recordGlobalHeartbeatPulse,
 } from './services/vaultStorage';
+import {
+  syncUserProfileToFirestore,
+  syncAllLocalVaultDataToFirestore,
+  syncJournalEntryToFirestore,
+  deleteJournalEntryFromFirestore,
+} from './services/firestoreVaultSync';
 import { VaultHeader } from './components/VaultHeader';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { JournalView } from './components/JournalView';
@@ -44,6 +51,8 @@ import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { initGlobalReminderMonitor, requestNotificationPermission } from './utils/notificationEngine';
 import { AutoLockWarningBanner } from './components/AutoLockWarningBanner';
 import { SharedEntryViewerModal } from './components/SharedEntryViewerModal';
+import { NeuralVoiceMirrorView } from './components/NeuralVoiceMirrorView';
+import { GlobalFloatingVoiceOrb } from './components/GlobalFloatingVoiceOrb';
 
 export function App() {
   const [user, setUser] = useState<UserSession | null>(null);
@@ -155,6 +164,16 @@ export function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  useEffect(() => {
+    const handleVaultWriteBlocked = (event: any) => {
+      const message = event?.detail?.message || 'Vault locked: unlock NMV to save encrypted data.';
+      showToast(message, 'warning');
+    };
+
+    window.addEventListener('vault_write_blocked', handleVaultWriteBlocked);
+    return () => window.removeEventListener('vault_write_blocked', handleVaultWriteBlocked);
+  }, [showToast]);
+
   // ⚡ ITEMS 21 & 22: Global Keyboard Shortcuts Engine
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -242,6 +261,7 @@ export function App() {
     const unsubscribe = initAuthListener((currentUser) => {
       setUser(currentUser);
       if (currentUser) {
+        syncUserProfileToFirestore(currentUser);
         const creds = getVaultCredentials(currentUser.uid);
         setCredentials(creds);
         if (!creds) {
@@ -251,9 +271,24 @@ export function App() {
           // Mandatory PIN gate on returning/subsequent login
           setIsPVUnlocked(false);
         }
-        setEntries(getJournalEntries(currentUser.uid));
-        setCapsules(getTimeCapsules(currentUser.uid));
+        const localEntries = getJournalEntries(currentUser.uid);
+        const localCapsules = getTimeCapsules(currentUser.uid);
+        const localPersona = getParallelPersona(currentUser.uid);
+        const localSettings = getVaultSettings(currentUser.uid);
+        const localPolicies = getLegacyGuardianPolicies(currentUser.uid);
+
+        setEntries(localEntries);
+        setCapsules(localCapsules);
         setActiveTab('journal');
+
+        // Automatically backfill and reconcile all local records to Cloud Firestore
+        syncAllLocalVaultDataToFirestore(currentUser.uid, {
+          entries: localEntries,
+          capsules: localCapsules,
+          settings: localSettings,
+          policies: localPolicies,
+          coverEntries: localPersona?.entries || [],
+        });
       } else {
         setCredentials(null);
         setEntries([]);
@@ -285,6 +320,7 @@ export function App() {
         setIsDuressActive(true);
         setIsPVUnlocked(true);
         setVaultMode('protected');
+        setActiveTab((prev) => (prev === 'voice' ? 'journal' : prev));
         const uid = user?.uid || 'default_user';
         const persona = getParallelPersona(uid);
         setEntries(persona.entries || []);
@@ -293,6 +329,7 @@ export function App() {
         setIsDuressActive(false);
         setIsPVUnlocked(true);
         setVaultMode('protected');
+        setActiveTab((prev) => (prev === 'voice' ? 'journal' : prev));
         const uid = user?.uid || 'default_user';
         setEntries(getJournalEntries(uid));
         setCapsules(getTimeCapsules(uid));
@@ -476,6 +513,7 @@ export function App() {
       };
       saveParallelPersona(user.uid, updatedPersona);
       setParallelPersona(updatedPersona);
+      syncJournalEntryToFirestore(user.uid, newCoverEntry);
       showToast("Cover journal reflection saved.", "success");
     } else {
       const newEntry = addJournalEntry(user.uid, payload);
@@ -487,15 +525,23 @@ export function App() {
   const handleUpdateEntry = (id: string, updatedFields: Partial<JournalEntry>) => {
     if (!user) return;
     if (vaultMode === 'protected') {
-      const updatedEntries = (parallelPersona?.entries || []).map((e: any) =>
-        e.id === id ? { ...e, ...updatedFields, updatedAt: new Date().toISOString() } : e
-      );
+      let updatedEntryItem: JournalEntry | null = null;
+      const updatedEntries = (parallelPersona?.entries || []).map((e: any) => {
+        if (e.id === id) {
+          updatedEntryItem = { ...e, ...updatedFields, updatedAt: new Date().toISOString() };
+          return updatedEntryItem;
+        }
+        return e;
+      });
       const updatedPersona = {
         ...parallelPersona,
         entries: updatedEntries,
       };
       saveParallelPersona(user.uid, updatedPersona);
       setParallelPersona(updatedPersona);
+      if (updatedEntryItem) {
+        syncJournalEntryToFirestore(user.uid, updatedEntryItem);
+      }
       showToast("Cover reflection updated.", "info");
     } else {
       const updated = updateJournalEntry(user.uid, id, updatedFields);
@@ -514,6 +560,7 @@ export function App() {
       };
       saveParallelPersona(user.uid, updatedPersona);
       setParallelPersona(updatedPersona);
+      deleteJournalEntryFromFirestore(user.uid, id);
       showToast("Cover entry purged.", "info");
     } else {
       deleteJournalEntry(user.uid, id);
@@ -576,10 +623,10 @@ export function App() {
         activeTab={activeTab}
         onTabChange={(tab) => {
           if (!isPVUnlocked) return;
-          if (isDuressActive && (tab === 'capsules' || tab === 'settings')) {
+          if (isDuressActive && (tab === 'capsules' || tab === 'settings' || tab === 'voice')) {
             return;
           }
-          if ((tab === 'capsules' || tab === 'settings') && vaultMode !== 'real') {
+          if ((tab === 'capsules' || tab === 'settings' || tab === 'voice') && vaultMode !== 'real') {
             handleOpenUnlockModal();
           } else {
             setActiveTab(tab);
@@ -647,6 +694,17 @@ export function App() {
               />
             )}
 
+            {/* Hero Centerpiece: 🎙️ Sovereign Voice Mirror (Bi-Directional Voice AI - NMV Real Vault Only) */}
+            {activeTab === 'voice' && vaultMode === 'real' && (
+              <NeuralVoiceMirrorView
+                userId={user?.uid || 'default_user'}
+                entries={entries}
+                onAddEntry={handleAddEntry}
+                onSelectTab={(tab) => setActiveTab(tab)}
+                showToast={showToast}
+              />
+            )}
+
             {/* Tab 2: 📈 Insights */}
             {activeTab === 'insights' && (
               <InsightsView entries={vaultMode === 'real' ? entries : (parallelPersona.entries || [])} />
@@ -662,6 +720,7 @@ export function App() {
                   onAddCapsule={handleAddCapsule}
                   onUnlockCapsule={handleUnlockCapsule}
                   onDeleteCapsule={handleDeleteCapsule}
+                  onAddEntry={handleAddEntry}
                   showToast={showToast}
                 />
               ) : (
@@ -707,10 +766,10 @@ export function App() {
             activeTab={activeTab}
             onTabChange={(tab) => {
               if (!isPVUnlocked) return;
-              if (isDuressActive && (tab === 'capsules' || tab === 'settings')) {
+              if (isDuressActive && (tab === 'capsules' || tab === 'settings' || tab === 'voice')) {
                 return;
               }
-              if ((tab === 'capsules' || tab === 'settings') && vaultMode !== 'real') {
+              if ((tab === 'capsules' || tab === 'settings' || tab === 'voice') && vaultMode !== 'real') {
                 handleOpenUnlockModal();
               } else {
                 setActiveTab(tab);
@@ -719,11 +778,25 @@ export function App() {
             vaultMode={vaultMode}
             isDuressActive={isDuressActive}
           />
+
+          {/* 🎙️ Global Floating Voice Sanctuary Orb (Accessible strictly in Real NMV Mode) */}
+          {vaultMode === 'real' && (
+            <GlobalFloatingVoiceOrb
+              activeTab={activeTab}
+              onOpenVoiceMirror={() => setActiveTab('voice')}
+              isPVUnlocked={isPVUnlocked}
+              vaultMode={vaultMode}
+            />
+          )}
         </div>
       )}
 
       {/* Global Command Palette Modal (Ctrl+K / Cmd+K) */}
-      <KeyboardShortcutsModal isOpen={isShortcutsModalOpen} onClose={() => setIsShortcutsModalOpen(false)} />
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
+        vaultMode={vaultMode}
+      />
       <PrivacyPolicyModal isOpen={isPrivacyModalOpen} onClose={() => setIsPrivacyModalOpen(false)} />
       <CommandPaletteModal
         isOpen={isCommandPaletteOpen}
@@ -732,10 +805,10 @@ export function App() {
         activeTab={activeTab}
         onSelectTab={(tab) => {
           if (!isPVUnlocked) return;
-          if (isDuressActive && (tab === 'capsules' || tab === 'settings')) {
+          if (isDuressActive && (tab === 'capsules' || tab === 'settings' || tab === 'voice')) {
             return;
           }
-          if ((tab === 'capsules' || tab === 'settings') && vaultMode !== 'real') {
+          if ((tab === 'capsules' || tab === 'settings' || tab === 'voice') && vaultMode !== 'real') {
             handleOpenUnlockModal();
           } else {
             setActiveTab(tab);
@@ -786,8 +859,7 @@ export function App() {
         />
       )}
 
-      {/* Toast Notifications & PWA Install Banner */}
-            {/* 🔒 Single-Entry Sovereign Encrypted Shared Reflection Viewer Modal */}
+      {/* 🔒 Single-Entry Sovereign Encrypted Shared Reflection Viewer Modal */}
       {activeSharedEntryPayload && (
         <SharedEntryViewerModal
           encodedData={activeSharedEntryPayload}
@@ -811,3 +883,6 @@ export function App() {
 }
 
 export default App;
+
+
+

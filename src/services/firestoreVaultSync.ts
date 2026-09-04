@@ -10,7 +10,7 @@ import {
   runTransaction,
   Unsubscribe,
 } from 'firebase/firestore';
-import { db } from './firebaseConfig';
+import { auth, db } from './firebaseConfig';
 import {
   encryptData,
   decryptData,
@@ -25,6 +25,79 @@ import { JournalEntry, TimeCapsule, LegacyGuardianPolicy, VaultSettings } from '
  * Firestore stores ONLY { ciphertext, iv, salt, hmacSignature, updatedAt }.
  */
 
+/**
+ * 🔒 Utility: Recursively removes `undefined` properties so Firestore setDoc never throws.
+ */
+export function sanitizeForFirestore<T>(data: T): any {
+  if (data === null || data === undefined) return null;
+  return JSON.parse(JSON.stringify(data, (_, value) => (value === undefined ? null : value)));
+}
+
+function canWriteUserPath(uid: string): boolean {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) {
+    console.warn('[FirestoreSync] Skipped write: no authenticated Firebase user.');
+    return false;
+  }
+  if (currentUid !== uid) {
+    console.warn(`[FirestoreSync] Skipped write: UID mismatch (auth=${currentUid}, target=${uid}).`);
+    return false;
+  }
+  return true;
+}
+
+// ============================================================================
+// 0. USER ROOT DOCUMENT INITIALIZER (Item 0)
+// ============================================================================
+
+export async function syncUserProfileToFirestore(user: {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+}): Promise<void> {
+  if (!user || !user.uid || user.uid === 'anonymous' || user.uid === 'guest') return;
+  try {
+    const userDocRef = doc(db, 'users', user.uid);
+    await setDoc(
+      userDocRef,
+      sanitizeForFirestore({
+        uid: user.uid,
+        email: user.email || null,
+        displayName: user.displayName || null,
+        photoURL: user.photoURL || null,
+        lastActiveAt: serverTimestamp(),
+      }),
+      { merge: true }
+    );
+    console.log(`[FirestoreSync] 👤 User root profile active: users/${user.uid}`);
+  } catch (err: any) {
+    console.warn('[FirestoreSync] Failed to sync user profile to Firestore:', err?.message || err);
+  }
+}
+
+let hasWarnedPermissionDenied = false;
+
+function handleFirestoreSyncError(context: string, err: any, uid: string) {
+  const isPermissionDenied =
+    err?.code === 'permission-denied' ||
+    (typeof err?.message === 'string' && err.message.toLowerCase().includes('permissions'));
+
+  if (isPermissionDenied) {
+    if (!hasWarnedPermissionDenied) {
+      hasWarnedPermissionDenied = true;
+      console.warn(
+        `[FirestoreSync] 🔒 PERMISSION DENIED: Cloud Firestore rejected writing to subcollection under users/${uid}.\n` +
+        `👉 Cause: Security Rules in Firebase Console must be published with subcollection access.\n` +
+        `👉 Fix: Copy rules from 'firestore.rules' into Firebase Console -> Firestore Database -> Rules and click 'Publish'.\n` +
+        `Direct Link: https://console.firebase.google.com/project/neural-vault-22e16/firestore/rules`
+      );
+    }
+  } else {
+    console.warn(`[FirestoreSync] Failed to sync ${context} to Firestore:`, err?.message || err);
+  }
+}
+
 // ============================================================================
 // 1. ZERO-KNOWLEDGE JOURNAL ENTRIES SYNC (Item 1 & 7)
 // ============================================================================
@@ -33,39 +106,58 @@ export async function syncJournalEntryToFirestore(
   uid: string,
   entry: JournalEntry,
   sessionKey?: CryptoKey | null
-): Promise<void> {
-  if (!uid || uid === 'anonymous') return;
+): Promise<{ success: boolean; permissionDenied?: boolean; error?: string }> {
+  if (!uid || uid === 'anonymous' || uid === 'guest' || !canWriteUserPath(uid)) {
+    return { success: false, error: 'Unauthorized user' };
+  }
   const key = sessionKey || getActiveSessionKey();
 
   try {
-    let payloadToStore: any = entry;
+    let payloadToStore: any;
     if (key) {
       const encrypted: EncryptedPayload = await encryptData(entry, key);
       payloadToStore = {
         id: entry.id,
         isEncrypted: true,
         encryptedPayload: encrypted,
-        titleHint: entry.title.slice(0, 3) + '***', // Obfuscated title hint
+        titleHint: (entry.title || 'Untitled').slice(0, 3) + '***', // Obfuscated title hint
         tags: entry.tags || [],
-        createdAt: entry.createdAt,
+        createdAt: entry.createdAt || new Date().toISOString(),
+        updatedAt: serverTimestamp(),
+      };
+    } else {
+      payloadToStore = {
+        id: entry.id,
+        isEncrypted: false,
+        title: entry.title || 'Untitled Reflection',
+        content: entry.content || '',
+        tags: entry.tags || [],
+        mood: entry.mood || 'neutral',
+        createdAt: entry.createdAt || new Date().toISOString(),
         updatedAt: serverTimestamp(),
       };
     }
 
+    const sanitized = sanitizeForFirestore(payloadToStore);
     const entryDocRef = doc(db, 'users', uid, 'entries', entry.id);
-    await setDoc(entryDocRef, payloadToStore, { merge: true });
-  } catch (err) {
-    console.warn('[FirestoreSync] Failed to sync journal entry to Firestore:', err);
+    await setDoc(entryDocRef, sanitized, { merge: true });
+    console.log(`[FirestoreSync] 📝 Synced journal entry to users/${uid}/entries/${entry.id}`);
+    return { success: true };
+  } catch (err: any) {
+    handleFirestoreSyncError('journal entry', err, uid);
+    const isPerm = err?.code === 'permission-denied' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('permissions'));
+    return { success: false, permissionDenied: isPerm, error: err?.message || String(err) };
   }
 }
 
 export async function deleteJournalEntryFromFirestore(uid: string, entryId: string): Promise<void> {
-  if (!uid || uid === 'anonymous') return;
+  if (!uid || uid === 'anonymous' || uid === 'guest' || !canWriteUserPath(uid)) return;
   try {
     const entryDocRef = doc(db, 'users', uid, 'entries', entryId);
     await deleteDoc(entryDocRef);
-  } catch (err) {
-    console.warn('[FirestoreSync] Failed to delete journal entry from Firestore:', err);
+    console.log(`[FirestoreSync] 🗑️ Deleted journal entry users/${uid}/entries/${entryId}`);
+  } catch (err: any) {
+    console.warn('[FirestoreSync] Failed to delete journal entry from Firestore:', err?.message || err);
   }
 }
 
@@ -74,7 +166,7 @@ export function subscribeToJournalEntries(
   onEntriesReceived: (entries: JournalEntry[]) => void,
   sessionKey?: CryptoKey | null
 ): Unsubscribe {
-  if (!uid || uid === 'anonymous') return () => {};
+  if (!uid || uid === 'anonymous' || uid === 'guest') return () => {};
 
   const entriesCollection = collection(db, 'users', uid, 'entries');
   return onSnapshot(entriesCollection, async (snapshot) => {
@@ -120,16 +212,34 @@ export function subscribeToJournalEntries(
 export async function syncTimeCapsuleToFirestore(
   uid: string,
   capsule: TimeCapsule
-): Promise<void> {
-  if (!uid || uid === 'anonymous') return;
+): Promise<{ success: boolean; permissionDenied?: boolean; error?: string }> {
+  if (!uid || uid === 'anonymous' || uid === 'guest' || !canWriteUserPath(uid)) {
+    return { success: false, error: 'Unauthorized user' };
+  }
   try {
-    const capsuleDocRef = doc(db, 'users', uid, 'timeCapsules', capsule.id);
-    await setDoc(capsuleDocRef, {
+    const sanitized = sanitizeForFirestore({
       ...capsule,
       updatedAt: serverTimestamp(),
-    }, { merge: true });
-  } catch (err) {
-    console.warn('[FirestoreSync] Failed to sync time capsule to Firestore:', err);
+    });
+    const capsuleDocRef = doc(db, 'users', uid, 'timeCapsules', capsule.id);
+    await setDoc(capsuleDocRef, sanitized, { merge: true });
+    console.log(`[FirestoreSync] ⏳ Synced time capsule users/${uid}/timeCapsules/${capsule.id}`);
+    return { success: true };
+  } catch (err: any) {
+    handleFirestoreSyncError('time capsule', err, uid);
+    const isPerm = err?.code === 'permission-denied' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('permissions'));
+    return { success: false, permissionDenied: isPerm, error: err?.message || String(err) };
+  }
+}
+
+export async function deleteTimeCapsuleFromFirestore(uid: string, capsuleId: string): Promise<void> {
+  if (!uid || uid === 'anonymous' || uid === 'guest' || !canWriteUserPath(uid)) return;
+  try {
+    const capsuleDocRef = doc(db, 'users', uid, 'timeCapsules', capsuleId);
+    await deleteDoc(capsuleDocRef);
+    console.log(`[FirestoreSync] 🗑️ Deleted time capsule users/${uid}/timeCapsules/${capsuleId}`);
+  } catch (err: any) {
+    console.warn('[FirestoreSync] Failed to delete time capsule from Firestore:', err?.message || err);
   }
 }
 
@@ -137,7 +247,7 @@ export function subscribeToTimeCapsules(
   uid: string,
   onCapsulesReceived: (capsules: TimeCapsule[]) => void
 ): Unsubscribe {
-  if (!uid || uid === 'anonymous') return () => {};
+  if (!uid || uid === 'anonymous' || uid === 'guest') return () => {};
 
   const capsulesCollection = collection(db, 'users', uid, 'timeCapsules');
   return onSnapshot(capsulesCollection, (snapshot) => {
@@ -157,16 +267,34 @@ export function subscribeToTimeCapsules(
 export async function syncGuardianPolicyToFirestore(
   uid: string,
   policy: LegacyGuardianPolicy
-): Promise<void> {
-  if (!uid || uid === 'anonymous') return;
+): Promise<{ success: boolean; permissionDenied?: boolean; error?: string }> {
+  if (!uid || uid === 'anonymous' || uid === 'guest' || !canWriteUserPath(uid)) {
+    return { success: false, error: 'Unauthorized user' };
+  }
   try {
-    const guardianDocRef = doc(db, 'users', uid, 'guardians', policy.id);
-    await setDoc(guardianDocRef, {
+    const sanitized = sanitizeForFirestore({
       ...policy,
       updatedAt: serverTimestamp(),
-    }, { merge: true });
-  } catch (err) {
-    console.warn('[FirestoreSync] Failed to sync guardian policy to Firestore:', err);
+    });
+    const guardianDocRef = doc(db, 'users', uid, 'guardians', policy.id);
+    await setDoc(guardianDocRef, sanitized, { merge: true });
+    console.log(`[FirestoreSync] 🛡️ Synced guardian policy users/${uid}/guardians/${policy.id}`);
+    return { success: true };
+  } catch (err: any) {
+    handleFirestoreSyncError('guardian policy', err, uid);
+    const isPerm = err?.code === 'permission-denied' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('permissions'));
+    return { success: false, permissionDenied: isPerm, error: err?.message || String(err) };
+  }
+}
+
+export async function deleteGuardianPolicyFromFirestore(uid: string, policyId: string): Promise<void> {
+  if (!uid || uid === 'anonymous' || uid === 'guest' || !canWriteUserPath(uid)) return;
+  try {
+    const guardianDocRef = doc(db, 'users', uid, 'guardians', policyId);
+    await deleteDoc(guardianDocRef);
+    console.log(`[FirestoreSync] 🗑️ Deleted guardian policy users/${uid}/guardians/${policyId}`);
+  } catch (err: any) {
+    console.warn('[FirestoreSync] Failed to delete guardian policy from Firestore:', err?.message || err);
   }
 }
 
@@ -174,7 +302,7 @@ export function subscribeToGuardianPolicies(
   uid: string,
   onPoliciesReceived: (policies: LegacyGuardianPolicy[]) => void
 ): Unsubscribe {
-  if (!uid || uid === 'anonymous') return () => {};
+  if (!uid || uid === 'anonymous' || uid === 'guest') return () => {};
 
   const guardiansCollection = collection(db, 'users', uid, 'guardians');
   return onSnapshot(guardiansCollection, (snapshot) => {
@@ -194,16 +322,23 @@ export function subscribeToGuardianPolicies(
 export async function syncVaultSettingsToFirestore(
   uid: string,
   settings: VaultSettings
-): Promise<void> {
-  if (!uid || uid === 'anonymous') return;
+): Promise<{ success: boolean; permissionDenied?: boolean; error?: string }> {
+  if (!uid || uid === 'anonymous' || uid === 'guest' || !canWriteUserPath(uid)) {
+    return { success: false, error: 'Unauthorized user' };
+  }
   try {
-    const settingsDocRef = doc(db, 'users', uid, 'settings', 'config');
-    await setDoc(settingsDocRef, {
+    const sanitized = sanitizeForFirestore({
       ...settings,
       updatedAt: serverTimestamp(),
-    }, { merge: true });
-  } catch (err) {
-    console.warn('[FirestoreSync] Failed to sync settings to Firestore:', err);
+    });
+    const settingsDocRef = doc(db, 'users', uid, 'settings', 'config');
+    await setDoc(settingsDocRef, sanitized, { merge: true });
+    console.log(`[FirestoreSync] ⚙️ Synced vault settings users/${uid}/settings/config`);
+    return { success: true };
+  } catch (err: any) {
+    handleFirestoreSyncError('vault settings', err, uid);
+    const isPerm = err?.code === 'permission-denied' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('permissions'));
+    return { success: false, permissionDenied: isPerm, error: err?.message || String(err) };
   }
 }
 
@@ -211,7 +346,7 @@ export function subscribeToVaultSettings(
   uid: string,
   onSettingsReceived: (settings: VaultSettings) => void
 ): Unsubscribe {
-  if (!uid || uid === 'anonymous') return () => {};
+  if (!uid || uid === 'anonymous' || uid === 'guest') return () => {};
 
   const settingsDocRef = doc(db, 'users', uid, 'settings', 'config');
   return onSnapshot(settingsDocRef, (snapshot) => {
@@ -221,6 +356,103 @@ export function subscribeToVaultSettings(
   }, (error) => {
     console.warn('[FirestoreSync] Vault settings listener error:', error);
   });
+}
+
+// ============================================================================
+// 5. GLOBAL VAULT FULL BACKFILL & RECONCILIATION SYNC
+// ============================================================================
+
+export async function syncAllLocalVaultDataToFirestore(
+  uid: string,
+  options?: {
+    entries?: JournalEntry[];
+    capsules?: TimeCapsule[];
+    settings?: any;
+    policies?: LegacyGuardianPolicy[];
+    coverEntries?: JournalEntry[];
+  }
+): Promise<{ success: boolean; syncedEntries: number; syncedCapsules: number; permissionDenied?: boolean; error?: string }> {
+  if (!uid || uid === 'anonymous' || uid === 'guest' || !canWriteUserPath(uid)) {
+    return { success: false, syncedEntries: 0, syncedCapsules: 0 };
+  }
+
+  try {
+    // 1. Ensure user profile root doc exists
+    await setDoc(
+      doc(db, 'users', uid),
+      sanitizeForFirestore({
+        uid,
+        lastSyncedAt: serverTimestamp(),
+      }),
+      { merge: true }
+    );
+
+    let entryCount = 0;
+    let capsuleCount = 0;
+    let hasPermissionError = false;
+
+    // 2. Sync entries
+    const entriesToSync = options?.entries || [];
+    for (const entry of entriesToSync) {
+      const res = await syncJournalEntryToFirestore(uid, entry);
+      if (res.success) {
+        entryCount++;
+      } else if (res.permissionDenied) {
+        hasPermissionError = true;
+      }
+    }
+
+    // 3. Sync cover entries if present
+    const coverEntriesToSync = options?.coverEntries || [];
+    for (const cover of coverEntriesToSync) {
+      const res = await syncJournalEntryToFirestore(uid, cover);
+      if (res.success) {
+        entryCount++;
+      } else if (res.permissionDenied) {
+        hasPermissionError = true;
+      }
+    }
+
+    // 4. Sync capsules
+    const capsulesToSync = options?.capsules || [];
+    for (const capsule of capsulesToSync) {
+      const res = await syncTimeCapsuleToFirestore(uid, capsule);
+      if (res.success) {
+        capsuleCount++;
+      } else if (res.permissionDenied) {
+        hasPermissionError = true;
+      }
+    }
+
+    // 5. Sync settings
+    if (options?.settings) {
+      const res = await syncVaultSettingsToFirestore(uid, options.settings);
+      if (res.permissionDenied) hasPermissionError = true;
+    }
+
+    // 6. Sync policies
+    const policiesToSync = options?.policies || [];
+    for (const policy of policiesToSync) {
+      const res = await syncGuardianPolicyToFirestore(uid, policy);
+      if (res.permissionDenied) hasPermissionError = true;
+    }
+
+    if (hasPermissionError) {
+      return {
+        success: false,
+        syncedEntries: entryCount,
+        syncedCapsules: capsuleCount,
+        permissionDenied: true,
+        error: 'Cloud Firestore rejected subcollection writes. Deploy firestore.rules to Firebase console.',
+      };
+    }
+
+    console.log(`[FirestoreSync] 🌐 All local vault data synchronized with Cloud Firestore for user ${uid}. (${entryCount} entries, ${capsuleCount} capsules)`);
+    return { success: true, syncedEntries: entryCount, syncedCapsules: capsuleCount };
+  } catch (err: any) {
+    console.error('[FirestoreSync] Error during full vault sync:', err);
+    return { success: false, syncedEntries: 0, syncedCapsules: 0, error: err?.message || String(err) };
+  }
 }
 
 // ============================================================================

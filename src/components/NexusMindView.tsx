@@ -1,12 +1,15 @@
 import { authenticatedFetch } from '../services/apiClient';
-import { generateGeminiChatResponse } from '../services/geminiClient';
+import { generateGeminiChatResponse, streamGeminiChat } from '../services/geminiClient';
 import React, { useState } from 'react';
-import { JournalEntry, TimeCapsule } from '../types';
+import { JournalEntry, TimeCapsule, JournalDraft } from '../types';
 import { SemanticMemoryGraph } from './SemanticMemoryGraph';
+import { NeuralVoiceModeModal } from './NeuralVoiceModeModal';
+import { getJournalDrafts, saveJournalDrafts } from '../services/vaultStorage';
 import {
   Cpu,
   Send,
   Sparkles,
+  Mic,
   ShieldCheck,
   RefreshCw,
   Share2,
@@ -21,6 +24,12 @@ import {
   CornerDownRight,
   Clock,
   Zap,
+  Save,
+  FileText,
+  Copy,
+  Check,
+  RotateCcw,
+  Trash2,
 } from 'lucide-react';
 
 interface NexusMindViewProps {
@@ -30,6 +39,7 @@ interface NexusMindViewProps {
   onAddCapsule: (capsule: Omit<TimeCapsule, 'id' | 'userId' | 'sealedAt' | 'isOpened' | 'integrityHash'>) => void;
   onUnlockCapsule: (id: string) => void;
   onDeleteCapsule: (id: string) => void;
+  onAddEntry?: (entryOrTitle: any, content?: string, tags?: string[], mood?: string) => void;
   showToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
@@ -50,9 +60,11 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
   onAddCapsule,
   onUnlockCapsule,
   onDeleteCapsule,
+  onAddEntry,
   showToast
 }) => {
   const [activeNexusTab, setActiveNexusTab] = useState<NexusTab>('graph');
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-1',
@@ -66,6 +78,116 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
   ]);
   const [inputQuery, setInputQuery] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isVoiceModeOpen, setIsVoiceModeOpen] = useState(false);
+
+  // Helper to format conversation transcript into markdown
+  const formatConversation = (msgs: ChatMessage[]): string => {
+    const actualMsgs = msgs.filter((m, idx) => !(idx === 0 && m.id === 'welcome-1' && msgs.length > 1));
+    return actualMsgs.map((m) => {
+      const sender = m.sender === 'user' ? '👤 **You**' : `✨ **Nexus Mind AI (${m.modelUsed || 'Gemini'})**`;
+      return `${sender} *(${m.timestamp})*:\n${m.text}`;
+    }).join('\n\n---\n\n');
+  };
+
+  const handleSaveConversationToVault = () => {
+    const userMsgs = messages.filter(m => m.sender === 'user');
+    if (userMsgs.length === 0) {
+      showToast("Start a conversation before saving to vault.", "warning");
+      return;
+    }
+
+    const firstUserQuery = userMsgs[0]?.text || 'Neural Chat';
+    const title = `AI Dialogue: ${firstUserQuery.slice(0, 32)}${firstUserQuery.length > 32 ? '...' : ''}`;
+    const content = formatConversation(messages);
+
+    if (onAddEntry) {
+      onAddEntry({
+        title,
+        content,
+        mood: 'focused',
+        tags: ['nexus-mind', 'ai-chat', 'cognitive-reflection'],
+      });
+      showToast("Conversation encrypted and saved to sovereign vault.", "success");
+    } else {
+      showToast("Vault entry handler is unavailable.", "error");
+    }
+  };
+
+  const handleSaveConversationAsDraft = () => {
+    const userMsgs = messages.filter(m => m.sender === 'user');
+    if (userMsgs.length === 0) {
+      showToast("Start a conversation before saving as draft.", "warning");
+      return;
+    }
+
+    const firstUserQuery = userMsgs[0]?.text || 'Neural Chat';
+    const title = `Draft AI Dialogue: ${firstUserQuery.slice(0, 30)}...`;
+    const content = formatConversation(messages);
+
+    const existingDrafts = getJournalDrafts(userId);
+    const newDraft: JournalDraft = {
+      id: 'draft_' + Date.now().toString(36),
+      title,
+      content,
+      mood: 'focused',
+      tags: ['nexus-mind', 'ai-chat'],
+      savedAt: new Date().toISOString(),
+      sourceTab: 'talk',
+    };
+    saveJournalDrafts(userId, [newDraft, ...existingDrafts]);
+    showToast("Conversation saved as studio draft.", "success");
+  };
+
+  const handleSaveSingleMessageToVault = (msgText: string) => {
+    if (onAddEntry) {
+      const title = `AI Insight: ${msgText.slice(0, 32)}...`;
+      onAddEntry({
+        title,
+        content: msgText,
+        mood: 'focused',
+        tags: ['ai-insight', 'nexus-mind'],
+      });
+      showToast("AI insight saved to encrypted vault.", "success");
+    }
+  };
+
+  const handleSaveSingleMessageAsDraft = (msgText: string) => {
+    const title = `Draft AI Insight: ${msgText.slice(0, 30)}...`;
+    const existingDrafts = getJournalDrafts(userId);
+    const newDraft: JournalDraft = {
+      id: 'draft_' + Date.now().toString(36),
+      title,
+      content: msgText,
+      mood: 'focused',
+      tags: ['ai-insight'],
+      savedAt: new Date().toISOString(),
+      sourceTab: 'write',
+    };
+    saveJournalDrafts(userId, [newDraft, ...existingDrafts]);
+    showToast("AI insight saved as draft.", "success");
+  };
+
+  const handleCopyMessage = (msgId: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMsgId(msgId);
+    setTimeout(() => setCopiedMsgId(null), 2000);
+    showToast("Copied to clipboard.", "info");
+  };
+
+  const handleClearChat = () => {
+    setMessages([
+      {
+        id: 'welcome-1',
+        sender: 'assistant',
+        text: entries.length > 0
+          ? `⚡ Nexus Mind Protocol Active. Real Vault privileges verified.\n\nConversation reset. How can I assist your cognitive reflection today?`
+          : `⚡ Nexus Mind Protocol Active. Real Vault privileges verified.\n\nConversation reset. Ready for your reflections.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        modelUsed: 'Gemini 3.6 Flash',
+      },
+    ]);
+    showToast("Neural Vault Chat reset.", "info");
+  };
 
   const handleSendQuery = async (queryText: string) => {
     if (!queryText.trim() || isGenerating) return;
@@ -84,7 +206,7 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
     setIsGenerating(true);
 
     try {
-      // 🌐 ITEM: Direct online Google Gemini API call with environment API key
+      // 🌐 Real-Time Streaming Google Gemini Cognitive Assistant
       const contextSummary = `User's decrypted journal reflections count: ${entries.length}.\nReflections Data:\n${JSON.stringify(
         entries.slice(0, 15).map((e) => ({
           title: e.title,
@@ -97,7 +219,11 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
         2
       )}`;
 
-      const geminiResult = await generateGeminiChatResponse({
+      const aiMsgId = 'msg_' + Math.random().toString(36).substring(2, 9);
+      let streamedContent = '';
+      let hasStreamedChunk = false;
+
+      const stream = streamGeminiChat({
         prompt: userMsgText,
         history: messages.map((m) => ({
           role: m.sender === 'user' ? 'user' : 'model',
@@ -107,15 +233,29 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
         context: contextSummary,
       });
 
-      if (geminiResult && geminiResult.text) {
-        const assistantMsg: ChatMessage = {
-          id: 'msg_' + Math.random().toString(36).substring(2, 9),
-          sender: 'assistant',
-          text: geminiResult.text,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          modelUsed: geminiResult.modelUsed || 'Gemini 3.6 Flash',
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
+      for await (const chunk of stream) {
+        if (!hasStreamedChunk) {
+          hasStreamedChunk = true;
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: aiMsgId,
+              sender: 'assistant',
+              text: chunk,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              modelUsed: 'Gemini 3.6 Flash',
+            },
+          ]);
+          streamedContent = chunk;
+        } else {
+          streamedContent += chunk;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === aiMsgId ? { ...m, text: streamedContent } : m))
+          );
+        }
+      }
+
+      if (hasStreamedChunk) {
         return;
       }
     } catch (apiErr: any) {
@@ -353,6 +493,117 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
             padding: '24px',
           }}
         >
+          {/* Chat Action Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: '16px',
+              marginBottom: '16px',
+              borderBottom: '1px solid var(--border-subtle)',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-accent-blue" />
+                <span>Cognitive Dialogue ({messages.filter((m) => m.sender === 'user').length} queries)</span>
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setIsVoiceModeOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  padding: '6px 14px',
+                  height: '32px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+                  border: 'none',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(168, 85, 247, 0.3)',
+                }}
+                title="Start human-like live Voice-to-Voice Call with AI"
+              >
+                <Mic className="w-3.5 h-3.5" />
+                <span>Live Voice Call</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveConversationAsDraft}
+                disabled={messages.filter((m) => m.sender === 'user').length === 0}
+                className="btn-secondary btn-inline"
+                style={{
+                  fontSize: '12px',
+                  padding: '6px 12px',
+                  height: '32px',
+                  borderRadius: '10px',
+                  opacity: messages.filter((m) => m.sender === 'user').length === 0 ? 0.5 : 1,
+                  cursor: messages.filter((m) => m.sender === 'user').length === 0 ? 'not-allowed' : 'pointer',
+                }}
+                title="Save current conversation as a working draft"
+              >
+                <FileText className="w-3.5 h-3.5 inline mr-1" />
+                <span>Save as Draft</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveConversationToVault}
+                disabled={messages.filter((m) => m.sender === 'user').length === 0}
+                className="google-btn-primary"
+                style={{
+                  fontSize: '12px',
+                  padding: '6px 14px',
+                  height: '32px',
+                  borderRadius: '10px',
+                  opacity: messages.filter((m) => m.sender === 'user').length === 0 ? 0.5 : 1,
+                  cursor: messages.filter((m) => m.sender === 'user').length === 0 ? 'not-allowed' : 'pointer',
+                }}
+                title="Encrypt and save this conversation into your sovereign vault"
+              >
+                <Save className="w-3.5 h-3.5 inline mr-1" />
+                <span>Save to Vault</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearChat}
+                className="btn-ghost"
+                style={{
+                  fontSize: '12px',
+                  padding: '6px 10px',
+                  height: '32px',
+                  borderRadius: '10px',
+                  color: 'var(--text-muted)',
+                }}
+                title="Reset conversation"
+              >
+                <RotateCcw className="w-3.5 h-3.5 inline mr-1" />
+                <span>Reset</span>
+              </button>
+            </div>
+          </div>
+
           {/* Chat Transcript Area */}
           <div
             style={{
@@ -392,6 +643,7 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
                     color: 'var(--text-muted)',
                     marginTop: '4px',
                     padding: '0 6px',
+                    flexWrap: 'wrap',
                   }}
                 >
                   <span>{msg.timestamp}</span>
@@ -400,6 +652,83 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
                       <span>•</span>
                       <span style={{ color: 'var(--accent-blue)', fontWeight: 600 }}>{msg.modelUsed}</span>
                     </>
+                  )}
+
+                  {msg.sender === 'assistant' && msg.id !== 'welcome-1' && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(msg.id, msg.text)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          fontSize: '10.5px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                        }}
+                        title="Copy text"
+                      >
+                        {copiedMsgId === msg.id ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-500" />
+                            <span style={{ color: 'var(--accent-emerald)' }}>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveSingleMessageAsDraft(msg.text)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          fontSize: '10.5px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                        }}
+                        title="Save this AI response as a draft"
+                      >
+                        <FileText className="w-3 h-3" />
+                        <span>Draft</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveSingleMessageToVault(msg.text)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--accent-blue)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          fontSize: '10.5px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontWeight: 600,
+                        }}
+                        title="Save this AI response directly into your vault"
+                      >
+                        <Save className="w-3 h-3" />
+                        <span>Save to Vault</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -459,9 +788,46 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
               <Send className="w-4 h-4" />
               <span>Synthesize</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setIsVoiceModeOpen(true)}
+              style={{
+                height: '48px',
+                padding: '0 18px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+                border: 'none',
+                color: '#ffffff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(168, 85, 247, 0.25)',
+              }}
+              title="Open live human-like Voice-to-Voice Call"
+            >
+              <Mic className="w-4 h-4" />
+              <span>Voice Call</span>
+            </button>
           </form>
         </div>
       )}
+
+      {/* 🎙️ Live Voice-to-Voice Modal */}
+      <NeuralVoiceModeModal
+        isOpen={isVoiceModeOpen}
+        onClose={() => setIsVoiceModeOpen(false)}
+        contextEntries={entries}
+        onSaveSessionToVault={(title, transcript) => {
+          if (onAddEntry) {
+            onAddEntry(title, transcript, ['voice-call', 'cognitive-dialogue'], 'focused');
+            showToast('Voice session encrypted & saved to Sovereign Vault!', 'success');
+          }
+        }}
+        showToast={showToast}
+      />
     </div>
   );
 };

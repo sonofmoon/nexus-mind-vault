@@ -16,7 +16,7 @@ export async function authenticatedFetch(endpoint: string, options: RequestInit 
   const settings = getVaultSettings(uid);
   if (
     settings.aiSynthesisEnabled === false &&
-    (endpoint.includes('/api/functions/') || endpoint.includes('/api/chat') || endpoint.includes('/api/trends'))
+    (endpoint.includes('/api/functions/') || endpoint.includes('/api/chat') || endpoint.includes('/api/trends') || endpoint.includes('/api/gemini'))
   ) {
     throw new Error('AI Cognitive Synthesis is disabled in Vault Settings. Air-gapped mode active (0 bytes sent to server).');
   }
@@ -62,3 +62,4 @@ export async function authenticatedFetch(endpoint: string, options: RequestInit 
 
   return response;
 }
+

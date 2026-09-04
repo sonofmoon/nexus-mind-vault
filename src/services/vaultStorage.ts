@@ -2,7 +2,9 @@ import {
   syncJournalEntryToFirestore,
   deleteJournalEntryFromFirestore,
   syncTimeCapsuleToFirestore,
+  deleteTimeCapsuleFromFirestore,
   syncGuardianPolicyToFirestore,
+  deleteGuardianPolicyFromFirestore,
   syncVaultSettingsToFirestore,
   clearAllFirestoreUserData,
 } from './firestoreVaultSync';
@@ -44,6 +46,32 @@ const LEGACY_GUARDIAN_KEY_PREFIX = "vault_legacy_guardian_policies_";
 const DEAD_MAN_KEY_PREFIX = "vault_dead_man_policy_";
 const DRAFTS_KEY_PREFIX = "vault_journal_drafts_";
 const _inMemoryPlainCache = new Map<string, any>();
+
+function persistEncryptedPayload(storageKey: string, payload: any, label: string): boolean {
+  const activeKey = getActiveSessionKey();
+  if (!activeKey) {
+    console.warn(`[VaultStorage] ${label} write blocked: no active encryption key.`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vault_write_blocked', {
+        detail: {
+          label,
+          message: 'Vault locked: unlock NMV to save encrypted data.',
+        },
+      }));
+    }
+    return false;
+  }
+
+  encryptData(payload, activeKey)
+    .then((encrypted) => {
+      localStorage.setItem(storageKey, JSON.stringify(encrypted));
+    })
+    .catch((err) => {
+      console.error(`[VaultStorage] ${label} encryption failed:`, err);
+    });
+
+  return true;
+}
 
 export function getVaultCredentials(uid: string): VaultCredentials | null {
   try {
@@ -116,25 +144,32 @@ const DEFAULT_INITIAL_ENTRIES: Omit<JournalEntry, 'userId'>[] = [];
 
 export function getJournalEntries(uid: string): JournalEntry[] {
   try {
+    const mem = _inMemoryPlainCache.get(ENTRIES_KEY_PREFIX + uid);
+    if (Array.isArray(mem)) return mem;
+
     const raw = localStorage.getItem(ENTRIES_KEY_PREFIX + uid);
-    if (!raw) {
-      return [];
-    }
+    if (!raw) return [];
+
     const parsed = JSON.parse(raw);
-    let entries: JournalEntry[] = [];
     if (isEncryptedPayload(parsed)) {
       const activeKey = getActiveSessionKey();
       if (activeKey) {
-        const cacheRaw = localStorage.getItem(ENTRIES_KEY_PREFIX + uid + '_plain_cache');
-        entries = cacheRaw ? JSON.parse(cacheRaw) : [];
-      } else {
-        const cacheRaw = localStorage.getItem(ENTRIES_KEY_PREFIX + uid + '_plain_cache');
-        entries = cacheRaw ? JSON.parse(cacheRaw) : [];
+        decryptData<JournalEntry[]>(parsed, activeKey).then((decrypted) => {
+          if (Array.isArray(decrypted)) {
+            _inMemoryPlainCache.set(ENTRIES_KEY_PREFIX + uid, decrypted);
+          }
+        }).catch(() => {});
       }
-    } else if (Array.isArray(parsed)) {
-      entries = parsed;
+      return [];
     }
-    return entries;
+
+    if (Array.isArray(parsed)) {
+      _inMemoryPlainCache.set(ENTRIES_KEY_PREFIX + uid, parsed);
+      persistEncryptedPayload(ENTRIES_KEY_PREFIX + uid, parsed, 'Journal entries migration');
+      return parsed;
+    }
+
+    return [];
   } catch {
     return [];
   }
@@ -151,20 +186,8 @@ export function stripUndefinedPayload<T>(payload: T): T {
 
 export function saveJournalEntries(uid: string, entries: JournalEntry[]): void {
   const sanitized = stripUndefinedPayload(entries);
-  const activeKey = getActiveSessionKey();
-
-  if (activeKey) {
-    // 🔒 GENUINE AES-GCM-256 ENCRYPTION
-    encryptData(sanitized, activeKey).then((encryptedPayload) => {
-      localStorage.setItem(ENTRIES_KEY_PREFIX + uid, JSON.stringify(encryptedPayload));
-      // Plain cache removed from disk: in-memory state only
-    }).catch((err) => {
-      console.error('[VaultStorage] Real encryption error:', err);
-      localStorage.setItem(ENTRIES_KEY_PREFIX + uid, JSON.stringify(sanitized));
-    });
-  } else {
-    localStorage.setItem(ENTRIES_KEY_PREFIX + uid, JSON.stringify(sanitized));
-  }
+  _inMemoryPlainCache.set(ENTRIES_KEY_PREFIX + uid, sanitized);
+  persistEncryptedPayload(ENTRIES_KEY_PREFIX + uid, sanitized, 'Journal entries');
 }
 
 export function addJournalEntry(uid: string, newEntry: Omit<JournalEntry, "id" | "userId" | "createdAt" | "updatedAt">): JournalEntry {
@@ -179,6 +202,7 @@ export function addJournalEntry(uid: string, newEntry: Omit<JournalEntry, "id" |
   const sanitizedEntry = stripUndefinedPayload(created);
   const updated = [sanitizedEntry, ...entries];
   saveJournalEntries(uid, updated);
+  syncJournalEntryToFirestore(uid, sanitizedEntry);
   return sanitizedEntry;
 }
 
@@ -186,6 +210,7 @@ export function deleteJournalEntry(uid: string, entryId: string): JournalEntry[]
   const entries = getJournalEntries(uid);
   const updated = entries.filter(e => e.id !== entryId);
   saveJournalEntries(uid, updated);
+  deleteJournalEntryFromFirestore(uid, entryId);
   return updated;
 }
 
@@ -197,21 +222,38 @@ const DEFAULT_INITIAL_CAPSULES: Omit<TimeCapsule, 'userId'>[] = [];
 
 export function getTimeCapsules(uid: string): TimeCapsule[] {
   try {
+    const mem = _inMemoryPlainCache.get(CAPSULES_KEY_PREFIX + uid);
+    if (Array.isArray(mem)) return mem;
+
     const raw = localStorage.getItem(CAPSULES_KEY_PREFIX + uid);
-    if (!raw) {
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+
+    if (isEncryptedPayload(parsed)) {
+      const activeKey = getActiveSessionKey();
+      if (activeKey) {
+        decryptData<TimeCapsule[]>(parsed, activeKey).then((decrypted) => {
+          if (Array.isArray(decrypted)) {
+            _inMemoryPlainCache.set(CAPSULES_KEY_PREFIX + uid, decrypted);
+          }
+        }).catch(() => {});
+      }
       return [];
     }
-    const capsules: TimeCapsule[] = JSON.parse(raw);
-    if (!Array.isArray(capsules)) return [];
 
-    // 🔒 READ-TIME INTEGRITY VERIFICATION ON EVERY READ OPERATION
-    return capsules.map((c) => {
-      const verification = verifyTimeCapsuleIntegrity(c);
+    if (!Array.isArray(parsed)) return [];
+
+    _inMemoryPlainCache.set(CAPSULES_KEY_PREFIX + uid, parsed);
+    persistEncryptedPayload(CAPSULES_KEY_PREFIX + uid, parsed, 'Time capsules migration');
+
+    return parsed.map((capsule) => {
+      const verification = verifyTimeCapsuleIntegrity(capsule);
       if (!verification.isValid) {
-        console.warn(`[VaultStorage] 🚨 Read-Time Integrity Mismatch on Capsule "${c.title}": stored=${verification.storedHash}, calculated=${verification.calculatedHash}`);
-        return { ...c, isTampered: true };
+        console.warn(`[VaultStorage] Integrity mismatch on Capsule "${capsule.title}".`);
+        return { ...capsule, isTampered: true };
       }
-      return c;
+      return capsule;
     });
   } catch {
     return [];
@@ -220,19 +262,8 @@ export function getTimeCapsules(uid: string): TimeCapsule[] {
 
 export function saveTimeCapsules(uid: string, capsules: TimeCapsule[]): void {
   const sanitized = stripUndefinedPayload(capsules);
-  const activeKey = getActiveSessionKey();
   _inMemoryPlainCache.set(CAPSULES_KEY_PREFIX + uid, sanitized);
-
-  if (activeKey) {
-    encryptData(sanitized, activeKey).then((encrypted) => {
-      localStorage.setItem(CAPSULES_KEY_PREFIX + uid, JSON.stringify(encrypted));
-    }).catch((err) => {
-      console.warn('[VaultStorage] Capsule encryption notice:', err);
-      localStorage.setItem(CAPSULES_KEY_PREFIX + uid, JSON.stringify(sanitized));
-    });
-  } else {
-    localStorage.setItem(CAPSULES_KEY_PREFIX + uid, JSON.stringify(sanitized));
-  }
+  persistEncryptedPayload(CAPSULES_KEY_PREFIX + uid, sanitized, 'Time capsules');
 }
 
 export function addTimeCapsule(
@@ -260,11 +291,13 @@ export function addTimeCapsule(
   };
   const updated = [created, ...capsules];
   saveTimeCapsules(uid, updated);
+  syncTimeCapsuleToFirestore(uid, created);
   return created;
 }
 
 export function unlockTimeCapsule(uid: string, capsuleId: string): TimeCapsule[] {
   const capsules = getTimeCapsules(uid);
+  let updatedCapsule: TimeCapsule | null = null;
   const updated = capsules.map(c => {
     if (c.id === capsuleId) {
       // 🔒 Read-Time Integrity Check before unsealing
@@ -274,16 +307,20 @@ export function unlockTimeCapsule(uid: string, capsuleId: string): TimeCapsule[]
         return { ...c, isTampered: true };
       }
 
-      return {
+      updatedCapsule = {
         ...c,
         isOpened: true,
         openedAt: new Date().toISOString(),
         isTampered: false,
       };
+      return updatedCapsule;
     }
     return c;
   });
   saveTimeCapsules(uid, updated);
+  if (updatedCapsule) {
+    syncTimeCapsuleToFirestore(uid, updatedCapsule);
+  }
   return updated;
 }
 
@@ -291,6 +328,7 @@ export function deleteTimeCapsule(uid: string, capsuleId: string): TimeCapsule[]
   const capsules = getTimeCapsules(uid);
   const updated = capsules.filter(c => c.id !== capsuleId);
   saveTimeCapsules(uid, updated);
+  deleteTimeCapsuleFromFirestore(uid, capsuleId);
   return updated;
 }
 
@@ -343,20 +381,8 @@ export function getVaultSettings(uid: string): VaultSettings {
 export function saveVaultSettings(uid: string, settings: any) {
   const sanitized = stripUndefinedPayload(settings);
   _inMemoryPlainCache.set(SETTINGS_KEY_PREFIX + uid, sanitized);
-  const activeKey = getActiveSessionKey();
-
-  if (activeKey) {
-    // 🔒 100% Client-Side AES-GCM-256 Encryption for Vault Settings
-    encryptData(sanitized, activeKey).then((encrypted) => {
-      localStorage.setItem(SETTINGS_KEY_PREFIX + uid, JSON.stringify(encrypted));
-    }).catch((err) => {
-      console.warn('[VaultStorage] Settings encryption notice:', err);
-      localStorage.setItem(SETTINGS_KEY_PREFIX + uid, JSON.stringify(sanitized));
-    });
-  } else {
-    // Zero-Knowledge fallback: if key is not yet derived, store securely
-    localStorage.setItem(SETTINGS_KEY_PREFIX + uid, JSON.stringify(sanitized));
-  }
+  persistEncryptedPayload(SETTINGS_KEY_PREFIX + uid, sanitized, 'Vault settings');
+  syncVaultSettingsToFirestore(uid, sanitized);
 }
 
 export function exportVaultBackup(uid: string): string {
@@ -527,25 +553,27 @@ export function importVaultBackup(uid: string, jsonString: string): { success: b
 }
 
 export function wipeVaultData(uid: string): void {
-  localStorage.setItem(ENTRIES_KEY_PREFIX + uid, JSON.stringify([]));
-  localStorage.setItem(CAPSULES_KEY_PREFIX + uid, JSON.stringify([]));
-  localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify([]));
+  localStorage.removeItem(ENTRIES_KEY_PREFIX + uid);
+  localStorage.removeItem(CAPSULES_KEY_PREFIX + uid);
+  localStorage.removeItem(LEGACY_GUARDIAN_KEY_PREFIX + uid);
   localStorage.removeItem(DEAD_MAN_KEY_PREFIX + uid);
   localStorage.removeItem(PARALLEL_PERSONA_KEY_PREFIX + uid);
   localStorage.removeItem(SETTINGS_KEY_PREFIX + uid);
 }
 
 export function saveLegacyGuardianPolicies(uid: string, policies: LegacyGuardianPolicy[]): LegacyGuardianPolicy[] {
-  const sanitized = policies.map((p) => ({
-    ...p,
+  const sanitized = policies.map((policy) => ({
+    ...policy,
     userId: uid,
-    id: p.id || `lgp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    id: policy.id || `lgp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     updatedAt: new Date().toISOString(),
-    createdAt: p.createdAt || new Date().toISOString(),
+    createdAt: policy.createdAt || new Date().toISOString(),
   }));
-  localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(sanitized));
-  if (sanitized.length > 0) {
-    localStorage.setItem(DEAD_MAN_KEY_PREFIX + uid, JSON.stringify(sanitized[0]));
+  _inMemoryPlainCache.set(LEGACY_GUARDIAN_KEY_PREFIX + uid, sanitized);
+  persistEncryptedPayload(LEGACY_GUARDIAN_KEY_PREFIX + uid, sanitized, 'Legacy guardian policies');
+  localStorage.removeItem(DEAD_MAN_KEY_PREFIX + uid);
+  for (const policy of sanitized) {
+    syncGuardianPolicyToFirestore(uid, policy);
   }
   return sanitized;
 }
@@ -556,15 +584,31 @@ export function saveLegacyGuardianPolicies(uid: string, policies: LegacyGuardian
 
 export function getLegacyGuardianPolicies(uid: string): LegacyGuardianPolicy[] {
   try {
+    const mem = _inMemoryPlainCache.get(LEGACY_GUARDIAN_KEY_PREFIX + uid);
+    if (Array.isArray(mem)) return mem;
+
     const raw = localStorage.getItem(LEGACY_GUARDIAN_KEY_PREFIX + uid);
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (isEncryptedPayload(parsed)) {
+        const activeKey = getActiveSessionKey();
+        if (activeKey) {
+          decryptData<LegacyGuardianPolicy[]>(parsed, activeKey).then((decrypted) => {
+            if (Array.isArray(decrypted)) {
+              _inMemoryPlainCache.set(LEGACY_GUARDIAN_KEY_PREFIX + uid, decrypted);
+            }
+          }).catch(() => {});
+        }
+        return Array.isArray(mem) ? mem : [];
+      }
+
       if (Array.isArray(parsed) && parsed.length > 0) {
+        _inMemoryPlainCache.set(LEGACY_GUARDIAN_KEY_PREFIX + uid, parsed);
+        persistEncryptedPayload(LEGACY_GUARDIAN_KEY_PREFIX + uid, parsed, 'Legacy guardian policies migration');
         return parsed;
       }
     }
 
-    // Auto-migration: Check for legacy singleton policy
     const legacyRaw = localStorage.getItem(DEAD_MAN_KEY_PREFIX + uid);
     if (legacyRaw) {
       const legacyPolicy: LegacyGuardianPolicy = JSON.parse(legacyRaw);
@@ -576,12 +620,13 @@ export function getLegacyGuardianPolicies(uid: string): LegacyGuardianPolicy[] {
             category: legacyPolicy.category || 'family',
           },
         ];
-        localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(migratedList));
+        _inMemoryPlainCache.set(LEGACY_GUARDIAN_KEY_PREFIX + uid, migratedList);
+        persistEncryptedPayload(LEGACY_GUARDIAN_KEY_PREFIX + uid, migratedList, 'Legacy guardian policies migration');
+        localStorage.removeItem(DEAD_MAN_KEY_PREFIX + uid);
         return migratedList;
       }
     }
 
-    // Clean slate: Return empty list if no policies are configured
     return [];
   } catch {
     return [];
@@ -608,18 +653,10 @@ export function saveLegacyGuardianPolicy(uid: string, policy: LegacyGuardianPoli
   }
 
   const sanitized = stripUndefinedPayload(updatedList);
-  const activeKey = getActiveSessionKey();
   _inMemoryPlainCache.set(LEGACY_GUARDIAN_KEY_PREFIX + uid, sanitized);
-
-  if (activeKey) {
-    encryptData(sanitized, activeKey).then((encrypted) => {
-      localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(encrypted));
-      localStorage.removeItem(DEAD_MAN_KEY_PREFIX + uid);
-    }).catch(() => {
-      localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(sanitized));
-    });
-  } else {
-    localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(sanitized));
+  persistEncryptedPayload(LEGACY_GUARDIAN_KEY_PREFIX + uid, sanitized, 'Legacy guardian policies');
+  if (updatedList.length > 0) {
+    localStorage.removeItem(DEAD_MAN_KEY_PREFIX + uid);
   }
 
   return updatedList;
@@ -628,12 +665,9 @@ export function saveLegacyGuardianPolicy(uid: string, policy: LegacyGuardianPoli
 export function deleteLegacyGuardianPolicy(uid: string, policyId: string): LegacyGuardianPolicy[] {
   const current = getLegacyGuardianPolicies(uid);
   const updatedList = current.filter((p) => p.id !== policyId);
-  localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(updatedList));
-  if (updatedList.length === 0) {
-    localStorage.removeItem(DEAD_MAN_KEY_PREFIX + uid);
-  } else {
-    localStorage.setItem(DEAD_MAN_KEY_PREFIX + uid, JSON.stringify(updatedList[0]));
-  }
+  _inMemoryPlainCache.set(LEGACY_GUARDIAN_KEY_PREFIX + uid, updatedList);
+  persistEncryptedPayload(LEGACY_GUARDIAN_KEY_PREFIX + uid, updatedList, 'Legacy guardian policies');
+  localStorage.removeItem(DEAD_MAN_KEY_PREFIX + uid);
   return updatedList;
 }
 
@@ -647,10 +681,9 @@ export function recordGlobalHeartbeatPulse(uid: string): LegacyGuardianPolicy[] 
     simulatedTimeOffsetHours: 0,
     updatedAt: now,
   }));
-  localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(updatedList));
-  if (updatedList.length > 0) {
-    localStorage.setItem(DEAD_MAN_KEY_PREFIX + uid, JSON.stringify(updatedList[0]));
-  }
+  _inMemoryPlainCache.set(LEGACY_GUARDIAN_KEY_PREFIX + uid, updatedList);
+  persistEncryptedPayload(LEGACY_GUARDIAN_KEY_PREFIX + uid, updatedList, 'Legacy guardian pulse updates');
+  localStorage.removeItem(DEAD_MAN_KEY_PREFIX + uid);
   return updatedList;
 }
 
@@ -669,7 +702,8 @@ export function recordSinglePolicyPulse(uid: string, policyId: string): LegacyGu
     }
     return policy;
   });
-  localStorage.setItem(LEGACY_GUARDIAN_KEY_PREFIX + uid, JSON.stringify(updatedList));
+  _inMemoryPlainCache.set(LEGACY_GUARDIAN_KEY_PREFIX + uid, updatedList);
+  persistEncryptedPayload(LEGACY_GUARDIAN_KEY_PREFIX + uid, updatedList, 'Legacy guardian single pulse update');
   return updatedList;
 }
 
@@ -808,20 +842,7 @@ export function getParallelPersona(uid: string) {
 export function saveParallelPersona(uid: string, personaData: any) {
   const sanitized = stripUndefinedPayload(personaData);
   _inMemoryPlainCache.set(PARALLEL_PERSONA_KEY_PREFIX + uid, sanitized);
-  const activeKey = getActiveSessionKey();
-
-  if (activeKey) {
-    // 🔒 100% Client-Side AES-GCM-256 Encryption for Parallel Persona
-    encryptData(sanitized, activeKey).then((encrypted) => {
-      localStorage.setItem(PARALLEL_PERSONA_KEY_PREFIX + uid, JSON.stringify(encrypted));
-    }).catch((err) => {
-      console.warn('[VaultStorage] Parallel persona encryption notice:', err);
-      localStorage.setItem(PARALLEL_PERSONA_KEY_PREFIX + uid, JSON.stringify(sanitized));
-    });
-  } else {
-    // If saving before active key derivation, encrypt as soon as key is set or store encrypted
-    localStorage.setItem(PARALLEL_PERSONA_KEY_PREFIX + uid, JSON.stringify(sanitized));
-  }
+  localStorage.setItem(PARALLEL_PERSONA_KEY_PREFIX + uid, JSON.stringify(sanitized));
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('vault_persona_updated', { detail: { uid, personaData: sanitized } }));
@@ -970,31 +991,44 @@ export function getJournalDrafts(uid: string): any[] {
       }
       return [];
     }
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) {
+      _inMemoryPlainCache.set(DRAFTS_KEY_PREFIX + uid, parsed);
+      localStorage.removeItem('vault_journal_drafts_local');
+      return parsed;
+    }
     return [];
   } catch {
     return [];
   }
 }
 
+export function saveJournalDraftsPlain(uid: string, drafts: any[]): void {
+  const sanitized = stripUndefinedPayload(drafts);
+  _inMemoryPlainCache.set(DRAFTS_KEY_PREFIX + uid, sanitized);
+  localStorage.setItem(DRAFTS_KEY_PREFIX + uid, JSON.stringify(sanitized));
+  localStorage.removeItem('vault_journal_drafts_local');
+}
 export function saveJournalDrafts(uid: string, drafts: any[]): void {
   const sanitized = stripUndefinedPayload(drafts);
-  const activeKey = getActiveSessionKey();
   _inMemoryPlainCache.set(DRAFTS_KEY_PREFIX + uid, sanitized);
+  const activeKey = getActiveSessionKey();
 
-  if (activeKey) {
-    encryptData(sanitized, activeKey).then((encrypted) => {
-      localStorage.setItem(DRAFTS_KEY_PREFIX + uid, JSON.stringify(encrypted));
-      // Remove legacy plain drafts key
-      localStorage.removeItem('vault_journal_drafts_local');
-    }).catch((err) => {
-      console.warn('[VaultStorage] Encrypted drafts fallback:', err);
-    });
-  } else {
-    // If locked or PV mode, store in user partition
+  if (!activeKey) {
     localStorage.setItem(DRAFTS_KEY_PREFIX + uid, JSON.stringify(sanitized));
     localStorage.removeItem('vault_journal_drafts_local');
+    return;
   }
+
+  encryptData(sanitized, activeKey)
+    .then((encrypted) => {
+      localStorage.setItem(DRAFTS_KEY_PREFIX + uid, JSON.stringify(encrypted));
+      localStorage.removeItem('vault_journal_drafts_local');
+    })
+    .catch((err) => {
+      console.warn('[VaultStorage] Encrypted drafts fallback:', err);
+      localStorage.setItem(DRAFTS_KEY_PREFIX + uid, JSON.stringify(sanitized));
+      localStorage.removeItem('vault_journal_drafts_local');
+    });
 }
 
 export function purgeJournalDrafts(uid: string, draftIdOrTitle?: string): void {
@@ -1008,3 +1042,8 @@ export function purgeJournalDrafts(uid: string, draftIdOrTitle?: string): void {
   const updated = current.filter((d) => d.id !== draftIdOrTitle && d.title !== draftIdOrTitle);
   saveJournalDrafts(uid, updated);
 }
+
+
+
+
+

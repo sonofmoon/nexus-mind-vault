@@ -1,16 +1,25 @@
 import React from 'react';
 import { Keyboard, X, Command } from 'lucide-react';
+import { VaultMode } from '../types';
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  vaultMode?: VaultMode;
 }
 
-export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ isOpen, onClose }) => {
+export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
+  isOpen,
+  onClose,
+  vaultMode = 'real',
+}) => {
   if (!isOpen) return null;
 
   const shortcuts = [
     { key: 'Ctrl + K  /  ⌘ + K', desc: 'Open Command Palette' },
+    ...(vaultMode === 'real'
+      ? [{ key: 'Ctrl + M  /  ⌘ + M', desc: 'Summon Nexura AI Voice Sanctuary' }]
+      : []),
     { key: 'Ctrl + N  /  ⌘ + N', desc: 'Jump to New Journal Entry Canvas' },
     { key: 'Ctrl + S  /  ⌘ + S', desc: 'Save Reflection Draft & Sync Vault' },
     { key: 'Escape', desc: 'Close Any Active Modal or Overlay' },

@@ -15,6 +15,7 @@ import {
   Sparkles,
   Command,
   ArrowRight,
+  Radio,
 } from 'lucide-react';
 
 interface CommandPaletteModalProps {
@@ -116,6 +117,19 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     });
 
     if (vaultMode === 'real') {
+      items.push({
+        id: 'nav_voice',
+        category: 'Navigation',
+        title: 'Open Nexura AI (Sovereign Voice Sanctuary)',
+        subtitle: 'Hands-free bi-directional AI voice dialogue with live resonance orb',
+        icon: <Radio className="w-4 h-4 text-purple-400 animate-pulse" />,
+        shortcut: 'Ctrl+M',
+        action: () => {
+          onSelectTab('voice');
+          onClose();
+        },
+      });
+
       items.push({
         id: 'nav_capsules',
         category: 'Navigation',

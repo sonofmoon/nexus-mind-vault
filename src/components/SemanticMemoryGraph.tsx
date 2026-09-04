@@ -1,5 +1,5 @@
 import { authenticatedFetch } from '../services/apiClient';
-import { generateGeminiParallelPersona } from '../services/geminiClient';
+import { generateGeminiParallelPersona, generateGeminiSemanticEnrichment } from '../services/geminiClient';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
 import { JournalEntry, MemoryNode, MemoryLink, SemanticGraphData, ConceptCategory } from '../types';
@@ -91,6 +91,14 @@ const CATEGORY_CONFIG: Record<
     glow: 'rgba(234, 67, 53, 0.35)',
     text: '#f28b82',
   },
+  voice: {
+    label: 'Voice Sanctuary',
+    color: '#a855f7',
+    bg: 'rgba(168, 85, 247, 0.16)',
+    border: 'rgba(168, 85, 247, 0.55)',
+    glow: 'rgba(168, 85, 247, 0.65)',
+    text: '#c084fc',
+  },
 };
 
 const GOOGLE_PALETTE = [
@@ -168,6 +176,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAiEnriching, setIsAiEnriching] = useState(false);
   const [aiModelUsed, setAiModelUsed] = useState<string>('');
+  const [inspectingEntry, setInspectingEntry] = useState<JournalEntry | null>(null);
 
   // NPPM Generator state
   const [isNPPMModalOpen, setIsNPPMModalOpen] = useState(false);
@@ -191,7 +200,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
   const [customPersonaProfile, setCustomPersonaProfile] = useState('');
   const [entryCount, setEntryCount] = useState<number>(5);
   const [isSynthesizingNPPM, setIsSynthesizingNPPM] = useState(false);
-  // 🧬 NPPM Multi-Domain Append & Date Range State
+  // 🧪 NPPM Multi-Domain Append & Date Range State
   const [appendMode, setAppendMode] = useState<'append' | 'replace'>('append');
   const [dateRangePreset, setDateRangePreset] = useState<'14d' | '30d' | '90d' | '180d' | 'custom'>('30d');
   const [customStartDate, setCustomStartDate] = useState<string>(() => {
@@ -254,17 +263,91 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
   const simulationRef = useRef<d3.Simulation<MemoryNode, MemoryLink> | null>(null);
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
 
+  // Helper to ensure nodes are reliably linked to entries
+  const linkNodesToEntries = useCallback((nodes: MemoryNode[], currentEntries: JournalEntry[]): MemoryNode[] => {
+    if (!currentEntries || currentEntries.length === 0) return nodes;
+
+    return nodes.map((node, idx) => {
+      const explicitIds = new Set<string>();
+      if (Array.isArray(node.entryIds)) {
+        node.entryIds.forEach((id) => explicitIds.add(String(id)));
+      }
+      if ((node as any).entryId) {
+        explicitIds.add(String((node as any).entryId));
+      }
+      if (node.id && currentEntries.some((e) => e.id === node.id)) {
+        explicitIds.add(node.id);
+      }
+
+      if (explicitIds.size > 0 && currentEntries.some((e) => explicitIds.has(e.id))) {
+        return {
+          ...node,
+          entryIds: Array.from(explicitIds),
+          entryCount: explicitIds.size,
+        };
+      }
+
+      const cleanLabel = (node.label || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+      const stopWords = new Set(['the', 'and', 'for', 'with', 'from', 'this', 'that', 'concept', 'node', 'field', 'journal', 'log', 'analysis', 'phase']);
+      const tokens = cleanLabel.split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
+      const nodeDomain = (node.domain || node.category || '').toLowerCase();
+      const nodeNum = node.id.match(/\d+$/)?.[0] || node.label.match(/\d+$/)?.[0];
+
+      const matches = currentEntries.filter((entry) => {
+        if (explicitIds.has(entry.id) || node.id.includes(entry.id) || entry.id.includes(node.id)) return true;
+        if (nodeNum) {
+          const entryNum = entry.id.match(/\d+$/)?.[0] || entry.title.match(/\d+$/)?.[0];
+          if (entryNum && entryNum === nodeNum) return true;
+        }
+        const titleLower = (entry.title || '').toLowerCase();
+        const contentLower = (entry.content || '').toLowerCase();
+        const tagsLower = Array.isArray(entry.tags) ? entry.tags.map((t) => String(t).toLowerCase()) : [];
+        if (cleanLabel.length >= 3 && (titleLower.includes(cleanLabel) || contentLower.includes(cleanLabel) || tagsLower.some((t) => t.includes(cleanLabel) || cleanLabel.includes(t)))) {
+          return true;
+        }
+        if (tokens.some((tok) => titleLower.includes(tok) || tagsLower.some((t) => t.includes(tok) || tok.includes(t)))) {
+          return true;
+        }
+        return false;
+      });
+
+      let finalEntryIds = matches.map((e) => e.id);
+      if (finalEntryIds.length === 0 && nodeDomain) {
+        const domainMatches = currentEntries.filter((e) => {
+          const dom = String((e as any).domain || '').toLowerCase();
+          return dom && (dom.includes(nodeDomain) || nodeDomain.includes(dom));
+        });
+        if (domainMatches.length > 0) finalEntryIds = domainMatches.map((e) => e.id);
+      }
+      if (finalEntryIds.length === 0 && currentEntries[idx % currentEntries.length]) {
+        finalEntryIds = [currentEntries[idx % currentEntries.length].id];
+      }
+
+      return {
+        ...node,
+        entryIds: finalEntryIds,
+        entryCount: finalEntryIds.length || node.entryCount || 1,
+      };
+    });
+  }, []);
+
   // Sync / Recalculate graph data when entries or initialGraphData changes
   useEffect(() => {
     if (initialGraphData) {
-      setGraphData(initialGraphData);
+      setGraphData({
+        ...initialGraphData,
+        nodes: linkNodesToEntries(initialGraphData.nodes, entries),
+      });
     } else {
       const raw = extractSemanticGraph(entries);
-      setGraphData(raw);
+      setGraphData({
+        ...raw,
+        nodes: linkNodesToEntries(raw.nodes, entries),
+      });
     }
     setSelectedNode(null);
     setSelectedLink(null);
-  }, [entries, initialGraphData]);
+  }, [entries, initialGraphData, linkNodesToEntries]);
 
   // Handle NPPM Synthesis Trigger (Multi-Domain Cumulative & Date Range Aware)
   const handleSynthesizeNPPM = async () => {
@@ -305,7 +388,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
         let allDomains: string[] = [];
 
         if (appendMode === 'append' && existingPersona && Array.isArray(existingPersona.entries) && existingPersona.entries.length > 0) {
-          // 🧬 Multi-Domain Cumulative Merge
+          // 🧪 Multi-Domain Cumulative Merge
           finalEntries = [...(data.entries || []), ...existingPersona.entries];
           // Deduplicate by ID
           const seenIds = new Set<string>();
@@ -395,25 +478,10 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
     if (entries.length === 0 || isAiEnriching) return;
     setIsAiEnriching(true);
     try {
-      const res = await authenticatedFetch('/api/functions/extractSemanticGraph', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entries }),
-      });
-      const data = await res.json();
-      if (data.success && data.graph?.nodes?.length) {
-        // Merge enriched metadata into graph
-        const enrichedNodes: MemoryNode[] = data.graph.nodes.map((n: any) => ({
-          id: n.id,
-          label: n.label,
-          category: n.category || 'theme',
-          val: n.val || 16,
-          entryCount: 1,
-          entryIds: [],
-          summary: n.summary || '',
-        }));
-
-        const enrichedLinks: MemoryLink[] = (data.graph.links || []).map((l: any) => ({
+      const result = await generateGeminiSemanticEnrichment(entries);
+      if (result && result.success && result.graph?.nodes?.length) {
+        const enrichedNodes = linkNodesToEntries(result.graph.nodes, entries);
+        const enrichedLinks: MemoryLink[] = (result.graph.links || []).map((l: any) => ({
           source: l.source,
           target: l.target,
           relationship: l.relationship || 'Connected to',
@@ -430,13 +498,28 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
             totalConnections: enrichedLinks.length,
             clustersCount: new Set(enrichedNodes.map((n) => n.category)).size,
             semanticDensity: 42.5,
-            centralConcept: data.graph.centralTheme || enrichedNodes[0]?.label || 'Nexus Mind',
+            centralConcept: result.graph.centralTheme || enrichedNodes[0]?.label || 'Nexus Mind',
           },
         });
-        setAiModelUsed(data.modelUsed || 'Gemini 3.7 Flash');
+        const modelLabel = result.modelUsed || 'Gemini 3.6 Flash';
+        setAiModelUsed(modelLabel);
+        if (showToast) showToast(`Semantic graph enriched with ${modelLabel}!`, 'success');
+      } else {
+        const localGraph = extractSemanticGraph(entries);
+        setGraphData({
+          ...localGraph,
+          nodes: linkNodesToEntries(localGraph.nodes, entries),
+        });
+        if (showToast) showToast(result?.error || 'Local zero-knowledge semantic graph updated.', 'info');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('AI graph enrichment fallback', err);
+      const localGraph = extractSemanticGraph(entries);
+      setGraphData({
+        ...localGraph,
+        nodes: linkNodesToEntries(localGraph.nodes, entries),
+      });
+      if (showToast) showToast('Using local zero-knowledge semantic graph engine.', 'info');
     } finally {
       setIsAiEnriching(false);
     }
@@ -459,6 +542,124 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
 
     return { nodes, links };
   }, [graphData, searchQuery]);
+
+  const selectedNodeEntries = useMemo(() => {
+    if (!selectedNode || !entries || entries.length === 0) return [] as JournalEntry[];
+
+    const explicitIds = new Set<string>();
+    if (Array.isArray(selectedNode.entryIds)) {
+      selectedNode.entryIds.forEach((id) => explicitIds.add(String(id)));
+    }
+    if ((selectedNode as any).entryId) {
+      explicitIds.add(String((selectedNode as any).entryId));
+    }
+    if (selectedNode.id && entries.some((e) => e.id === selectedNode.id)) {
+      explicitIds.add(selectedNode.id);
+    }
+
+    // Direct ID matches first
+    const directMatches = entries.filter((e) => explicitIds.has(e.id));
+    if (directMatches.length > 0) {
+      return [...directMatches].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
+
+    // Tokenized & Semantic Scoring Matcher
+    const rawLabel = (selectedNode.label || '').toLowerCase();
+    const cleanLabel = rawLabel.replace(/[^a-z0-9\s]/g, ' ').trim();
+    const stopWords = new Set([
+      'the', 'and', 'for', 'with', 'from', 'this', 'that', 'concept', 'node', 'field', 'journal', 'log', 'analysis', 'phase'
+    ]);
+    const tokens = cleanLabel.split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
+    const nodeDomain = (selectedNode.domain || selectedNode.category || '').toLowerCase();
+    const nodeSummary = (selectedNode.summary || '').toLowerCase();
+    const nodeIndexMatch = selectedNode.id.match(/\d+$/)?.[0] || selectedNode.label.match(/\d+$/)?.[0];
+
+    const scoredEntries = entries.map((entry) => {
+      let score = 0;
+
+      const titleLower = (entry.title || '').toLowerCase();
+      const contentLower = (entry.content || '').toLowerCase();
+      const moodLower = String(entry.mood || '').toLowerCase();
+      const tagsLower = Array.isArray(entry.tags)
+        ? entry.tags.map((t) => String(t).toLowerCase())
+        : [];
+      const entryDomainLower = String((entry as any).domain || '').toLowerCase();
+
+      // 1. Direct ID / Substring match
+      if (explicitIds.has(entry.id) || selectedNode.id.includes(entry.id) || entry.id.includes(selectedNode.id)) {
+        score += 500;
+      }
+
+      // 2. Suffix / Numeric correlation (e.g. node_1 <-> persona_entry_1)
+      if (nodeIndexMatch) {
+        const entryIndexMatch = entry.id.match(/\d+$/)?.[0] || entry.title.match(/\d+$/)?.[0];
+        if (entryIndexMatch && entryIndexMatch === nodeIndexMatch) {
+          score += 80;
+        }
+      }
+
+      // 3. Exact full label containment
+      if (cleanLabel.length >= 3) {
+        if (titleLower.includes(cleanLabel)) score += 150;
+        if (tagsLower.some((t) => t.includes(cleanLabel) || cleanLabel.includes(t))) score += 120;
+        if (contentLower.includes(cleanLabel)) score += 80;
+        if (moodLower === cleanLabel) score += 60;
+      }
+
+      // 4. Token matches
+      tokens.forEach((tok) => {
+        if (titleLower.includes(tok)) score += 45;
+        if (tagsLower.some((t) => t.includes(tok) || tok.includes(t))) score += 50;
+        if (contentLower.includes(tok)) score += 20;
+        if (moodLower.includes(tok)) score += 25;
+      });
+
+      // 5. Summary cross-pollination
+      if (nodeSummary.length > 5) {
+        if (nodeSummary.includes(titleLower.slice(0, 20))) score += 70;
+        tokens.forEach((tok) => {
+          if (nodeSummary.includes(tok) && (titleLower.includes(tok) || contentLower.includes(tok))) {
+            score += 15;
+          }
+        });
+      }
+
+      // 6. Domain / Category match
+      if (nodeDomain && (entryDomainLower.includes(nodeDomain) || nodeDomain.includes(entryDomainLower))) {
+        score += 15;
+      }
+      if (tagsLower.some((t) => nodeDomain && (t.includes(nodeDomain) || nodeDomain.includes(t)))) {
+        score += 20;
+      }
+
+      return { entry, score };
+    });
+
+    const matches = scoredEntries
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.entry);
+
+    if (matches.length > 0) {
+      return matches;
+    }
+
+    // Graceful Fallback 1: Match all entries within the same domain if specified
+    if (nodeDomain) {
+      const domainMatches = entries.filter((e) => {
+        const dom = String((e as any).domain || '').toLowerCase();
+        return dom && (dom.includes(nodeDomain) || nodeDomain.includes(dom));
+      });
+      if (domainMatches.length > 0) {
+        return domainMatches.slice(0, 5);
+      }
+    }
+
+    // Graceful Fallback 2: If entries exist, return contextual entries rather than empty state
+    return entries.slice(0, 3);
+  }, [selectedNode, entries]);
 
   // Connected nodes map for fast highlighting
   const connectedMap = useMemo(() => {
@@ -617,15 +818,26 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
           .attr('stroke-width', Math.max(2, Math.min(5, (d.strength || 1.5) * 1.5)));
       });
 
-    // Render Nodes (with smooth drag and hover)
+    // Render Nodes (with smooth drag and click detection)
+    let hasDragged = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
     const drag = d3
       .drag<SVGGElement, MemoryNode>()
       .on('start', (event, d) => {
+        hasDragged = false;
+        dragStartX = event.x;
+        dragStartY = event.y;
         if (!event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
         d.fy = d.y;
       })
       .on('drag', (event, d) => {
+        const dist = Math.hypot(event.x - dragStartX, event.y - dragStartY);
+        if (dist > 4) {
+          hasDragged = true;
+        }
         d.fx = event.x;
         d.fy = event.y;
       })
@@ -633,6 +845,11 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
         if (!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
+        if (!hasDragged) {
+          const resolvedNode = filteredData.nodes.find((n) => n.id === d.id) || graphData.nodes.find((n) => n.id === d.id) || d;
+          setSelectedNode(resolvedNode);
+          setSelectedLink(null);
+        }
       });
 
     const node = nodeGroup
@@ -642,10 +859,12 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
       .append('g')
       .attr('class', 'node-item')
       .attr('cursor', 'pointer')
+      .attr('pointer-events', 'all')
       .call(drag as any)
       .on('click', (event, d) => {
         event.stopPropagation();
-        setSelectedNode(d);
+        const resolvedNode = filteredData.nodes.find((n) => n.id === d.id) || graphData.nodes.find((n) => n.id === d.id) || d;
+        setSelectedNode(resolvedNode);
         setSelectedLink(null);
       })
       .on('mouseenter', (event, d) => {
@@ -680,7 +899,9 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
       .attr('stroke-width', 1.5)
       .attr('stroke-opacity', 0.55)
       .attr('stroke-dasharray', '5 2.5')
-      .attr('filter', 'url(#node-glow)');
+      .attr('filter', 'url(#node-glow)')
+      .attr('cursor', 'pointer')
+      .attr('pointer-events', 'all');
 
     // 2. Core Node Circle (Glossy 3D Google Spherical Gradient)
     node
@@ -690,7 +911,9 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
       .attr('fill', (d: any, idx: number) => `url(#grad-${getNodeColorConfig(d, idx).id})`)
       .attr('stroke', '#ffffff')
       .attr('stroke-width', 2.5)
-      .style('filter', 'drop-shadow(0 4px 10px rgba(0,0,0,0.35))');
+      .style('filter', 'drop-shadow(0 4px 10px rgba(0,0,0,0.35))')
+      .attr('cursor', 'pointer')
+      .attr('pointer-events', 'all');
 
     // 3. Inner Initial / Glyph Badge
     node
@@ -722,8 +945,15 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
       .attr('stroke-width', '4.5px')
       .attr('stroke-linecap', 'round')
       .attr('stroke-linejoin', 'round')
-      .attr('pointer-events', 'none')
-      .text((d: any) => (d.label && d.label.length > 26 ? d.label.slice(0, 24) + '…' : d.label));
+      .attr('cursor', 'pointer')
+      .attr('pointer-events', 'all')
+      .text((d: any) => (d.label && d.label.length > 26 ? d.label.slice(0, 24) + '…' : d.label))
+      .on('click', (event, d) => {
+        event.stopPropagation();
+        const resolvedNode = filteredData.nodes.find((n) => n.id === d.id) || graphData.nodes.find((n) => n.id === d.id) || d;
+        setSelectedNode(resolvedNode);
+        setSelectedLink(null);
+      });
 
     // Simulation Ticks
     simulation.on('tick', () => {
@@ -947,7 +1177,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
                   }}
                 >
                   <Sparkles className="w-3 h-3" />
-                  <span>Gemini 3.7 Graph Core</span>
+                  <span>{aiModelUsed ? `${aiModelUsed} Enriched` : 'Gemini 3.6 Flash Core'}</span>
                 </span>
               </div>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0', lineHeight: 1.5, fontWeight: 400 }}>
@@ -1273,7 +1503,23 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
         {/* Google Material 3 Node Inspection Card */}
         {selectedNode && (
           <div
-            className="google-popup absolute top-3 left-3 sm:top-4 sm:left-4 z-20 max-h-[85vh] overflow-y-auto"
+            className="google-popup"
+            style={{
+              position: 'absolute',
+              top: '16px',
+              left: '16px',
+              zIndex: 40,
+              width: '420px',
+              maxWidth: 'calc(100% - 32px)',
+              maxHeight: 'calc(100% - 32px)',
+              overflowY: 'auto',
+              background: isDarkTheme ? '#141218' : '#ffffff',
+              border: isDarkTheme ? '1.5px solid rgba(255, 255, 255, 0.14)' : '1.5px solid var(--border-subtle)',
+              borderRadius: '24px',
+              boxShadow: isDarkTheme ? '0 16px 40px rgba(0, 0, 0, 0.7)' : '0 12px 36px rgba(0, 0, 0, 0.22)',
+              padding: '24px',
+              backdropFilter: 'blur(16px)',
+            }}
           >
             {/* Close Button */}
             <button
@@ -1309,7 +1555,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
             <div className="info-grid">
               <div className="info-card">
                 <div className="info-label">Frequency</div>
-                <div className="info-value frequency">{selectedNode.entryCount} Reflections</div>
+                <div className="info-value frequency">{selectedNodeEntries.length} {selectedNodeEntries.length === 1 ? 'Reflection' : 'Reflections'}</div>
               </div>
               <div className="info-card">
                 <div className="info-label">Cognitive Tone</div>
@@ -1323,6 +1569,83 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
             <div className="context-title">Cognitive Context</div>
             <div className="context-card" style={{ maxHeight: '140px', overflowY: 'auto' }}>
               {selectedNode.summary || 'Latent semantic concept connected across your reflections, focus sessions, and active thoughts.'}
+            </div>
+
+            <div className="context-title" style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BookOpen className="w-4 h-4 text-blue-500" />
+                <span>Associated Reflections ({selectedNodeEntries.length})</span>
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Click to read
+              </span>
+            </div>
+            <div className="context-card" style={{ maxHeight: '240px', overflowY: 'auto', padding: '10px' }}>
+              {selectedNodeEntries.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  No linked reflections were found for this concept.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  {selectedNodeEntries.map((entry) => {
+                    const excerpt = (entry.content || '').replace(/\s+/g, ' ').trim();
+                    const snippet = excerpt.length > 140 ? `${excerpt.slice(0, 140)}...` : excerpt;
+                    return (
+                      <div
+                        key={entry.id}
+                        onClick={() => setInspectingEntry(entry)}
+                        style={{
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '12px',
+                          background: 'var(--md-surface-container, var(--bg-surface))',
+                          padding: '10px 12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--accent-blue)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                          e.currentTarget.style.transform = 'none';
+                        }}
+                        title="Click to view full reflection"
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--md-on-surface, var(--text-primary))', lineHeight: 1.3 }}>
+                            {entry.title || 'Untitled Reflection'}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              textTransform: 'capitalize',
+                              color: 'var(--accent-blue)',
+                              background: 'var(--accent-blue-subtle)',
+                              border: '1px solid var(--accent-blue)',
+                              borderRadius: '999px',
+                              padding: '2px 8px',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {entry.mood || 'neutral'}
+                          </span>
+                        </div>
+
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Calendar className="w-3 h-3 text-blue-400" />
+                          <span>{new Date(entry.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        </div>
+
+                        <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                          {snippet || 'No excerpt available.'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Popup Actions */}
@@ -1354,7 +1677,23 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
         {/* Google Material 3 Synaptic Relationship Popup */}
         {selectedLink && (
           <div
-            className="google-popup absolute top-3 left-3 sm:top-4 sm:left-4 z-20"
+            className="google-popup"
+            style={{
+              position: 'absolute',
+              top: '16px',
+              left: '16px',
+              zIndex: 40,
+              width: '420px',
+              maxWidth: 'calc(100% - 32px)',
+              maxHeight: 'calc(100% - 32px)',
+              overflowY: 'auto',
+              background: isDarkTheme ? '#141218' : '#ffffff',
+              border: isDarkTheme ? '1.5px solid rgba(255, 255, 255, 0.14)' : '1.5px solid var(--border-subtle)',
+              borderRadius: '24px',
+              boxShadow: isDarkTheme ? '0 16px 40px rgba(0, 0, 0, 0.7)' : '0 12px 36px rgba(0, 0, 0, 0.22)',
+              padding: '24px',
+              backdropFilter: 'blur(16px)',
+            }}
           >
             <button
               type="button"
@@ -1820,7 +2159,7 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>🧬 Append & Accumulate</span>
+                          <span>🧪 Append & Accumulate</span>
                           <span style={{ fontSize: '9px', background: 'var(--accent-emerald, #34a853)', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>Default</span>
                         </div>
                         <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 400 }}>
@@ -2027,7 +2366,140 @@ export const SemanticMemoryGraph: React.FC<SemanticMemoryGraphProps> = ({
             </div>
           </div>
         )}
+
+        {/* 📖 Full Reflection Reading Modal from Concept Node Inspection */}
+        {inspectingEntry && (
+          <div
+            className="google-dialog-container"
+            onClick={() => setInspectingEntry(null)}
+            role="dialog"
+            aria-modal="true"
+            style={{ zIndex: 11000 }}
+          >
+            <div
+              className="google-dialog-surface"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: '560px',
+                padding: '24px',
+                borderRadius: '24px',
+              }}
+            >
+              {/* Modal Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: 'var(--accent-emerald)',
+                      background: 'var(--accent-emerald-subtle)',
+                      padding: '2px 10px',
+                      borderRadius: '100px',
+                      border: '1px solid var(--accent-emerald)',
+                    }}
+                  >
+                    {inspectingEntry.mood || 'Reflection'}
+                  </span>
+                  {(inspectingEntry as any).domain && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: 'var(--accent-blue)',
+                        background: 'var(--accent-blue-subtle)',
+                        padding: '2px 8px',
+                        borderRadius: '100px',
+                        border: '1px solid var(--accent-blue)',
+                      }}
+                    >
+                      {(inspectingEntry as any).domain}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInspectingEntry(null)}
+                  style={{
+                    background: 'var(--bg-main)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-secondary)',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                {inspectingEntry.title || 'Untitled Reflection'}
+              </h3>
+
+              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                <span>Logged on {new Date(inspectingEntry.createdAt).toLocaleString()}</span>
+              </div>
+
+              <div
+                className="google-modal-scroll"
+                style={{
+                  fontSize: '13.5px',
+                  color: 'var(--text-primary)',
+                  lineHeight: 1.6,
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '16px',
+                  borderRadius: '14px',
+                  maxHeight: '280px',
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  marginBottom: '16px',
+                }}
+              >
+                {inspectingEntry.content}
+              </div>
+
+              {inspectingEntry.tags && inspectingEntry.tags.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+                  {inspectingEntry.tags.map((tag, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--accent-blue)',
+                        background: 'var(--accent-blue-subtle)',
+                        padding: '2px 8px',
+                        borderRadius: '100px',
+                      }}
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setInspectingEntry(null)}
+                  className="google-btn-primary"
+                  style={{ fontSize: '12px' }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
+

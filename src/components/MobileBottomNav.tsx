@@ -1,6 +1,6 @@
 import React from 'react';
 import { TabType, VaultMode } from '../types';
-import { BookOpen, BarChart2, Share2, Clock, Settings } from 'lucide-react';
+import { BookOpen, BarChart2, Share2, Clock, Settings, Radio } from 'lucide-react';
 
 interface MobileBottomNavProps {
   activeTab: TabType;
@@ -28,6 +28,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     // Real Vault Mode (NMV)
     const baseTabs = [
       { id: 'journal' as TabType, label: 'Journal', icon: BookOpen, accent: 'var(--accent-blue)' },
+      { id: 'voice' as TabType, label: 'Nexura', icon: Radio, accent: '#8b5cf6' },
       { id: 'insights' as TabType, label: 'Insights', icon: BarChart2, accent: 'var(--accent-emerald)' },
       { id: 'graph' as TabType, label: 'Memory Graph', icon: Share2, accent: 'var(--accent-purple, #9334e6)' },
     ];

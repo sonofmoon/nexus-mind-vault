@@ -3,6 +3,8 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { Share2, Undo2, Printer, CheckCircle2, Sparkles, Bell } from 'lucide-react';
 import { authenticatedFetch } from '../services/apiClient';
 import { generateGeminiChatResponse } from '../services/geminiClient';
+import { VoiceNotePreviewCard } from './VoiceNotePreviewCard';
+import { createCalendarEvent } from '../services/calendarIntegration';
 import { sanitizePlainText } from '../utils/sanitizeHtml';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { JournalEntry, MoodType, AttachmentItem, JournalDraft, VaultMode } from '../types';
@@ -45,9 +47,12 @@ import {
   Send,
   Save,
   ChevronDown,
+  ChevronUp,
   MoreVertical,
   Download,
   AlertTriangle,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 export type CaptureTab = 'write' | 'talk' | 'attach' | 'voice';
@@ -274,6 +279,23 @@ export const JournalView: React.FC<JournalViewProps> = ({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<{ type: 'entry' | 'draft' | 'voice_recording'; id: string; title: string } | null>(null);
   const [viewingDraft, setViewingDraft] = useState<JournalDraft | null>(null);
+
+  // Excerpt Expansion State & Chronicle width expansion
+  const [expandedEntryIds, setExpandedEntryIds] = useState<Set<string>>(new Set());
+  const [viewingFullEntry, setViewingFullEntry] = useState<JournalEntry | null>(null);
+  const [isChronicleExpanded, setIsChronicleExpanded] = useState<boolean>(false);
+
+  const toggleExpandEntry = (id: string) => {
+    setExpandedEntryIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handleClickOutside = () => setOpenMenuId(null);
@@ -585,38 +607,70 @@ export const JournalView: React.FC<JournalViewProps> = ({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(stream);
+
+      const preferredMime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : '';
+
+      const mediaRecorder = preferredMime
+        ? new MediaRecorder(stream, { mimeType: preferredMime })
+        : new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const url = URL.createObjectURL(audioBlob);
-        setRecordedAudioUrl(url);
+        if (audioChunksRef.current.length === 0) {
+          showToast("No audio captured in recording.", "warning");
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
 
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const cleanMime = mimeType.split(';')[0] || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: cleanMime });
+
+        if (audioBlob.size === 0) {
+          showToast("Recorded audio is empty.", "warning");
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
+        // Set immediate local URL for instant zero-latency UI preview
+        const blobUrl = URL.createObjectURL(audioBlob);
+        setRecordedAudioUrl(blobUrl);
+
+        // Convert to permanent base64 data URL for persistence across reloads & Firestore
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64data = reader.result as string;
-          const voiceAttachment: AttachmentItem = {
-            id: 'att_voice_' + Date.now().toString(36),
-            name: `Voice_Note_${new Date().toLocaleTimeString().replace(/:/g, '-')}.webm`,
-            type: 'audio',
-            data: base64data,
-            url,
-          };
-          setAttachments(prev => [...prev, voiceAttachment]);
+          if (base64data) {
+            setRecordedAudioUrl(base64data);
+            const voiceAttachment: AttachmentItem = {
+              id: 'att_voice_' + Date.now().toString(36),
+              name: `Voice_Note_${new Date().toLocaleTimeString().replace(/:/g, '-')}.webm`,
+              type: 'audio',
+              data: base64data,
+              url: base64data,
+            };
+            setAttachments(prev => [...prev.filter(a => !a.id.startsWith('att_voice_')), voiceAttachment]);
+          }
         };
         reader.readAsDataURL(audioBlob);
 
         stream.getTracks().forEach(t => t.stop());
       };
 
-      mediaRecorder.start();
+      // Stream audio chunks every 250ms for reliable audio headers
+      mediaRecorder.start(250);
       setVoiceStatus('recording');
       setRecordingSeconds(0);
 
@@ -763,10 +817,10 @@ export const JournalView: React.FC<JournalViewProps> = ({
     if (e) e.preventDefault();
 
     const titleToSave = entryTitle.trim() || writeContent.trim().substring(0, 35) || 'Untitled Reflection';
-    const contentToSave = writeContent.trim() || talkInput.trim() || 'Visual / Audio Media Entry';
+    const contentToSave = writeContent.trim() || talkInput.trim() || (recordedAudioUrl ? 'Recorded Voice Reflection' : 'Visual / Audio Media Entry');
 
-    if (!writeContent.trim() && !talkInput.trim() && attachments.length === 0) {
-      showToast("Please write content or attach media before saving.", "error");
+    if (!writeContent.trim() && !talkInput.trim() && attachments.length === 0 && !recordedAudioUrl) {
+      showToast("Please write content, record audio, or attach media before saving.", "error");
       return;
     }
 
@@ -873,9 +927,15 @@ export const JournalView: React.FC<JournalViewProps> = ({
         {microcopy}
       </p>
 
-      <div className="journal-layout">
+      <div
+        className={`journal-layout ${isChronicleExpanded ? 'chronicle-expanded' : ''}`}
+        style={isChronicleExpanded ? { display: 'flex', flexDirection: 'column', width: '100%' } : undefined}
+      >
         {/* Left Column: Capture Studio & Drafts */}
-        <section className="journal-left-column">
+        <section
+          className="journal-left-column"
+          style={isChronicleExpanded ? { display: 'none' } : undefined}
+        >
           <article className="capture-studio card-shell">
             <div className="card-head capture-head">
               <div>
@@ -996,15 +1056,43 @@ export const JournalView: React.FC<JournalViewProps> = ({
                   </label>
 
                   {(reminderDate || reminderTime) && (
-                    <button
-                      type="button"
-                      onClick={() => { setReminderDate(''); setReminderTime(''); }}
-                      className="btn-ghost"
-                      style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '4px 8px', alignSelf: 'flex-end', marginBottom: '4px' }}
-                      title="Clear reminder schedule"
-                    >
-                      Clear
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-end', marginBottom: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const mockEntry: JournalEntry = {
+                            id: 'temp_reminder',
+                            userId: userId || 'default_user',
+                            title: entryTitle.trim() || 'Reflection Reminder',
+                            content: writeContent.trim() || 'Scheduled mindfulness reminder',
+                            mood: selectedMood,
+                            tags: entryTags.split(',').map(t => t.trim()).filter(Boolean),
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                            reminderDate: reminderDate || undefined,
+                            reminderTime: reminderTime || undefined,
+                          };
+                          showToast('Adding to Google Calendar...', 'info');
+                          const res = await createCalendarEvent(mockEntry);
+                          showToast(res.message, res.success ? 'success' : 'warning');
+                        }}
+                        className="btn-ghost"
+                        style={{ fontSize: '11px', color: '#1a73e8', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="Add reflection reminder to Google Calendar"
+                      >
+                        <Calendar className="w-3 h-3 text-blue-500" />
+                        <span>Google Calendar</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setReminderDate(''); setReminderTime(''); }}
+                        className="btn-ghost"
+                        style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '4px 8px' }}
+                        title="Clear reminder schedule"
+                      >
+                        Clear
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1119,61 +1207,24 @@ export const JournalView: React.FC<JournalViewProps> = ({
                 </div>
 
                 {recordedAudioUrl && (
-                  <div
-                    className="voice-preview-wrapper"
-                    style={{
-                      marginTop: '12px',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      alignSelf: 'stretch',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      background: 'var(--surface-hover)',
-                      padding: '10px 14px',
-                      borderRadius: '16px',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <audio
-                      id="voice-preview"
-                      controls
-                      src={recordedAudioUrl}
-                      className="voice-preview"
-                      style={{
-                        flex: '1 1 auto',
-                        width: '100%',
-                        minWidth: 0,
-                        height: '40px',
-                        display: 'block',
-                      }}
-                    />
-
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                  <div style={{ marginTop: '14px', width: '100%' }}>
+                    <VoiceNotePreviewCard
+                      audioUrl={recordedAudioUrl}
+                      durationSeconds={recordingSeconds > 0 ? recordingSeconds : undefined}
+                      fileName={`Voice_Note_${new Date().toLocaleTimeString().replace(/:/g, '-')}.webm`}
+                      onDelete={() => {
                         setDeleteConfirmTarget({
                           type: 'voice_recording',
                           id: 'voice_recording_current',
                           title: 'Current Voice Recording',
                         });
                       }}
-                      style={{
-                        minHeight: '36px',
-                        width: '36px',
-                        padding: 0,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
+                      onReRecord={() => {
+                        setRecordedAudioUrl(null);
+                        setAttachments(prev => prev.filter(a => !a.id.startsWith('att_voice_')));
+                        handleStartVoiceRecording();
                       }}
-                      title="Delete Voice Recording"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
+                    />
                   </div>
                 )}
               </div>
@@ -1303,6 +1354,39 @@ export const JournalView: React.FC<JournalViewProps> = ({
                   </div>
                 )}
               </div>
+
+              {chatMessages.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', margin: '6px 0' }}>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => {
+                      const conversationText = chatMessages
+                        .map(m => `${m.role === 'user' ? 'Me' : 'Gemini'}: ${m.content}`)
+                        .join('\n\n');
+                      setWriteContent(prev => (prev ? `${prev}\n\n---\n**AI Conversation Reflection**:\n${conversationText}` : conversationText));
+                      setActiveTab('write');
+                      showToast("AI conversation transferred to write canvas.", "info");
+                    }}
+                    style={{ fontSize: '11.5px', color: '#1a73e8', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    title="Transfer this conversation into your Write canvas"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Transfer to Write Canvas</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => {
+                      setChatMessages([]);
+                      showToast("Conversation cleared.", "info");
+                    }}
+                    style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}
+                  >
+                    Clear Chat
+                  </button>
+                </div>
+              )}
 
               <div className="talk-composer" style={{ marginTop: '14px' }}>
                 <textarea
@@ -1489,10 +1573,53 @@ export const JournalView: React.FC<JournalViewProps> = ({
         </section>
 
         {/* Right Column: Chronicle (Entries List & Filters) */}
-        <section className="journal-right-column">
-          <article className="entries-panel card-shell">
-            <div className="card-head">
-              <h3 id="entries-panel-title">Chronicle</h3>
+        <section
+          className="journal-right-column"
+          style={isChronicleExpanded ? { width: '100%', flex: 1 } : undefined}
+        >
+          <article className="entries-panel card-shell" style={isChronicleExpanded ? { width: '100%' } : undefined}>
+            <div className="card-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 id="entries-panel-title">Chronicle</h3>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: 'var(--bg-main)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  {filteredEntries.length} {filteredEntries.length === 1 ? 'reflection' : 'reflections'}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  id="btn-toggle-chronicle-width"
+                  onClick={() => setIsChronicleExpanded(prev => !prev)}
+                  className="btn-ghost"
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    color: isChronicleExpanded ? '#1a73e8' : 'var(--text-secondary)',
+                    background: isChronicleExpanded ? 'rgba(26, 115, 232, 0.1)' : 'transparent',
+                    border: '1px solid ' + (isChronicleExpanded ? 'rgba(26, 115, 232, 0.3)' : 'var(--border-subtle)'),
+                    cursor: 'pointer',
+                  }}
+                  title={isChronicleExpanded ? "Restore side-by-side view with Capture Studio" : "Expand Chronicle to full width for wide viewing"}
+                >
+                  {isChronicleExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                  <span>{isChronicleExpanded ? 'Split View' : 'Full Width'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Multi-Domain Cover Filter Pills */}
@@ -1682,8 +1809,18 @@ export const JournalView: React.FC<JournalViewProps> = ({
               </button>
             </div>
 
-            {/* Entries List */}
-            <div id="entries-list" style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
+            {/* Entries List Container */}
+            <div
+              id="entries-list"
+              className="entries-container list-layout-active"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                marginTop: '14px',
+                width: '100%',
+              }}
+            >
               {filteredEntries.length === 0 ? (
                 <div
                   style={{
@@ -1755,6 +1892,8 @@ export const JournalView: React.FC<JournalViewProps> = ({
               ) : (
                 filteredEntries.map((entry) => {
                   const moodObj = MOODS.find((m) => m.type === entry.mood) || MOODS[0];
+                  const isExpanded = expandedEntryIds.has(entry.id);
+                  const isLongContent = (entry.content || '').length > 160 || (entry.content || '').includes('\n');
                   const dateStr = new Date(entry.createdAt).toLocaleDateString(undefined, {
                     weekday: 'short',
                     year: 'numeric',
@@ -1767,6 +1906,7 @@ export const JournalView: React.FC<JournalViewProps> = ({
                   return (
                     <div
                       key={entry.id}
+                      className="journal-entry-item entry-card-list"
                       style={{
                         background: 'var(--bg-card)',
                         border: '1px solid var(--border-subtle)',
@@ -1774,14 +1914,33 @@ export const JournalView: React.FC<JournalViewProps> = ({
                         padding: '16px 20px',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '10px',
+                        justifyContent: 'space-between',
+                        gap: '12px',
                         position: 'relative',
                         boxShadow: 'var(--shadow-subtle)',
+                        boxSizing: 'border-box',
+                        minWidth: 0,
+                        maxWidth: '100%',
+                        width: '100%',
+                        height: 'auto',
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0, flex: 1 }}>
+                          <h4
+                            style={{
+                              fontSize: '15px',
+                              fontWeight: 700,
+                              margin: 0,
+                              color: 'var(--text-primary)',
+                              cursor: 'pointer',
+                              wordBreak: 'break-word',
+                              minWidth: 0,
+                              lineHeight: '1.3',
+                            }}
+                            onClick={() => setViewingFullEntry(entry)}
+                            title="Click to view full reflection"
+                          >
                             {entry.title}
                           </h4>
                           <span
@@ -1821,21 +1980,49 @@ export const JournalView: React.FC<JournalViewProps> = ({
                           )}
 
                           {(entry.reminderDate || entry.reminderTime) && (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                background: 'var(--accent-amber-subtle)',
-                                border: '1px solid rgba(245, 158, 11, 0.3)',
-                                borderRadius: 'var(--radius-pill)',
-                                padding: '1px 8px',
-                                fontSize: '10.5px',
-                                color: 'var(--accent-amber)',
-                              }}
-                            >
-                              <Clock className="w-3 h-3" />
-                              {entry.reminderDate} {entry.reminderTime}
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  background: 'var(--accent-amber-subtle)',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                                  borderRadius: 'var(--radius-pill)',
+                                  padding: '1px 8px',
+                                  fontSize: '10.5px',
+                                  color: 'var(--accent-amber)',
+                                }}
+                              >
+                                <Clock className="w-3 h-3" />
+                                {entry.reminderDate} {entry.reminderTime}
+                              </span>
+                              <button
+                                type="button"
+                                className="btn-ghost"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  showToast('Adding to Google Calendar...', 'info');
+                                  const res = await createCalendarEvent(entry);
+                                  showToast(res.message, res.success ? 'success' : 'warning');
+                                }}
+                                style={{
+                                  padding: '1px 6px',
+                                  fontSize: '10.5px',
+                                  borderRadius: '6px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  color: '#1a73e8',
+                                  background: 'rgba(26, 115, 232, 0.08)',
+                                  border: '1px solid rgba(26, 115, 232, 0.2)',
+                                  cursor: 'pointer',
+                                }}
+                                title="Add reminder to Google Calendar"
+                              >
+                                <Calendar className="w-3 h-3 text-blue-500" />
+                                <span>Calendar</span>
+                              </button>
                             </span>
                           )}
                         </div>
@@ -1882,6 +2069,32 @@ export const JournalView: React.FC<JournalViewProps> = ({
                                   width: '100%',
                                   padding: '8px 12px',
                                   fontSize: '13px',
+                                  color: 'var(--text-primary)',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  minHeight: 'auto',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  setViewingFullEntry(entry);
+                                }}
+                              >
+                                <Eye className="w-3.5 h-3.5 text-blue-500" />
+                                <span>View Full Reflection</span>
+                              </button>
+                              <button
+                                type="button"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  fontSize: '13px',
                                   color: 'var(--blue)',
                                   background: 'transparent',
                                   border: 'none',
@@ -1900,6 +2113,34 @@ export const JournalView: React.FC<JournalViewProps> = ({
                               >
                                 <Share2 className="w-3.5 h-3.5 text-blue-500" />
                                 <span>Share Reflection</span>
+                              </button>
+                              <button
+                                type="button"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  fontSize: '13px',
+                                  color: '#1a73e8',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  minHeight: 'auto',
+                                }}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  showToast('Adding to Google Calendar...', 'info');
+                                  const res = await createCalendarEvent(entry);
+                                  showToast(res.message, res.success ? 'success' : 'warning');
+                                }}
+                              >
+                                <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                                <span>Add to Google Calendar</span>
                               </button>
                               <button
                                 type="button"
@@ -1985,14 +2226,94 @@ export const JournalView: React.FC<JournalViewProps> = ({
                         </div>
                       </div>
 
-                      <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: '1.6', margin: 0 }}>
-                        {entry.content}
-                      </p>
+                      {/* Excerpt with line clamp and expandable toggle */}
+                      <div>
+                        <p
+                          style={{
+                            fontSize: '13.5px',
+                            color: 'var(--text-secondary)',
+                            lineHeight: '1.6',
+                            margin: 0,
+                            display: isExpanded ? 'block' : '-webkit-box',
+                            WebkitLineClamp: isExpanded ? undefined : 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: isExpanded ? 'visible' : 'hidden',
+                            whiteSpace: isExpanded ? 'pre-wrap' : 'normal',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {entry.content}
+                        </p>
+
+                        {isLongContent && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpandEntry(entry.id);
+                              }}
+                              className="btn-ghost"
+                              style={{
+                                fontSize: '11.5px',
+                                fontWeight: 600,
+                                color: '#1a73e8',
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                cursor: 'pointer',
+                                background: 'rgba(26, 115, 232, 0.08)',
+                                border: '1px solid rgba(26, 115, 232, 0.2)',
+                              }}
+                              title={isExpanded ? 'Collapse to excerpt' : 'Expand full reflection'}
+                            >
+                              <span>{isExpanded ? 'Show excerpt' : 'Read more'}</span>
+                              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            </button>
+
+                            {!isExpanded && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewingFullEntry(entry);
+                                }}
+                                className="btn-ghost"
+                                style={{
+                                  fontSize: '11.5px',
+                                  color: 'var(--text-muted)',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  cursor: 'pointer',
+                                }}
+                                title="Open full reflection in reading dialog"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Full View</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                       {/* Render Audio Player if entry has voice note */}
                       {entry.audioUrl && (
-                        <div style={{ marginTop: '4px' }}>
-                          <audio controls src={entry.audioUrl} style={{ width: '100%', height: '36px' }} />
+                        <div style={{ marginTop: '10px' }}>
+                          <VoiceNotePreviewCard
+                            audioUrl={entry.audioUrl}
+                            fileName={`${entry.title || 'Voice Note'} Audio`}
+                            onDelete={() => {
+                              if (onUpdateEntry) {
+                                onUpdateEntry(entry.id, { audioUrl: undefined });
+                                showToast("Voice note removed from reflection.", "info");
+                              }
+                            }}
+                          />
                         </div>
                       )}
 
@@ -2023,8 +2344,22 @@ export const JournalView: React.FC<JournalViewProps> = ({
                         </div>
                       )}
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '11px',
+                          color: 'var(--text-muted)',
+                          marginTop: 'auto',
+                          paddingTop: '8px',
+                          borderTop: '1px solid var(--border-subtle)',
+                          flexWrap: 'wrap',
+                          gap: '6px',
+                          minWidth: 0,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                           <Calendar className="w-3.5 h-3.5" />
                           <span>{dateStr}</span>
                         </div>
@@ -2180,11 +2515,15 @@ export const JournalView: React.FC<JournalViewProps> = ({
 
             {/* Voice Note Audio Player in Draft View */}
             {viewingDraft.audioUrl && (
-              <div style={{ marginBottom: '16px', background: '#F8F9FA', padding: '12px 16px', borderRadius: '16px', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Mic className="w-4 h-4 text-blue-500" /> Recorded Voice Note
-                </div>
-                <audio controls src={viewingDraft.audioUrl} style={{ width: '100%' }} />
+              <div style={{ marginBottom: '16px' }}>
+                <VoiceNotePreviewCard
+                  audioUrl={viewingDraft.audioUrl}
+                  fileName="Draft Voice Note"
+                  onDelete={() => {
+                    setViewingDraft(prev => prev ? { ...prev, audioUrl: undefined } : null);
+                    showToast("Audio removed from draft.", "info");
+                  }}
+                />
               </div>
             )}
 
@@ -2249,6 +2588,271 @@ export const JournalView: React.FC<JournalViewProps> = ({
                 }}
               >
                 <Edit3 className="w-4 h-4 mr-1.5 inline" /> Edit Draft
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📖 Full Reflection Reading Modal */}
+      {viewingFullEntry && (
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(32, 33, 36, 0.55)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9998,
+            padding: '16px',
+          }}
+          onClick={() => setViewingFullEntry(null)}
+        >
+          <div
+            className="modal-content card-shell"
+            style={{
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '88vh',
+              overflowY: 'auto',
+              background: 'var(--bg-card)',
+              borderRadius: '24px',
+              padding: '24px 26px',
+              border: '1px solid var(--border)',
+              boxShadow: 'var(--shadow-elevated)',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                  {viewingFullEntry.mood && (
+                    <span
+                      style={{
+                        padding: '2px 10px',
+                        borderRadius: 'var(--radius-pill)',
+                        border: '1px solid var(--border)',
+                        background: 'var(--surface)',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {viewingFullEntry.mood}
+                    </span>
+                  )}
+                  {viewingFullEntry.folder && (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: 'var(--bg-main)',
+                        padding: '2px 10px',
+                        borderRadius: 'var(--radius-pill)',
+                        fontSize: '11px',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      <FolderPlus className="w-3 h-3 text-blue-500" />
+                      {viewingFullEntry.folder}
+                    </span>
+                  )}
+                </div>
+
+                <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                  {viewingFullEntry.title}
+                </h2>
+
+                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>{new Date(viewingFullEntry.createdAt).toLocaleString()}</span>
+                  {viewingFullEntry.updatedAt && viewingFullEntry.updatedAt !== viewingFullEntry.createdAt && (
+                    <span>· Edited: {new Date(viewingFullEntry.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => setViewingFullEntry(null)}
+                style={{ padding: '6px', borderRadius: '50%' }}
+                title="Close reading view"
+              >
+                <X className="w-5 h-5 text-secondary" />
+              </button>
+            </div>
+
+            {/* Reminder Schedule Badge if present */}
+            {(viewingFullEntry.reminderDate || viewingFullEntry.reminderTime) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'var(--accent-amber-subtle)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    borderRadius: 'var(--radius-pill)',
+                    padding: '2px 10px',
+                    fontSize: '11px',
+                    color: 'var(--accent-amber)',
+                  }}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Reminder: {viewingFullEntry.reminderDate} {viewingFullEntry.reminderTime}</span>
+                </span>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={async () => {
+                    showToast('Adding to Google Calendar...', 'info');
+                    const res = await createCalendarEvent(viewingFullEntry);
+                    showToast(res.message, res.success ? 'success' : 'warning');
+                  }}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    borderRadius: '6px',
+                    color: '#1a73e8',
+                    background: 'rgba(26, 115, 232, 0.08)',
+                    border: '1px solid rgba(26, 115, 232, 0.2)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Calendar className="w-3 h-3 text-blue-500" />
+                  <span>Sync to Google Calendar</span>
+                </button>
+              </div>
+            )}
+
+            {/* Full Unabridged Reflection Body */}
+            <div
+              style={{
+                fontSize: '14px',
+                lineHeight: '1.7',
+                color: 'var(--text-primary)',
+                whiteSpace: 'pre-wrap',
+                background: 'var(--surface-hover)',
+                padding: '16px 20px',
+                borderRadius: '16px',
+                border: '1px solid var(--border-subtle)',
+                maxHeight: '400px',
+                overflowY: 'auto',
+              }}
+            >
+              {viewingFullEntry.content}
+            </div>
+
+            {/* Voice Note Player if present */}
+            {viewingFullEntry.audioUrl && (
+              <div style={{ width: '100%' }}>
+                <VoiceNotePreviewCard
+                  audioUrl={viewingFullEntry.audioUrl}
+                  fileName={`${viewingFullEntry.title} Audio`}
+                  onDelete={() => {}}
+                />
+              </div>
+            )}
+
+            {/* Attachments if present */}
+            {viewingFullEntry.attachments && viewingFullEntry.attachments.length > 0 && (
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Paperclip className="w-4 h-4 text-blue-500" />
+                  <span>Attachments ({viewingFullEntry.attachments.length})</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {viewingFullEntry.attachments.map(att => (
+                    <div
+                      key={att.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        padding: '6px 12px',
+                        borderRadius: '10px',
+                        fontSize: '12px',
+                      }}
+                    >
+                      {att.type === 'image' && <Camera className="w-3.5 h-3.5 text-blue-500" />}
+                      {att.type === 'location' && <MapPin className="w-3.5 h-3.5 text-emerald-500" />}
+                      {att.type === 'audio' && <Mic className="w-3.5 h-3.5 text-purple-500" />}
+                      {att.type === 'file' && <Paperclip className="w-3.5 h-3.5 text-amber-500" />}
+                      <span>{att.name}</span>
+                      {att.url && (
+                        <a
+                          href={att.url}
+                          download={att.name}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: '11px', color: 'var(--blue)', marginLeft: '4px' }}
+                        >
+                          Download
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tags */}
+            {viewingFullEntry.tags && viewingFullEntry.tags.length > 0 && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <Tag className="w-3.5 h-3.5 text-muted" />
+                {viewingFullEntry.tags.map(tag => (
+                  <span
+                    key={tag}
+                    style={{
+                      background: 'var(--bg-main)',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-pill)',
+                      fontSize: '11px',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Modal Bottom Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setViewingFullEntry(null)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  const toEdit = viewingFullEntry;
+                  setViewingFullEntry(null);
+                  handleStartEdit(toEdit);
+                }}
+              >
+                <Edit className="w-3.5 h-3.5 inline mr-1" />
+                <span>Edit Reflection</span>
               </button>
             </div>
           </div>

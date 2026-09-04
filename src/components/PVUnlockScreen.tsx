@@ -2,9 +2,10 @@ import { verifyPinCode } from '../services/cryptoEngine';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { UserSession, VaultCredentials } from '../types';
 import { NexusMindVaultLogo } from './NexusMindVaultLogo';
-import { Shield, AlertTriangle, LogOut, Delete, KeyRound } from 'lucide-react';
+import { Shield, AlertTriangle, LogOut, Delete, KeyRound, Fingerprint } from 'lucide-react';
 import { vaultAudio } from '../utils/vaultAudioSynthesizer';
 import { getVaultSettings } from '../services/vaultStorage';
+import { isBiometricAvailable, authenticateBiometric } from '../services/biometricAuth';
 
 interface PVUnlockScreenProps {
   user: UserSession;
@@ -27,7 +28,13 @@ export const PVUnlockScreen: React.FC<PVUnlockScreenProps> = ({
   const [isLockedOut, setIsLockedOut] = useState(false);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [imgError, setImgError] = useState(false);
+  const [useBio, setUseBio] = useState(false);
+  const [isBioVerifying, setIsBioVerifying] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    isBiometricAvailable().then(setUseBio);
+  }, []);
 
   useEffect(() => {
     setImgError(false);
@@ -93,6 +100,28 @@ export const PVUnlockScreen: React.FC<PVUnlockScreenProps> = ({
     },
     [user.uid, credentials, failedAttempts, isLockedOut, onUnlockSuccess, showToast]
   );
+
+  // Hardware Biometric Quick Unlock (Reveals PV Only)
+  const handleBiometricUnlock = useCallback(async () => {
+    if (isLockedOut || isBioVerifying) return;
+    setIsBioVerifying(true);
+    try {
+      const success = await authenticateBiometric(user.uid);
+      if (success) {
+        try { vaultAudio.playUnlockSuccess(); } catch {}
+        showToast('🔓 Biometric Verified: Protected Vault Access Granted', 'success');
+        onUnlockSuccess('standard');
+      } else {
+        try { vaultAudio.playErrorBuzzer(); } catch {}
+        showToast('Biometric verification cancelled or failed.', 'error');
+      }
+    } catch (err: any) {
+      console.error('[Biometric] Verification error:', err);
+      showToast(err.message || 'Biometric authentication failed.', 'error');
+    } finally {
+      setIsBioVerifying(false);
+    }
+  }, [user.uid, isLockedOut, isBioVerifying, onUnlockSuccess, showToast]);
 
   // Handle input change from physical keyboard / paste
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -323,6 +352,47 @@ export const PVUnlockScreen: React.FC<PVUnlockScreenProps> = ({
               );
             })}
           </div>
+
+          {/* Hardware Biometric Quick Unlock Button (Unlocks PV Only) */}
+          {useBio && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <button
+                type="button"
+                onClick={handleBiometricUnlock}
+                disabled={isLockedOut || isBioVerifying}
+                className="bio-btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 20px',
+                  borderRadius: '14px',
+                  background: 'rgba(26, 115, 232, 0.08)',
+                  border: '1px solid rgba(26, 115, 232, 0.28)',
+                  color: 'var(--accent-blue)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: isLockedOut || isBioVerifying ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)',
+                  transition: 'all 0.15s ease',
+                  userSelect: 'none',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLockedOut && !isBioVerifying) {
+                    e.currentTarget.style.background = 'rgba(26, 115, 232, 0.15)';
+                    e.currentTarget.style.borderColor = 'var(--accent-blue)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(26, 115, 232, 0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(26, 115, 232, 0.28)';
+                }}
+              >
+                <Fingerprint size={18} />
+                <span>{isBioVerifying ? 'Scanning Biometrics...' : '🔓 Unlock with Face ID / Fingerprint'}</span>
+              </button>
+            </div>
+          )}
 
           {/* Numeric Keypad Grid (3x4) */}
           <div

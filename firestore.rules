@@ -3,11 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default Deny: Global Safety Net
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     // Authentication Helper Functions
     function isSignedIn() {
       return request.auth != null;
@@ -17,41 +12,48 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Strict User-Isolated Domain Rules (ABAC / Owner-Bound)
+    // Strict User-Isolated Domain Rules (Zero-Knowledge ABAC / Owner-Bound)
     match /users/{userId} {
-      // User Profile Document
+      // User Root Profile Document
       allow read, write: if isOwner(userId);
 
-      // 1. Zero-Knowledge Encrypted Journal Entries
+      // Recursive Wildcard: Permits all user-owned subcollections
+      // (entries, timeCapsules, settings, guardians, graphNodes, auditEvents)
+      match /{allChildren=**} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Explicit Domain Partitions
       match /entries/{entryId} {
         allow read, write: if isOwner(userId);
       }
 
-      // 2. Sealed Time Capsules
       match /timeCapsules/{capsuleId} {
         allow read, write: if isOwner(userId);
       }
 
-      // 3. Legacy Guardian Policies & Heartbeats
       match /guardians/{guardianId} {
         allow read, write: if isOwner(userId);
       }
 
-      // 4. User Vault Configuration & Air-Gap Settings
       match /settings/{docId} {
         allow read, write: if isOwner(userId);
       }
 
-      // 5. Semantic Memory Graph Nodes
       match /graphNodes/{nodeId} {
         allow read, write: if isOwner(userId);
       }
 
-      // 6. Cryptographic Audit Events
       match /auditEvents/{eventId} {
         allow read, create: if isOwner(userId);
         allow update, delete: if false;
       }
     }
+
+    // Default Deny: Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }
+

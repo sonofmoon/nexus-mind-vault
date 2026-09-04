@@ -1,8 +1,7 @@
 import { deriveKeyFromPassphrase, deriveHmacKeyFromPassphrase, setActiveSessionKey, setActiveHmacKey, base64ToBuffer, generateRandomSalt, verifySecretPassphrase } from '../services/cryptoEngine';
 import React, { useState } from 'react';
 import { NexusMindVaultLogo } from './NexusMindVaultLogo';
-import { Lock, ShieldCheck, X, Eye, EyeOff, RotateCcw, CheckCircle2, ArrowLeft, Fingerprint } from 'lucide-react';
-import { verifyBiometricCredential, isWebAuthnSupported } from '../utils/webAuthnHelper';
+import { Lock, ShieldCheck, X, Eye, EyeOff, RotateCcw, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { VaultCredentials } from '../types';
 
 interface UnlockVaultModalProps {
@@ -13,6 +12,7 @@ interface UnlockVaultModalProps {
   onResetSecretCode?: (newSecret: string) => void;
   userEmail?: string;
   showToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
+  onUnlockPV?: () => void;
 }
 
 export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
@@ -23,6 +23,7 @@ export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
   onResetSecretCode,
   userEmail,
   showToast,
+  onUnlockPV,
 }) => {
   const [secretInput, setSecretInput] = useState('');
   const [showSecret, setShowSecret] = useState(false);
@@ -35,26 +36,6 @@ export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
   const [showNewSecret, setShowNewSecret] = useState(false);
   const [resetStep, setResetStep] = useState<'verify' | 'new_code'>('verify');
   const [securityAnswer, setSecurityAnswer] = useState('');
-  const [isBiometricsAvailable, setIsBiometricsAvailable] = useState(false);
-  React.useEffect(() => {
-    isWebAuthnSupported().then(setIsBiometricsAvailable);
-  }, []);
-
-  const handleBiometricUnlock = async () => {
-    try {
-      const verified = await verifyBiometricCredential('vault_user');
-      if (verified) {
-        showToast('🔒 Touch ID / Windows Hello verified!', 'success');
-        onSuccess();
-        onClose();
-      } else {
-        showToast('Biometric verification cancelled or failed.', 'error');
-      }
-    } catch {
-      showToast('Biometric verification failed.', 'error');
-    }
-  };
-
 
   if (!isOpen) return null;
 
@@ -70,7 +51,7 @@ export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
     const isValid = await verifySecretPassphrase(secretInput.trim(), credentials);
 
     if (isValid) {
-      // 🔒 Derive Real AES-GCM-256 Key via PBKDF2 (100,000 Iterations)
+      // 🔐 Derive Real AES-GCM-256 Key via PBKDF2 (100,000 Iterations)
       const salt = credentials.salt ? base64ToBuffer(credentials.salt) : generateRandomSalt(16);
       try {
         const [cryptoKey, hmacKey] = await Promise.all([
@@ -82,11 +63,13 @@ export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
         showToast("Secret Code, AES-256 & HMAC-SHA256 Keys Derived: Nexus MIND Vault Unlocked.", "success");
         setSecretInput('');
         onSuccess();
+        onUnlockPV?.();
       } catch (err) {
         console.error('[CryptoEngine] Key derivation failed:', err);
         showToast("Cryptographic derivation error. Unlocking in fallback mode.", "warning");
         setSecretInput('');
         onSuccess();
+        onUnlockPV?.();
       }
     } else {
       setIsInvalid(true);
@@ -504,4 +487,6 @@ export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
     </div>
   );
 };
+
+
 

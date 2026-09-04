@@ -93,7 +93,7 @@ export async function deriveKeyFromPassphrase(
   return await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt as ArrayBuffer,
+      salt: salt as unknown as ArrayBuffer,
       iterations,
       hash: 'SHA-256',
     },
@@ -192,7 +192,7 @@ export async function encryptData<T>(
   const cipherBuffer = await crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
-      iv: iv as ArrayBuffer,
+      iv: iv as unknown as ArrayBuffer,
       tagLength: 128,
     },
     key,
@@ -220,11 +220,11 @@ export async function decryptData<T>(
   const decryptedBuffer = await crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
-      iv: ivBytes as ArrayBuffer,
+      iv: ivBytes as unknown as ArrayBuffer,
       tagLength: payload.tagLength || 128,
     },
     key,
-    cipherBytes as ArrayBuffer
+    cipherBytes as unknown as ArrayBuffer
   );
 
   const decoder = new TextDecoder();
@@ -263,7 +263,7 @@ export async function wrapCryptoKey(
     wrappingKey,
     {
       name: 'AES-GCM',
-      iv: iv as ArrayBuffer,
+      iv: iv as unknown as ArrayBuffer,
       tagLength: 128,
     }
   );
@@ -292,11 +292,11 @@ export async function unwrapCryptoKey(
 
   return await crypto.subtle.unwrapKey(
     'raw',
-    wrappedKeyBytes as ArrayBuffer,
+    wrappedKeyBytes as unknown as ArrayBuffer,
     wrappingKey,
     {
       name: 'AES-GCM',
-      iv: iv as ArrayBuffer,
+      iv: iv as unknown as ArrayBuffer,
       tagLength: 128,
     },
     {
@@ -504,7 +504,7 @@ export async function deriveHmacKeyFromPassphrase(
   return await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt as ArrayBuffer,
+      salt: salt as unknown as ArrayBuffer,
       iterations,
       hash: 'SHA-256',
     },
@@ -553,7 +553,7 @@ export async function verifyHMAC(
     const rawString = typeof data === 'string' ? data : JSON.stringify(data);
     const signatureBytes = base64ToBuffer(signatureBase64);
 
-    return await crypto.subtle.verify('HMAC', key, signatureBytes as ArrayBuffer, encoder.encode(rawString));
+    return await crypto.subtle.verify('HMAC', key, signatureBytes as unknown as ArrayBuffer, encoder.encode(rawString));
   } catch {
     return false;
   }

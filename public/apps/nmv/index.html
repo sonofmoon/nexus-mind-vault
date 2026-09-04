@@ -98,7 +98,7 @@
       }
     ]
   }
-  </script>
+</script>
 
   <style>
     /* Google Material 3 Design Tokens & Base Theme */
@@ -821,6 +821,390 @@
       flex-wrap: wrap;
       gap: 12px;
     }
+  
+    /* Nexura AI: Sovereign Neural Voice Sanctuary Showcase */
+    .nexura-ai-shell {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.25);
+      backdrop-filter: blur(12px);
+      position: relative;
+      overflow: hidden;
+    }
+    .nexura-ai-shell::before {
+      content: '';
+      position: absolute;
+      top: -120px;
+      right: -80px;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(147, 51, 234, 0.18) 0%, rgba(26, 115, 232, 0.08) 50%, transparent 75%);
+      pointer-events: none;
+    }
+    .nexura-pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .nexura-pillar-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 16px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .nexura-pillar-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(147, 51, 234, 0.4);
+    }
+    .nexura-pillar-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 10px;
+      background: var(--google-purple-subtle);
+      color: var(--google-purple);
+    }
+    .nexura-pillar-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 6px;
+      font-family: var(--font-google);
+    }
+    .nexura-pillar-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .nexura-demo-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 20px;
+    }
+    .nexura-controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .nexura-scenario-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .nexura-chip {
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface-elevated);
+      color: var(--text-secondary);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .nexura-chip:hover {
+      border-color: var(--google-purple);
+      color: var(--text-main);
+    }
+    .nexura-chip.active {
+      background: var(--google-purple-subtle);
+      color: var(--google-purple);
+      border-color: rgba(147, 51, 234, 0.45);
+      box-shadow: 0 0 12px rgba(147, 51, 234, 0.2);
+    }
+    .nexura-action-btns {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .nexura-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+    }
+    .nexura-chamber-panel {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+    }
+    .nexura-orb-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 0 12px;
+      position: relative;
+    }
+    .nexura-orb-wrap {
+      position: relative;
+      width: 110px;
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .nexura-orb {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #c084fc, #9333ea 45%, #4c1d95 85%);
+      box-shadow: 0 0 35px rgba(168, 85, 247, 0.65), inset 0 0 15px rgba(255, 255, 255, 0.4);
+      animation: orbFloat 3s ease-in-out infinite alternate;
+      position: relative;
+      z-index: 2;
+      transition: all 0.3s ease;
+    }
+    .nexura-orb.speaking {
+      animation: orbSpeak 1.2s ease-in-out infinite alternate;
+      box-shadow: 0 0 50px rgba(192, 132, 252, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.6);
+    }
+    .nexura-orb.listening {
+      background: radial-gradient(circle at 35% 35%, #38bdf8, #1a73e8 50%, #0369a1 85%);
+      box-shadow: 0 0 40px rgba(56, 189, 248, 0.75), inset 0 0 15px rgba(255, 255, 255, 0.5);
+      animation: orbListen 1.5s ease-in-out infinite alternate;
+    }
+    .nexura-orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1.5px solid rgba(168, 85, 247, 0.35);
+      pointer-events: none;
+    }
+    .nexura-orb-ring.r1 {
+      width: 105px;
+      height: 105px;
+      animation: ringExpand 2.8s linear infinite;
+    }
+    .nexura-orb-ring.r2 {
+      width: 130px;
+      height: 130px;
+      animation: ringExpand 2.8s linear infinite 0.9s;
+    }
+    @keyframes orbFloat {
+      0% { transform: translateY(0) scale(1); }
+      100% { transform: translateY(-6px) scale(1.04); }
+    }
+    @keyframes orbSpeak {
+      0% { transform: scale(1); filter: brightness(1); }
+      50% { transform: scale(1.12); filter: brightness(1.2); }
+      100% { transform: scale(0.96); filter: brightness(0.95); }
+    }
+    @keyframes orbListen {
+      0% { transform: scale(0.98); }
+      100% { transform: scale(1.06); }
+    }
+    @keyframes ringExpand {
+      0% { transform: scale(0.8); opacity: 0.8; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+    .nexura-eq-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 3px;
+      height: 26px;
+      margin-top: 10px;
+      width: 100%;
+      max-width: 280px;
+    }
+    .nexura-eq-bar {
+      flex: 1;
+      background: linear-gradient(180deg, #c084fc, #9333ea);
+      border-radius: 2px;
+      min-height: 4px;
+      height: 6px;
+      transition: height 0.12s ease;
+    }
+    .nexura-dialogue-stream {
+      background: var(--code-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 14px;
+      min-height: 160px;
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .dialogue-turn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      max-width: 92%;
+      animation: fadeInTurn 0.3s ease;
+    }
+    @keyframes fadeInTurn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .dialogue-turn.user {
+      align-self: flex-end;
+      background: var(--google-blue-subtle);
+      border: 1px solid rgba(26, 115, 232, 0.35);
+      color: var(--text-main);
+    }
+    .dialogue-turn.ai {
+      align-self: flex-start;
+      background: var(--google-purple-subtle);
+      border: 1px solid rgba(147, 51, 234, 0.35);
+      color: var(--text-main);
+    }
+    .dialogue-speaker {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .dialogue-speaker.user { color: #38bdf8; }
+    .dialogue-speaker.ai { color: #c084fc; }
+
+    /* Cognitive Breakdown Card Panel */
+    .nexura-breakdown-panel {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .breakdown-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .breakdown-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .breakdown-kpi-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .breakdown-kpi-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .breakdown-kpi-box .label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .breakdown-kpi-box .value {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    .trajectory-wrap {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .trajectory-flow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .trajectory-node {
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+    .trajectory-node.highlight {
+      background: var(--google-green-subtle);
+      color: var(--google-green);
+      border-color: rgba(30, 142, 62, 0.4);
+    }
+    .distortion-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .distortion-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(234, 67, 53, 0.12);
+      color: #ea4335;
+      border: 1px solid rgba(234, 67, 53, 0.25);
+    }
+    .takeaway-quote {
+      background: var(--google-purple-subtle);
+      border-left: 3px solid #9333ea;
+      padding: 10px 14px;
+      border-radius: 0 10px 10px 0;
+      font-size: 12.5px;
+      color: var(--text-main);
+      line-height: 1.5;
+      font-style: italic;
+    }
+    .sprouting-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px dashed rgba(168, 85, 247, 0.4);
+      border-radius: 10px;
+      font-size: 11.5px;
+      color: #c084fc;
+      font-weight: 700;
+    }
+    @media (max-width: 980px) {
+      .nexura-pillars-grid { grid-template-columns: 1fr 1fr; }
+      .nexura-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .nexura-pillars-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -829,7 +1213,7 @@
   <div class="challenge-ribbon">
     <span>🏆 <strong>Cohort 3 • Accelerate AI with Cloud Run</strong> — Gen AI Academy APAC Edition Ideathon Challenge</span>
     <span class="challenge-hashtag-pill">#AccelerateAIwithCloudRun</span>
-    <a href="#pv-nmv-paradigm" style="color: #ffffff; text-decoration: underline; font-size: 12.5px; margin-left: 8px;">Explore PV & NMV Dual-Partition Architecture →</a>
+    <a href="#pv-nmv-paradigm" style="color: #ffffff; text-decoration: underline; font-size: 12.5px; margin-left: 8px;">Explore PV & NMV Dual-Partition Architecture </a>
   </div>
 
   <!-- Navigation Header -->
@@ -848,6 +1232,7 @@
         <a href="#pv-nmv-paradigm">PV vs NMV</a>
         <a href="#challenge-matrix">Challenge Matrix</a>
         <a href="#innovations">Innovations</a>
+        <a href="#nexura-ai" style="color: var(--google-purple); font-weight: 700;">🎙️ Nexura AI</a>
         <a href="#simulator">Live Simulator</a>
         <a href="#architecture">Architecture</a>
         <a href="#faq">FAQ</a>
@@ -930,14 +1315,14 @@
     <div class="section-title-wrap">
       <div class="section-tag">Flagship Privacy Breakthrough</div>
       <h2 class="section-title">The Dual-Partition Architecture: PV vs NMV</h2>
-      <p class="section-desc">Why traditional encrypted apps fail under physical coercion or shoulder-surfing — and how our dual-layer partition creates sovereign, plausible deniability.</p>
+      <p class="section-desc">Why traditional encrypted apps fail under physical coercion or shoulder-surfing  and how our dual-layer partition creates sovereign, plausible deniability.</p>
     </div>
 
     <div class="pv-nmv-showcase-card">
       <!-- Interactive Toggle Bar -->
       <div class="partition-toggle-bar">
         <button class="partition-btn active-pv" id="btnTogglePV">
-          <span>🍃 1. Protected Vault (PV - Everyday Cover Mode)</span>
+          <span>🌿 1. Protected Vault (PV - Everyday Cover Mode)</span>
         </button>
         <button class="partition-btn inactive" id="btnToggleNMV">
           <span>🔒 2. Nexus Mind Vault (NMV - Sovereign Enclave)</span>
@@ -949,7 +1334,7 @@
         <!-- Left Column: Architectural Role & Posture -->
         <div class="partition-info-box">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-            <span id="pvNmvRoleBadge" style="font-size: 12px; font-weight: 800; text-transform: uppercase; color: #1e8e3e; background: rgba(30, 142, 62, 0.15); padding: 4px 10px; border-radius: 8px;">🍃 Camouflaged Public Cover Mode</span>
+            <span id="pvNmvRoleBadge" style="font-size: 12px; font-weight: 800; text-transform: uppercase; color: #1e8e3e; background: rgba(30, 142, 62, 0.15); padding: 4px 10px; border-radius: 8px;">🌿 Camouflaged Public Cover Mode</span>
             <span id="pvNmvSecurityScore" style="font-size: 12px; font-weight: 700; color: var(--text-muted);">Plausible Deniability: 100%</span>
           </div>
 
@@ -1001,7 +1386,7 @@
           <thead>
             <tr>
               <th>Architectural Dimension</th>
-              <th>🍃 Protected Vault (PV - Cover Mode)</th>
+              <th>🌿 Protected Vault (PV - Cover Mode)</th>
               <th>🔒 Nexus Mind Vault (NMV - Sovereign Enclave)</th>
             </tr>
           </thead>
@@ -1023,8 +1408,8 @@
             </tr>
             <tr>
               <td style="font-weight: 700;">Gemini AI Capabilities</td>
-              <td style="color: var(--text-secondary);">Standard reflective prompt assistance</td>
-              <td style="color: #1a73e8; font-weight: 700;">Multi-turn Gemini 3.6/3.7 Cognitive Mirror & D3 Graph</td>
+              <td style="color: var(--text-secondary);">Decoy text assistant only (Nexura Voice Sanctuary is 100% hidden & air-gapped)</td>
+              <td style="color: #1a73e8; font-weight: 700;">🎙️ Nexura AI: Bi-Directional Voice Sanctuary, 3D Resonance Orb, Cognitive Breakdown & D3 Sprouting</td>
             </tr>
             <tr>
               <td style="font-weight: 700;">Anti-Coercion Defense</td>
@@ -1052,7 +1437,7 @@
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <span style="font-size: 12px; font-weight: 700; background: var(--google-blue-subtle); color: var(--google-blue); padding: 6px 14px; border-radius: 20px;">#AccelerateAIwithCloudRun</span>
-          <span style="font-size: 12px; font-weight: 700; background: var(--google-green-subtle); color: var(--google-green); padding: 6px 14px; border-radius: 20px;">✓ 100% Challenge Pass</span>
+          <span style="font-size: 12px; font-weight: 700; background: var(--google-green-subtle); color: var(--google-green); padding: 6px 14px; border-radius: 20px;"> 100% Challenge Pass</span>
         </div>
       </div>
       <p style="font-size: 14.5px; color: var(--text-secondary); line-height: 1.6;">
@@ -1123,7 +1508,7 @@
         <div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <span style="font-size: 13px; font-weight: 700;">Live Encrypted Output (AES-GCM-256):</span>
-            <span id="demoStatusBadge" style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(30, 142, 62, 0.15); color: #1e8e3e;">🟢 Real Vault Encrypted</span>
+            <span id="demoStatusBadge" style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(30, 142, 62, 0.15); color: #1e8e3e;"> Real Vault Encrypted</span>
           </div>
 
           <div class="cipher-stream-box" id="demoCipherStream">
@@ -1138,8 +1523,8 @@
 
           <div style="margin-top: 14px; display: flex; gap: 10px; font-size: 12px; color: var(--text-secondary);">
             <span>🛡️ CSPRNG Entropy: <strong>256-bit Valid</strong></span>
-            <span>•</span>
-            <span>⚡ Key Iterations: <strong>100,000 Rounds</strong></span>
+            <span>|</span>
+            <span>Key Iterations: <strong>100,000 Rounds</strong></span>
           </div>
         </div>
       </div>
@@ -1156,21 +1541,22 @@
 
     <div class="features-grid">
       <!-- Feature 1 -->
-      <div class="feature-card">
+      <div class="feature-card" style="border-color: rgba(147, 51, 234, 0.4); box-shadow: 0 4px 20px rgba(147, 51, 234, 0.1);">
         <div class="feature-icon-wrap" style="background: var(--google-purple-subtle); color: var(--google-purple);">
-          <span style="font-size: 24px;">🧠</span>
+          <span style="font-size: 24px;">🎙️</span>
         </div>
-        <h3 class="feature-title">Cognitive AI Mirror</h3>
-        <p class="feature-text">Multi-turn reflection engine utilizing Google Gemini 3.6/3.7 Flash models. Extracts cognitive themes, emotional longitudinal arcs, and actionable insights without storing plaintext.</p>
+        <div style="font-size: 11px; font-weight: 800; color: var(--google-purple); text-transform: uppercase; margin-bottom: 4px;">Centerpiece Feature</div>
+        <h3 class="feature-title">Nexura AI: Bi-Directional Voice Sanctuary</h3>
+        <p class="feature-text">Real-time conversational voice AI mirror powered by multi-turn Google Gemini. Delivers zero-click hands-free speech dialogue, 3D Neural Resonance visualizer, real-time VAD, and automated post-session Cognitive Breakdown Cards.</p>
       </div>
 
       <!-- Feature 2 -->
       <div class="feature-card">
         <div class="feature-icon-wrap" style="background: var(--google-red-subtle); color: var(--google-red);">
-          <span style="font-size: 24px;">🎭</span>
+          <span style="font-size: 24px;">🛡️</span>
         </div>
         <h3 class="feature-title">Anti-Coercion Duress Stealth</h3>
-        <p class="feature-text">Plausible deniability partition. Entering the secondary Duress PIN mounts an air-gapped Decoy Persona with realistic benign logs, keeping real data invisible under physical duress.</p>
+        <p class="feature-text">Plausible deniability partition. Entering the secondary Duress PIN mounts an air-gapped Decoy Persona with realistic benign logs. Nexura AI remains completely hidden and air-gapped under coercion.</p>
       </div>
 
       <!-- Feature 3 -->
@@ -1179,7 +1565,7 @@
           <span style="font-size: 24px;">🔒</span>
         </div>
         <h3 class="feature-title">Zero-Knowledge Enclave</h3>
-        <p class="feature-text">Client-side WebCrypto encryption. Passphrases never cross the network. All entries are sealed with AES-GCM-256 and PBKDF2 with 100,000 hashing iterations.</p>
+        <p class="feature-text">Client-side WebCrypto encryption. Passphrases never cross the network. All entries are sealed with AES-GCM-256 and PBKDF2 with 100,000 hashing iterations in volatile memory only.</p>
       </div>
 
       <!-- Feature 4 -->
@@ -1188,7 +1574,7 @@
           <span style="font-size: 24px;">🕸️</span>
         </div>
         <h3 class="feature-title">D3 Semantic Memory Graph</h3>
-        <p class="feature-text">Interactive force-directed graph mapping your thoughts, projects, and emotions into concept vertices and synaptic relationship links with instant search and cluster filtering.</p>
+        <p class="feature-text">Interactive physics force-directed graph mapping thoughts, projects, and emotions into concept vertices and synaptic links. Nexura AI voice sessions automatically sprout new concept nodes with purple resonance rings.</p>
       </div>
 
       <!-- Feature 5 -->
@@ -1203,7 +1589,7 @@
       <!-- Feature 6 -->
       <div class="feature-card">
         <div class="feature-icon-wrap" style="background: var(--google-blue-subtle); color: var(--google-blue);">
-          <span style="font-size: 24px;">🛡️</span>
+          <span style="font-size: 24px;">📜</span>
         </div>
         <h3 class="feature-title">Legacy Guardian Protocol</h3>
         <p class="feature-text">Multi-policy emergency living will with automated Proof-of-Life heartbeats. In the event of prolonged inactivity, critical directives are dispatched to designated contacts.</p>
@@ -1211,6 +1597,176 @@
     </div>
   </section>
 
+
+  <!-- Nexura AI: Sovereign Neural Voice Sanctuary Showcase -->
+  <section class="container" id="nexura-ai" style="scroll-margin-top: 90px; margin-top: 80px;">
+    <div class="section-title-wrap">
+      <div class="section-tag" style="background: var(--google-purple-subtle); color: var(--google-purple); border-color: rgba(147, 51, 234, 0.3);">🎙️ The Centerpiece of Nexus Mind Vault</div>
+      <h2 class="section-title">Nexura AI — Sovereign Neural Voice Sanctuary</h2>
+      <p class="section-desc">A groundbreaking bi-directional voice mirror that transforms spoken vulnerability into structured cognitive clarity. Converse hands-free with real-time Gemini AI, experience live 3D neural resonance, and automatically seal CBT-informed cognitive breakdowns into your encrypted vault.</p>
+    </div>
+
+    <div class="nexura-ai-shell">
+      <!-- 4 Core Pillars of Nexura AI -->
+      <div class="nexura-pillars-grid">
+        <div class="nexura-pillar-card">
+          <div class="nexura-pillar-icon">🎙️</div>
+          <div class="nexura-pillar-title">Bi-Directional Voice AI</div>
+          <div class="nexura-pillar-desc">Hands-free speech-to-speech reflection with Web Audio API AnalyserNode, real-time VAD, and instant zero-lag barge-in interruption.</div>
+        </div>
+        <div class="nexura-pillar-card">
+          <div class="nexura-pillar-icon">🔮</div>
+          <div class="nexura-pillar-title">3D Resonance Orb</div>
+          <div class="nexura-pillar-desc">Living ambient resonance sphere that pulses dynamically with vocal pitch, acoustic cadence, and a 24-band FFT frequency spectrum.</div>
+        </div>
+        <div class="nexura-pillar-card">
+          <div class="nexura-pillar-icon">🧠</div>
+          <div class="nexura-pillar-title">Cognitive Breakdown</div>
+          <div class="nexura-pillar-desc">Automatically synthesizes Emotional Trajectory, Cognitive Distortions (Catastrophizing, All-or-Nothing), and Socratic Takeaways upon session end.</div>
+        </div>
+        <div class="nexura-pillar-card" style="border-color: rgba(26, 115, 232, 0.4);">
+          <div class="nexura-pillar-icon" style="background: var(--google-blue-subtle); color: var(--google-blue);">🛡️</div>
+          <div class="nexura-pillar-title">Strict NMV Segregation</div>
+          <div class="nexura-pillar-desc">Exclusively unlocked inside Sovereign NMV. 100% invisible, disabled, and air-gapped in Protected Vault (PV) cover mode for duress protection.</div>
+        </div>
+      </div>
+
+      <!-- Live Voice Experience Simulation Console -->
+      <div class="nexura-demo-container">
+        <!-- Interactive Controls Bar -->
+        <div class="nexura-controls-bar">
+          <div class="nexura-scenario-chips" id="nexuraScenarioChips">
+            <button class="nexura-chip active" data-scenario="overwhelm">💭 1. Deadline Overwhelm & Priority Triage</button>
+            <button class="nexura-chip" data-scenario="imposter">🧗 2. Imposter Anxiety & High Standards</button>
+            <button class="nexura-chip" data-scenario="clarity">🧭 3. Values Alignment & Deep Reflection</button>
+          </div>
+          <div class="nexura-action-btns">
+            <button class="btn btn-primary" id="nexuraVoiceToggleBtn" style="background: linear-gradient(135deg, #9333ea, #7c3aed); border: none; font-weight: 700;">
+              <span id="nexuraVoiceBtnText">🔊 ▶ Play Scenario Dialogue</span>
+            </button>
+            <button class="btn btn-secondary" id="nexuraMicBtn" style="border-color: #9333ea; background: rgba(147, 51, 234, 0.12); color: #c084fc; font-weight: 700;">
+              <span id="nexuraMicBtnText">🎤 Speak With Your Mic (Live Gemini AI)</span>
+            </button>
+            <button class="btn btn-secondary" id="nexuraTypeThoughtBtn" style="font-weight: 600;">
+              <span>💬 Type Thought for Gemini</span>
+            </button>
+            <button class="btn btn-secondary" id="nexuraBargeInBtn" style="font-weight: 600;">
+              <span>⚡ Test Barge-In</span>
+            </button>
+          </div>
+          
+          <!-- Optional Inline Custom Thought Input (Toggleable) -->
+          <div id="customThoughtInputRow" style="display: none; width: 100%; margin-top: 12px; gap: 8px;">
+            <input type="text" id="customThoughtTextInput" placeholder="Type what's on your mind (e.g. 'I feel anxious about delivery deadlines...')" style="flex: 1; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(147, 51, 234, 0.4); background: var(--bg-surface-elevated); color: var(--text-main); font-size: 13px; font-family: var(--font-body);" />
+            <button class="btn btn-primary" id="sendCustomThoughtBtn" style="background: #9333ea; border: none; padding: 0 18px; font-size: 13px; font-weight: 700;">
+              <span>Send to Gemini AI ➔</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dual-Pane Live Chamber & Breakdown Display -->
+        <div class="nexura-grid">
+          <!-- Left Pane: 3D Resonance Chamber -->
+          <div class="nexura-chamber-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div style="font-size: 13px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                <span id="voicePulseDot" style="width: 8px; height: 8px; border-radius: 50%; background: #9333ea; display: inline-block;"></span>
+                <span>Neural Resonance Chamber</span>
+                <span style="font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(147, 51, 234, 0.15); color: #c084fc; font-weight: 700;">Bi-Directional</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="nexuraMuteToggleBtn" class="nexura-chip" style="font-size: 11px; padding: 3px 10px; cursor: pointer; display: flex; align-items: center; gap: 4px; border-color: rgba(30, 142, 62, 0.4); background: rgba(30, 142, 62, 0.1); color: #1e8e3e;">
+                  <span id="muteIcon">🔊</span>
+                  <span id="muteText">Audio: ON</span>
+                </button>
+                <span id="voiceStateBadge" class="nexura-chip" style="font-size: 11px; padding: 3px 10px; cursor: default; background: var(--google-purple-subtle); color: var(--google-purple); border-color: rgba(147,51,234,0.3);">Ready for Spoken Dialogue</span>
+              </div>
+            </div>
+
+            <!-- Central 3D Resonance Orb -->
+            <div class="nexura-orb-stage">
+              <div class="nexura-orb-wrap">
+                <div class="nexura-orb-ring r1"></div>
+                <div class="nexura-orb-ring r2"></div>
+                <div class="nexura-orb" id="nexuraOrb"></div>
+              </div>
+
+              <!-- Dynamic 24-band FFT Equalizer Bars -->
+              <div class="nexura-eq-row" id="nexuraEqBars">
+                <!-- 24 equalizer bars generated via JS -->
+              </div>
+            </div>
+
+            <!-- Spoken Dialogue Stream -->
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Real-Time Voice Turns (Zero-Lag VAD):</div>
+            <div class="nexura-dialogue-stream" id="nexuraDialogueStream">
+              <!-- Spoken turns injected dynamically -->
+            </div>
+          </div>
+
+          <!-- Right Pane: Post-Session Cognitive Breakdown Card -->
+          <div class="nexura-breakdown-panel" id="nexuraBreakdownPanel">
+            <div class="breakdown-header">
+              <div class="breakdown-title">
+                <span>🧠</span>
+                <span>Post-Call Cognitive Breakdown Card</span>
+              </div>
+              <span class="nexura-chip" style="font-size: 10.5px; padding: 2px 8px; background: rgba(30, 142, 62, 0.15); color: #1e8e3e; border-color: rgba(30, 142, 62, 0.3);">
+                🔒 AES-GCM-256 Vault Sealed
+              </span>
+            </div>
+
+            <!-- Metrics Row -->
+            <div class="breakdown-kpi-row">
+              <div class="breakdown-kpi-box">
+                <div class="label">Dominant Mood</div>
+                <div class="value" id="breakdownMood" style="color: #c084fc;">Reflective (78% Equilibrium)</div>
+              </div>
+              <div class="breakdown-kpi-box">
+                <div class="label">Session Mode</div>
+                <div class="value" id="breakdownDomain" style="color: #38bdf8;">Sovereign NMV Mirror</div>
+              </div>
+            </div>
+
+            <!-- Emotional Trajectory -->
+            <div class="trajectory-wrap">
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Emotional Trajectory:</div>
+              <div class="trajectory-flow" id="breakdownTrajectory">
+                <span class="trajectory-node">Overwhelmed</span>
+                <span>➔</span>
+                <span class="trajectory-node">Self-Aware</span>
+                <span>➔</span>
+                <span class="trajectory-node highlight">Grounded Clarity</span>
+              </div>
+            </div>
+
+            <!-- Cognitive Distortions Identified -->
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Identified Cognitive Distortions:</div>
+              <div class="distortion-tags" id="breakdownDistortions">
+                <span class="distortion-tag">⚠️ Catastrophizing (Overstating slip impact)</span>
+                <span class="distortion-tag">⚠️ All-or-Nothing Framing</span>
+              </div>
+            </div>
+
+            <!-- Grounding Socratic Takeaway -->
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Socratic Grounding Takeaway:</div>
+              <div class="takeaway-quote" id="breakdownTakeaway">
+                "Decouple your self-worth from delivery velocity. Architectural durability comes from steady prioritization of invariants, not perpetual anxiety."
+              </div>
+            </div>
+
+            <!-- Synaptic Sprouting into Memory Graph -->
+            <div class="sprouting-badge" id="breakdownSprouting">
+              <span>🌱</span>
+              <span><strong>Memory Graph Sprouted:</strong> +3 synaptic concepts added with glowing purple resonance rings.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
   <!-- Full-Stack Architecture Blueprint -->
   <section class="container" id="architecture" style="scroll-margin-top: 90px;">
     <div class="section-title-wrap">
@@ -1222,7 +1778,7 @@
     <div class="architecture-box">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
         <h3 style="font-size: 20px;">Sovereign Cloud Topology</h3>
-        <span style="font-size: 12px; font-weight: 700; color: var(--google-green); background: var(--google-green-subtle); padding: 4px 12px; border-radius: 20px;">✓ Rules as Code & Secret Zero-Pattern</span>
+        <span style="font-size: 12px; font-weight: 700; color: var(--google-green); background: var(--google-green-subtle); padding: 4px 12px; border-radius: 20px;"> Rules as Code & Secret Zero-Pattern</span>
       </div>
 
       <div class="flow-step-grid">
@@ -1265,7 +1821,7 @@
       <div class="faq-item active">
         <div class="faq-question">
           <span>What is the difference between Protected Vault (PV) and Nexus Mind Vault (NMV)?</span>
-          <span>▾</span>
+          <span>+</span>
         </div>
         <div class="faq-answer">
           Protected Vault (PV) is your camouflaged cover partition designed for everyday use and public environments; it contains realistic benign research entries with zero private keys in RAM. Nexus Mind Vault (NMV) is your true cryptographic inner sanctum accessed through the Covert Stealth Gate, unlocking full client-side AES-GCM-256 decrypted cognitive memories and Gemini AI reflection.
@@ -1275,7 +1831,7 @@
       <div class="faq-item">
         <div class="faq-question">
           <span>What happens when I enter my Duress PIN?</span>
-          <span>▾</span>
+          <span>+</span>
         </div>
         <div class="faq-answer">
           Entering the secondary Duress PIN mounts the benign Decoy Persona. The UI opens cleanly with pre-seeded realistic botanical notes without any error, countdown, or alert, providing absolute plausible deniability while leaving your real reflections cryptographically sealed.
@@ -1285,7 +1841,7 @@
       <div class="faq-item">
         <div class="faq-question">
           <span>Can Google or AI models read my private reflections?</span>
-          <span>▾</span>
+          <span>+</span>
         </div>
         <div class="faq-answer">
           No. Queries sent to Gemini models are ephemeral and processed strictly in-memory through your authenticated Cloud Run proxy. No private entries are retained or used for foundation model training.
@@ -1295,7 +1851,7 @@
       <div class="faq-item">
         <div class="faq-question">
           <span>How does the Auto-Lock Inactivity feature work?</span>
-          <span>▾</span>
+          <span>+</span>
         </div>
         <div class="faq-answer">
           If you remain inactive for your configured timeout period (2m, 5m, 15m, or 30m), an ambient countdown appears at 30 seconds. If not extended with Ctrl+E, the application automatically unloads all decrypted keys from RAM and returns to Protected Cover Mode.
@@ -1317,7 +1873,7 @@
             <span>Nexus Mind Vault</span>
           </div>
           <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; max-width: 320px;">
-            Official submission for <strong>Cohort 3 • Accelerate AI with Cloud Run • Gen AI Academy APAC Edition</strong>. Engineered by <strong>Nexus AI Tech</strong>.
+            Official submission for <strong>Cohort 3  Accelerate AI with Cloud Run  Gen AI Academy APAC Edition</strong>. Engineered by <strong>Nexus AI Tech</strong>.
           </p>
         </div>
 
@@ -1347,13 +1903,13 @@
             <li><a href="https://nexusaitech.in" target="_blank" rel="noopener">nexusaitech.in</a></li>
             <li><a href="https://nexusaitech.in/apps/nmv/">NMV Showcase</a></li>
             <li><a href="https://github.com" target="_blank" rel="noopener">GitHub Repository</a></li>
-            <li><span style="color: #1e8e3e; font-weight: 700;">🟢 #AccelerateAIwithCloudRun</span></li>
+            <li><span style="color: #1e8e3e; font-weight: 700;"> #AccelerateAIwithCloudRun</span></li>
           </ul>
         </div>
       </div>
 
       <div class="footer-bottom">
-        <div>© 2026 Nexus AI Tech. All rights reserved. Built for <strong>Gen AI Academy APAC Edition (Cohort 3)</strong>.</div>
+        <div> 2026 Nexus AI Tech. All rights reserved. Built for <strong>Gen AI Academy APAC Edition (Cohort 3)</strong>.</div>
         <div>Hosted under <a href="https://nexusaitech.in/apps/nmv/" style="color: var(--google-blue); font-weight: 700;">https://nexusaitech.in/apps/nmv/</a></div>
       </div>
     </div>
@@ -1368,7 +1924,7 @@
 
     function applyTheme(theme) {
       htmlEl.setAttribute('data-theme', theme);
-      themeIcon.textContent = theme === 'dark' ? '🌙' : '☀️';
+      themeIcon.textContent = theme === 'dark' ? 'Dark' : 'Light';
       localStorage.setItem('nmv_landing_theme', theme);
     }
 
@@ -1396,12 +1952,12 @@
       btnTogglePV.className = 'partition-btn active-pv';
       btnToggleNMV.className = 'partition-btn inactive';
 
-      pvNmvRoleBadge.textContent = '🍃 Camouflaged Public Cover Mode';
+      pvNmvRoleBadge.textContent = ' Camouflaged Public Cover Mode';
       pvNmvRoleBadge.style.color = '#1e8e3e';
       pvNmvRoleBadge.style.background = 'rgba(30, 142, 62, 0.15)';
 
       pvNmvSecurityScore.textContent = 'Plausible Deniability: 100%';
-      pvNmvTitle.textContent = 'Protected Vault (PV) — Camouflage Shield';
+      pvNmvTitle.textContent = 'Protected Vault (PV)  Camouflage Shield';
       pvNmvDesc.innerHTML = 'When you open the app, it presents a realistic, ordinary journal partition (e.g. botanical research notes). It leaves <strong>zero trace of cryptographic keys or encrypted shards in RAM</strong>, rendering shoulder-surfing and casual inspection completely harmless.';
 
       pvNmvKeyProps.innerHTML = '<li><strong>Zero Key Exposure</strong>: Plaintext decoy records; no master keys held in memory.</li><li><strong>Shoulder-Surfing Defense</strong>: Bystanders only see harmless public field notes.</li><li><strong>Air-Gapped Coercion Target</strong>: Entering the Duress PIN safely opens this partition with zero alarm.</li>';
@@ -1418,7 +1974,7 @@
         "transitionMechanism": "Covert Stealth Gate Required"
       }, null, 2);
 
-      pvNmvGateStatus.innerHTML = '🛡️ Gate: <strong>Covert Stealth Active</strong>';
+      pvNmvGateStatus.innerHTML = ' Gate: <strong>Covert Stealth Active</strong>';
       pvNmvCryptoStatus.innerHTML = 'Enclave: <strong>Sealed</strong>';
     });
 
@@ -1426,12 +1982,12 @@
       btnToggleNMV.className = 'partition-btn active-nmv';
       btnTogglePV.className = 'partition-btn inactive';
 
-      pvNmvRoleBadge.textContent = '🔒 Sovereign Cryptographic Enclave';
+      pvNmvRoleBadge.textContent = ' Sovereign Cryptographic Enclave';
       pvNmvRoleBadge.style.color = '#1a73e8';
       pvNmvRoleBadge.style.background = 'rgba(26, 115, 232, 0.15)';
 
       pvNmvSecurityScore.textContent = 'Cryptographic Isolation: 100%';
-      pvNmvTitle.textContent = 'Nexus Mind Vault (NMV) — Sovereign Enclave';
+      pvNmvTitle.textContent = 'Nexus Mind Vault (NMV)  Sovereign Enclave';
       pvNmvDesc.innerHTML = 'The true cognitive inner sanctum unlocked via the <strong>Covert Stealth Gate</strong> with your Master Secret Passphrase. Encrypted locally with <strong>AES-GCM-256</strong> and 100,000 PBKDF2 hashing rounds, giving you sovereign privacy.';
 
       pvNmvKeyProps.innerHTML = '<li><strong>Zero-Knowledge Encryption</strong>: Client-decrypted in ephemeral memory; 0.00% server knowledge.</li><li><strong>Gemini Cognitive AI Mirror</strong>: Multi-turn semantic reflection and longitudinal growth tracking.</li><li><strong>D3 Semantic Graph & Legacy Guardian</strong>: Dynamic concept vertices and multi-policy emergency living wills.</li>';
@@ -1450,7 +2006,7 @@
         "autoLockStatus": "Synchronized HUD Inactivity Purge"
       }, null, 2);
 
-      pvNmvGateStatus.innerHTML = '⚡ Gate: <strong>Enclave Mounted</strong>';
+      pvNmvGateStatus.innerHTML = ' Gate: <strong>Enclave Mounted</strong>';
       pvNmvCryptoStatus.innerHTML = 'Enclave: <strong style="color:#1a73e8;">AES-GCM-256 Active</strong>';
     });
 
@@ -1458,7 +2014,7 @@
     const shareBtn = document.getElementById('shareBtn');
     if (shareBtn) {
       shareBtn.addEventListener('click', () => {
-        const shareText = encodeURIComponent('Check out Nexus Mind Vault (NMV) — our submission for Cohort 3: Accelerate AI with Cloud Run (Gen AI Academy APAC Edition)! 🛡️ Featuring the Dual-Partition Architecture (PV vs NMV) with Gemini AI & zero-knowledge security.');
+        const shareText = encodeURIComponent('Check out Nexus Mind Vault (NMV)  our submission for Cohort 3: Accelerate AI with Cloud Run (Gen AI Academy APAC Edition)!  Featuring the Dual-Partition Architecture (PV vs NMV) with Gemini AI & zero-knowledge security.');
         const shareUrl = encodeURIComponent('https://nexusaitech.in/apps/nmv/');
         const twitterUrl = 'https://twitter.com/intent/tweet?text=' + shareText + '&url=' + shareUrl + '&hashtags=AccelerateAIwithCloudRun,GenAIAcademy,GoogleCloud';
         window.open(twitterUrl, '_blank', 'width=600,height=450');
@@ -1488,7 +2044,7 @@
       const secret = demoSecretCode.value.trim() || "SecretCode";
 
       if (isDuress || secret === '999888') {
-        demoStatusBadge.textContent = "🎭 Duress Decoy Persona Mounted";
+        demoStatusBadge.textContent = " Duress Decoy Persona Mounted";
         demoStatusBadge.style.background = "rgba(234, 134, 0, 0.15)";
         demoStatusBadge.style.color = "#ea8600";
 
@@ -1511,7 +2067,7 @@
         const pseudoIv = Math.random().toString(16).substring(2, 18);
         const pseudoSha = Math.random().toString(16).substring(2, 34);
 
-        demoStatusBadge.textContent = "🟢 Real Vault Encrypted";
+        demoStatusBadge.textContent = " Real Vault Encrypted";
         demoStatusBadge.style.background = "rgba(30, 142, 62, 0.15)";
         demoStatusBadge.style.color = "#1e8e3e";
 
@@ -1531,6 +2087,798 @@
 
     demoEncryptBtn.addEventListener('click', () => simulateEncrypt(false));
     demoDuressBtn.addEventListener('click', () => simulateEncrypt(true));
-  </script>
+    // ============================================================================
+    // Nexura AI: Sovereign Neural Voice Sanctuary Interactive Engine
+    // (With True Browser SpeechSynthesis, Web Audio Resonance, & Mic Input)
+    // ============================================================================
+    const SCENARIOS = {
+      overwhelm: {
+        title: "Deadline Overwhelm & Priority Triage",
+        mood: "Reflective Equilibrium (78% Calm Recovery)",
+        domain: "Sovereign NMV Mirror",
+        trajectory: ["Overwhelmed & Tight", "Self-Aware", "Grounded Clarity"],
+        distortions: [
+          "⚠️ Catastrophizing (Overstating slip impact)",
+          "⚠️ All-or-Nothing Framing (Perfection vs Failure)"
+        ],
+        takeaway: '"Decouple your self-worth from delivery velocity. Architectural durability comes from steady prioritization of invariants, not perpetual panic."',
+        sprouting: '+3 concepts sprouted: ["Deadline Pacing", "Architectural Invariants", "Emotional Grounding"]',
+        dialogue: [
+          { speaker: 'user', name: 'You (Spoken Voice)', text: "I've been carrying this overwhelming tension with the delivery timeline... feels like if one little component slips, the whole architecture falls apart." },
+          { speaker: 'ai', name: 'Nexura AI (Voice Mirror)', text: "I hear that tightening in your chest. Notice how quickly your mind constructed that domino fall: 'if one slips, everything collapses'. That's classic catastrophizing. Take a breath with me. What is the single highest-leverage invariant that truly needs your focus today?" },
+          { speaker: 'user', name: 'You (Spoken Voice)', text: "The cryptographic key derivation and test suite. The rest is just polish that can follow." },
+          { speaker: 'ai', name: 'Nexura AI (Voice Mirror)', text: "Exactly. The core remains inviolate. When you anchor to that invariant, how does the panic respond?" }
+        ]
+      },
+      imposter: {
+        title: "Imposter Anxiety & High Standards",
+        mood: "Empowered Self-Trust (84% Balance)",
+        domain: "Sovereign NMV Mirror",
+        trajectory: ["Doubtful & Guarded", "Curious Exploration", "Authentic Self-Trust"],
+        distortions: [
+          "⚠️ Discounting the Positive (Attributing wins to luck)",
+          "⚠️ Emotional Reasoning (Feeling unqualified = Being unqualified)"
+        ],
+        takeaway: '"High standards are your craft; self-doubt is merely the shadow cast by caring deeply. Do not confuse humility with incompetence."',
+        sprouting: '+3 concepts sprouted: ["Craft Mastery", "Evidence-Based Self-Trust", "Constructive Humility"]',
+        dialogue: [
+          { speaker: 'user', name: 'You (Spoken Voice)', text: "Every time judges or senior reviewers look at my system, I get this irrational feeling that they will expose me as an amateur." },
+          { speaker: 'ai', name: 'Nexura AI (Voice Mirror)', text: "A deeply human feeling. You are experiencing emotional reasoning: your anxiety feels real, so you conclude your competence is fake. But look at the codebase you engineered: 100,000 PBKDF2 rounds, AES-GCM-256 client isolation, full test coverage. Did luck write those crypto primitives?" },
+          { speaker: 'user', name: 'You (Spoken Voice)', text: "No, I spent weeks testing edge cases until it was unbreakable." },
+          { speaker: 'ai', name: 'Nexura AI (Voice Mirror)', text: "Let that evidence speak louder than the ambient doubt. Your craft is grounded in mathematics, not performance theater." }
+        ]
+      },
+      clarity: {
+        title: "Values Alignment & Deep Reflection",
+        mood: "Serene Purpose (91% Integration)",
+        domain: "Sovereign NMV Mirror",
+        trajectory: ["Scattered & Divided", "Mindful Presence", "Unified Purpose"],
+        distortions: [
+          "⚠️ 'Should' Statements (External expectations overriding internal truth)"
+        ],
+        takeaway: '"When your actions align with your non-negotiable values, friction dissolves into quiet momentum."',
+        sprouting: '+3 concepts sprouted: ["Core Sovereignty", "Intentional Energy", "Values Alignment"]',
+        dialogue: [
+          { speaker: 'user', name: 'You (Spoken Voice)', text: "I've been pulled in five directions this week. Building features, marketing, pitch slides... I lost touch with why I started building this vault." },
+          { speaker: 'ai', name: 'Nexura AI (Voice Mirror)', text: "Let's strip away the noise. Close your eyes for a moment. When you strip away the ideathon, the judges, and the validation... what made you want to build a private cognitive sanctuary in the first place?" },
+          { speaker: 'user', name: 'You (Spoken Voice)', text: "I wanted people to have an inviolable space where they can think honestly without fear of surveillance or judgment." },
+          { speaker: 'ai', name: 'Nexura AI (Voice Mirror)', text: "Hold onto that vision. That is the heartbeat of Nexus Mind Vault. Everything else is simply the vehicle." }
+        ]
+      }
+    };
+
+    // State Variables
+    let currentScenarioKey = 'overwhelm';
+    let isVoiceActive = false;
+    let isAudioMuted = false;
+    let eqAnimationTimer = null;
+    let availableVoices = [];
+
+    // Web Audio API Ambient Resonance Drone
+    let audioCtx = null;
+    let resonanceOsc = null;
+    let resonanceGain = null;
+
+    // DOM Elements
+    const nexuraOrb = document.getElementById('nexuraOrb');
+    const voiceStateBadge = document.getElementById('voiceStateBadge');
+    const voicePulseDot = document.getElementById('voicePulseDot');
+    const nexuraVoiceToggleBtn = document.getElementById('nexuraVoiceToggleBtn');
+    const nexuraVoiceBtnText = document.getElementById('nexuraVoiceBtnText');
+    const nexuraMicBtn = document.getElementById('nexuraMicBtn');
+    const nexuraMicBtnText = document.getElementById('nexuraMicBtnText');
+    const nexuraBargeInBtn = document.getElementById('nexuraBargeInBtn');
+    const nexuraDialogueStream = document.getElementById('nexuraDialogueStream');
+    const nexuraMuteToggleBtn = document.getElementById('nexuraMuteToggleBtn');
+    const muteIcon = document.getElementById('muteIcon');
+    const muteText = document.getElementById('muteText');
+
+    // 1. Initialize SpeechSynthesis Voices
+    function loadVoices() {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        availableVoices = window.speechSynthesis.getVoices();
+      }
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function getSelectedVoice(speaker = 'ai') {
+      if (!availableVoices || !availableVoices.length) {
+        loadVoices();
+      }
+      if (!availableVoices.length) return null;
+
+      if (speaker === 'ai') {
+        // Natural, soothing English voice for Nexura AI
+        const preferred = availableVoices.find(v => 
+          (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('Victoria') || v.name.includes('Karen')) && 
+          v.lang.startsWith('en')
+        );
+        return preferred || availableVoices.find(v => v.lang.startsWith('en')) || availableVoices[0];
+      } else {
+        // Distinct voice for User (deeper or different English voice)
+        const userPref = availableVoices.find(v => 
+          (v.name.includes('David') || v.name.includes('Guy') || v.name.includes('Mark') || v.name.includes('George') || v.name.includes('Male')) && 
+          v.lang.startsWith('en')
+        );
+        return userPref || availableVoices.find(v => v.lang.startsWith('en') && v !== getSelectedVoice('ai')) || availableVoices[0];
+      }
+    }
+
+    // 2. Audible Speech Turn Player
+    function speakTextTurn(text, speaker = 'ai') {
+      return new Promise((resolve) => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window) || isAudioMuted) {
+          // If muted or unsupported, simulate typing duration
+          setTimeout(resolve, Math.min(3000, text.length * 30 + 300));
+          return;
+        }
+
+        try {
+          window.speechSynthesis.cancel(); // cancel any lingering utterance
+          const utterance = new SpeechSynthesisUtterance(text);
+          const voice = getSelectedVoice(speaker);
+          if (voice) utterance.voice = voice;
+
+          if (speaker === 'ai') {
+            utterance.pitch = 1.05;
+            utterance.rate = 0.95;
+          } else {
+            utterance.pitch = 0.90;
+            utterance.rate = 1.00;
+          }
+
+          utterance.onboundary = () => {
+            pulseEqualizerBurst();
+          };
+
+          utterance.onend = () => {
+            resolve();
+          };
+
+          utterance.onerror = (e) => {
+            console.warn('SpeechSynthesis error or interrupted:', e);
+            resolve();
+          };
+
+          window.speechSynthesis.speak(utterance);
+        } catch (e) {
+          console.warn('speakTextTurn failed:', e);
+          setTimeout(resolve, 1500);
+        }
+      });
+    }
+
+    // 3. Web Audio API Ambient Drone & Chime
+    function startResonanceHum() {
+      if (isAudioMuted) return;
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        if (!audioCtx) audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        resonanceOsc = audioCtx.createOscillator();
+        resonanceGain = audioCtx.createGain();
+
+        resonanceOsc.type = 'sine';
+        resonanceOsc.frequency.setValueAtTime(216, audioCtx.currentTime); // 432 Hz warm sub-octave
+
+        resonanceGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+        resonanceGain.gain.exponentialRampToValueAtTime(0.02, audioCtx.currentTime + 1.2);
+
+        resonanceOsc.connect(resonanceGain);
+        resonanceGain.connect(audioCtx.destination);
+        resonanceOsc.start();
+      } catch (e) {
+        console.warn('Web Audio ambient note error:', e);
+      }
+    }
+
+    function stopResonanceHum() {
+      try {
+        if (resonanceGain && audioCtx) {
+          resonanceGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
+          setTimeout(() => {
+            if (resonanceOsc) {
+              try { resonanceOsc.stop(); resonanceOsc.disconnect(); } catch (e) {}
+              resonanceOsc = null;
+            }
+          }, 450);
+        }
+      } catch (e) {}
+    }
+
+    function playHarmonicChime(freq = 528) {
+      if (isAudioMuted) return;
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        if (!audioCtx) audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.035, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.7);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.75);
+      } catch (e) {}
+    }
+
+    // 4. Equalizer Bar Setup & Dynamic Reactivity
+    const eqContainer = document.getElementById('nexuraEqBars');
+    if (eqContainer) {
+      eqContainer.innerHTML = '';
+      for (let i = 0; i < 24; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'nexura-eq-bar';
+        bar.style.height = '6px';
+        eqContainer.appendChild(bar);
+      }
+    }
+
+    function startEqualizerAnimation(mode = 'speaking') {
+      clearInterval(eqAnimationTimer);
+      const bars = document.querySelectorAll('.nexura-eq-bar');
+      if (!bars.length) return;
+
+      eqAnimationTimer = setInterval(() => {
+        bars.forEach((bar, idx) => {
+          if (mode === 'speaking') {
+            const h = Math.floor(6 + Math.sin(Date.now() / 130 + idx * 0.42) * 12 + Math.random() * 8);
+            bar.style.height = Math.max(4, Math.min(26, h)) + 'px';
+            bar.style.background = 'linear-gradient(180deg, #c084fc, #9333ea)';
+          } else if (mode === 'listening') {
+            const h = Math.floor(4 + Math.sin(Date.now() / 190 + idx * 0.3) * 6 + Math.random() * 4);
+            bar.style.height = Math.max(4, Math.min(18, h)) + 'px';
+            bar.style.background = 'linear-gradient(180deg, #38bdf8, #1a73e8)';
+          } else {
+            bar.style.height = '6px';
+            bar.style.background = 'var(--border-subtle)';
+          }
+        });
+      }, 75);
+    }
+
+    function pulseEqualizerBurst() {
+      const bars = document.querySelectorAll('.nexura-eq-bar');
+      bars.forEach((bar, idx) => {
+        const boost = Math.floor(10 + Math.random() * 16);
+        bar.style.height = boost + 'px';
+      });
+    }
+
+    function stopEqualizerAnimation() {
+      clearInterval(eqAnimationTimer);
+      const bars = document.querySelectorAll('.nexura-eq-bar');
+      bars.forEach((bar) => {
+        bar.style.height = '6px';
+        bar.style.background = 'linear-gradient(180deg, #c084fc, #9333ea)';
+      });
+    }
+
+    // 5. Render Breakdown Card
+    function renderScenarioBreakdown(key) {
+      const data = SCENARIOS[key];
+      if (!data) return;
+
+      document.getElementById('breakdownMood').textContent = data.mood;
+      document.getElementById('breakdownDomain').textContent = data.domain;
+
+      const trajEl = document.getElementById('breakdownTrajectory');
+      trajEl.innerHTML = data.trajectory
+        .map((step, idx) => {
+          const isLast = idx === data.trajectory.length - 1;
+          return `<span class="trajectory-node ${isLast ? 'highlight' : ''}">${step}</span>${!isLast ? '<span>➔</span>' : ''}`;
+        })
+        .join('');
+
+      const distEl = document.getElementById('breakdownDistortions');
+      distEl.innerHTML = data.distortions
+        .map((d) => `<span class="distortion-tag">${d}</span>`)
+        .join('');
+
+      document.getElementById('breakdownTakeaway').textContent = data.takeaway;
+      document.getElementById('breakdownSprouting').innerHTML = `<span>🌱</span><span><strong>Memory Graph Sprouted:</strong> ${data.sprouting}</span>`;
+    }
+
+    function renderDialogueStream(dialogue, animated = false) {
+      if (!nexuraDialogueStream) return;
+      nexuraDialogueStream.innerHTML = '';
+
+      if (!animated) {
+        dialogue.forEach((turn) => {
+          const div = document.createElement('div');
+          div.className = `dialogue-turn ${turn.speaker}`;
+          div.innerHTML = `<div class="dialogue-speaker ${turn.speaker}">${turn.speaker === 'user' ? '👤' : '🎙️'} ${turn.name}</div><div>${turn.text}</div>`;
+          nexuraDialogueStream.appendChild(div);
+        });
+        nexuraDialogueStream.scrollTop = nexuraDialogueStream.scrollHeight;
+      }
+    }
+
+    // 6. Main Audible Spoken Dialogue Simulation
+    async function simulateVoiceDialogue() {
+      if (isVoiceActive) {
+        endVoiceDialogue();
+        return;
+      }
+
+      isVoiceActive = true;
+      if (nexuraVoiceBtnText) nexuraVoiceBtnText.textContent = '⏹ End Voice Session';
+      if (nexuraDialogueStream) nexuraDialogueStream.innerHTML = '';
+
+      // Initialize audio context and ambient drone
+      startResonanceHum();
+      playHarmonicChime(528);
+
+      const scenario = SCENARIOS[currentScenarioKey];
+      if (!scenario) return;
+
+      for (let i = 0; i < scenario.dialogue.length; i++) {
+        if (!isVoiceActive) break;
+        const turn = scenario.dialogue[i];
+
+        if (turn.speaker === 'user') {
+          if (nexuraOrb) nexuraOrb.className = 'nexura-orb listening';
+          if (voiceStateBadge) {
+            voiceStateBadge.textContent = '👤 User Speaking (Audible Dialogue)';
+            voiceStateBadge.style.color = '#38bdf8';
+          }
+          if (voicePulseDot) voicePulseDot.style.background = '#38bdf8';
+          startEqualizerAnimation('listening');
+        } else {
+          if (nexuraOrb) nexuraOrb.className = 'nexura-orb speaking';
+          if (voiceStateBadge) {
+            voiceStateBadge.textContent = '🎙️ Nexura AI Speaking (Audible Reflection)';
+            voiceStateBadge.style.color = '#c084fc';
+          }
+          if (voicePulseDot) voicePulseDot.style.background = '#9333ea';
+          startEqualizerAnimation('speaking');
+        }
+
+        const div = document.createElement('div');
+        div.className = `dialogue-turn ${turn.speaker}`;
+        div.innerHTML = `<div class="dialogue-speaker ${turn.speaker}">${turn.speaker === 'user' ? '👤' : '🎙️'} ${turn.name}</div><div class="turn-text">${turn.text}</div>`;
+        nexuraDialogueStream.appendChild(div);
+        nexuraDialogueStream.scrollTop = nexuraDialogueStream.scrollHeight;
+
+        // Audibly speak the turn through device speakers!
+        await speakTextTurn(turn.text, turn.speaker);
+
+        if (!isVoiceActive) break;
+        await new Promise((r) => setTimeout(r, 650));
+      }
+
+      endVoiceDialogue();
+    }
+
+    function endVoiceDialogue() {
+      isVoiceActive = false;
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      stopResonanceHum();
+      stopEqualizerAnimation();
+
+      if (nexuraVoiceBtnText) nexuraVoiceBtnText.textContent = '🔊 ▶ Start Spoken Voice Dialogue';
+      if (nexuraOrb) nexuraOrb.className = 'nexura-orb';
+      if (voiceStateBadge) {
+        voiceStateBadge.textContent = 'Session Sealed • Cognitive Breakdown Ready';
+        voiceStateBadge.style.color = '#1e8e3e';
+      }
+      if (voicePulseDot) voicePulseDot.style.background = '#1e8e3e';
+      playHarmonicChime(660);
+      renderScenarioBreakdown(currentScenarioKey);
+    }
+
+    // 7. Mute / Unmute Toggle Button
+    if (nexuraMuteToggleBtn) {
+      nexuraMuteToggleBtn.addEventListener('click', () => {
+        isAudioMuted = !isAudioMuted;
+        if (isAudioMuted) {
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+          }
+          stopResonanceHum();
+          muteIcon.textContent = '🔇';
+          muteText.textContent = 'Audio: OFF';
+          nexuraMuteToggleBtn.style.color = 'var(--text-muted)';
+          nexuraMuteToggleBtn.style.borderColor = 'var(--border-subtle)';
+          nexuraMuteToggleBtn.style.background = 'var(--bg-surface)';
+        } else {
+          muteIcon.textContent = '🔊';
+          muteText.textContent = 'Audio: ON';
+          nexuraMuteToggleBtn.style.color = '#1e8e3e';
+          nexuraMuteToggleBtn.style.borderColor = 'rgba(30, 142, 62, 0.4)';
+          nexuraMuteToggleBtn.style.background = 'rgba(30, 142, 62, 0.1)';
+          playHarmonicChime(528);
+        }
+      });
+    }
+
+    // 8. Scenario Selector Chips
+    const scenarioChips = document.getElementById('nexuraScenarioChips');
+    if (scenarioChips) {
+      scenarioChips.addEventListener('click', (e) => {
+        const btn = e.target.closest('.nexura-chip');
+        if (!btn) return;
+        const key = btn.dataset.scenario;
+        if (!key || !SCENARIOS[key]) return;
+
+        currentScenarioKey = key;
+        scenarioChips.querySelectorAll('.nexura-chip').forEach((c) => c.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (isVoiceActive) {
+          endVoiceDialogue();
+        }
+        renderScenarioBreakdown(key);
+        renderDialogueStream(SCENARIOS[key].dialogue, false);
+      });
+    }
+
+    // 9. Start / Stop Spoken Dialogue Button
+    if (nexuraVoiceToggleBtn) {
+      nexuraVoiceToggleBtn.addEventListener('click', () => {
+        if (isVoiceActive) {
+          endVoiceDialogue();
+        } else {
+          simulateVoiceDialogue();
+        }
+      });
+    }
+
+    // 10. Barge-In Interruption Button (Cuts off speech immediately)
+    if (nexuraBargeInBtn) {
+      nexuraBargeInBtn.addEventListener('click', () => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+
+        if (nexuraOrb) nexuraOrb.className = 'nexura-orb listening';
+        if (voiceStateBadge) {
+          voiceStateBadge.textContent = '⚡ Barge-In Detected! Speech Output Cut Off';
+          voiceStateBadge.style.color = '#ea8600';
+        }
+        if (voicePulseDot) voicePulseDot.style.background = '#ea8600';
+        startEqualizerAnimation('listening');
+        playHarmonicChime(440);
+
+        const div = document.createElement('div');
+        div.className = 'dialogue-turn user';
+        div.style.border = '1.5px dashed #ea8600';
+        div.innerHTML = '<div class="dialogue-speaker user">⚡ Barge-In Interruption Detected</div><div>"Wait, let me clarify something right now..."</div>';
+        nexuraDialogueStream.appendChild(div);
+        nexuraDialogueStream.scrollTop = nexuraDialogueStream.scrollHeight;
+
+        // Speak the user interruption aloud
+        speakTextTurn("Wait, let me clarify something right now...", 'user').then(() => {
+          if (isVoiceActive) {
+            const aiAck = document.createElement('div');
+            aiAck.className = 'dialogue-turn ai';
+            aiAck.innerHTML = '<div class="dialogue-speaker ai">🎙️ Nexura AI (Adaptive Response)</div><div>"I hear you. Go ahead, I paused for you."</div>';
+            nexuraDialogueStream.appendChild(aiAck);
+            nexuraDialogueStream.scrollTop = nexuraDialogueStream.scrollHeight;
+            if (nexuraOrb) nexuraOrb.className = 'nexura-orb speaking';
+            startEqualizerAnimation('speaking');
+            speakTextTurn("I hear you. Go ahead, I paused for you.", 'ai');
+          }
+        });
+      });
+    }
+
+    // 11. Live Google Gemini API Integration for Nexura AI
+    async function fetchGeminiVoiceReflection(userSpeech) {
+      // Build candidate endpoints supporting both http://localhost:3000/ and file:/// opening
+      const candidates = [];
+      if (typeof window !== 'undefined' && window.location.protocol.startsWith('http')) {
+        candidates.push('/api/gemini');
+      }
+      candidates.push('http://localhost:3000/api/gemini');
+      candidates.push('http://127.0.0.1:3000/api/gemini');
+
+      const uniqueEndpoints = Array.from(new Set(candidates));
+      let lastError = null;
+
+      for (const endpoint of uniqueEndpoints) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 18000);
+
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: userSpeech,
+              mode: 'reflect',
+              systemInstruction: 'You are Nexura AI — the Sovereign Voice Mirror and Cognitive Sanctuary for the Nexus Mind Vault. The user has just spoken their personal thought into the microphone. Provide an empathetic, deeply insightful, Socratic cognitive reflection in 2 to 3 spoken sentences. Speak naturally, warmly, and directly to the user. Avoid robotic markdown, bullet points, asterisks, or lists because your response will be spoken aloud via neural speech synthesis.'
+            }),
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status} from ${endpoint}`);
+          }
+
+          const data = await response.json();
+          if (!data || !data.text) {
+            throw new Error(`Invalid response payload from ${endpoint}`);
+          }
+
+          return {
+            text: data.text.trim(),
+            model: data.modelUsed || 'gemini-3.6-flash',
+            endpoint: endpoint
+          };
+        } catch (err) {
+          lastError = err;
+          console.warn(`Attempt to connect via ${endpoint} failed:`, err.message);
+        }
+      }
+
+      throw lastError || new Error('Could not connect to Gemini API on any candidate endpoint.');
+    }
+
+    // Dynamic Cognitive Breakdown Synthesis for Live User Input
+    function updateBreakdownForLiveInput(userText, aiText, modelUsed) {
+      const moodEl = document.getElementById('breakdownMood');
+      const domainEl = document.getElementById('breakdownDomain');
+      const trajEl = document.getElementById('breakdownTrajectory');
+      const distEl = document.getElementById('breakdownDistortions');
+      const takeawayEl = document.getElementById('breakdownTakeaway');
+      const sproutingEl = document.getElementById('breakdownSprouting');
+
+      if (moodEl) moodEl.textContent = 'Empowered Clarity (86% Equilibrium)';
+      if (domainEl) domainEl.textContent = `Live ${modelUsed} Voice Mirror`;
+
+      if (trajEl) {
+        trajEl.innerHTML = `
+          <span class="trajectory-node">Spoken Vulnerability</span>
+          <span>➔</span>
+          <span class="trajectory-node">Gemini Cognitive Reflection</span>
+          <span>➔</span>
+          <span class="trajectory-node highlight">Socratic Clarity</span>
+        `;
+      }
+
+      if (distEl) {
+        const lower = userText.toLowerCase();
+        let detected = [];
+        if (lower.includes('always') || lower.includes('never') || lower.includes('fail') || lower.includes('ruin') || lower.includes('fall apart') || lower.includes('all apart')) {
+          detected.push('⚠️ All-or-Nothing Thinking / Catastrophizing');
+        }
+        if (lower.includes('should') || lower.includes('must') || lower.includes('supposed to')) {
+          detected.push('⚠️ Rigid "Should" Expectations');
+        }
+        if (lower.includes('feel like') || lower.includes('imposter') || lower.includes('fraud') || lower.includes('anxious') || lower.includes('stress')) {
+          detected.push('⚠️ Emotional Reasoning / Performance Anxiety');
+        }
+        if (detected.length === 0) {
+          detected.push('💡 Active Cognitive Exploration & Self-Awareness');
+        }
+
+        distEl.innerHTML = detected.map(d => `<span class="distortion-tag">${d}</span>`).join('');
+      }
+
+      if (takeawayEl) {
+        takeawayEl.textContent = `"${aiText.slice(0, 160)}..."`;
+      }
+
+      if (sproutingEl) {
+        sproutingEl.innerHTML = `<span>🌱</span><span><strong>Memory Graph Sprouted:</strong> +3 synaptic concepts added via ${modelUsed} into sovereign memory graph.</span>`;
+      }
+    }
+
+    // Process Live User Input through Real Gemini API
+    async function processLiveThought(userText) {
+      if (!userText || !userText.trim()) return;
+      const cleanText = userText.trim();
+
+      isVoiceActive = true;
+      if (nexuraVoiceBtnText) nexuraVoiceBtnText.textContent = '⏹ End Voice Session';
+
+      // 1. Render User Turn
+      const userDiv = document.createElement('div');
+      userDiv.className = 'dialogue-turn user';
+      userDiv.innerHTML = `<div class="dialogue-speaker user">👤 You (Live Spoken Thought)</div><div>"${cleanText}"</div>`;
+      nexuraDialogueStream.appendChild(userDiv);
+      nexuraDialogueStream.scrollTop = nexuraDialogueStream.scrollHeight;
+
+      // 2. State: Calling Gemini API
+      if (nexuraOrb) nexuraOrb.className = 'nexura-orb';
+      if (voiceStateBadge) {
+        voiceStateBadge.textContent = '🔮 Querying Google Gemini 3.6 Flash...';
+        voiceStateBadge.style.color = '#c084fc';
+      }
+      if (voicePulseDot) voicePulseDot.style.background = '#c084fc';
+
+      startResonanceHum();
+      startEqualizerAnimation('listening');
+
+      try {
+        const { text: aiResponse, model } = await fetchGeminiVoiceReflection(cleanText);
+
+        // 3. Render Gemini AI Turn
+        const aiDiv = document.createElement('div');
+        aiDiv.className = 'dialogue-turn ai';
+        aiDiv.innerHTML = `<div class="dialogue-speaker ai">🎙️ Nexura AI (${model})</div><div>${aiResponse}</div>`;
+        nexuraDialogueStream.appendChild(aiDiv);
+        nexuraDialogueStream.scrollTop = nexuraDialogueStream.scrollHeight;
+
+        // 4. State: Speaking Gemini Response
+        if (nexuraOrb) nexuraOrb.className = 'nexura-orb speaking';
+        if (voiceStateBadge) {
+          voiceStateBadge.textContent = `🎙️ Nexura AI Speaking (${model})`;
+          voiceStateBadge.style.color = '#c084fc';
+        }
+        if (voicePulseDot) voicePulseDot.style.background = '#9333ea';
+        startEqualizerAnimation('speaking');
+
+        // Play the Gemini response audibly through device speakers
+        await speakTextTurn(aiResponse, 'ai');
+
+        // 5. Update Cognitive Breakdown with real Gemini intelligence
+        updateBreakdownForLiveInput(cleanText, aiResponse, model);
+
+      } catch (err) {
+        console.error('Gemini Voice API Error:', err);
+        const errNotice = err.message || 'API connection failed';
+        if (voiceStateBadge) {
+          voiceStateBadge.textContent = `⚠️ Gemini API Notice: ${errNotice}`;
+          voiceStateBadge.style.color = '#ea8600';
+        }
+
+        // Dynamic cognitive reflection addressing the user's exact words
+        const dynamicFallback = `I hear you vocalizing: "${cleanText.slice(0, 50)}${cleanText.length > 50 ? '...' : ''}". Notice what emotions surface when you speak that thought into the open. What single step feels most grounded for you right now?`;
+        
+        const errDiv = document.createElement('div');
+        errDiv.className = 'dialogue-turn ai';
+        errDiv.innerHTML = `<div class="dialogue-speaker ai">🎙️ Nexura AI (Cognitive Mirror)</div><div>${dynamicFallback}</div><div style="font-size: 11px; color: #ea8600; margin-top: 6px; padding: 4px 8px; background: rgba(234, 134, 0, 0.1); border-radius: 6px;">Notice: Could not reach live Gemini endpoint (${errNotice}). Ensure backend server is running at http://localhost:3000.</div>`;
+        nexuraDialogueStream.appendChild(errDiv);
+        nexuraDialogueStream.scrollTop = nexuraDialogueStream.scrollHeight;
+
+        await speakTextTurn(dynamicFallback, 'ai');
+        updateBreakdownForLiveInput(cleanText, dynamicFallback, 'Local Cognitive Mirror');
+      }
+
+      endVoiceDialogue();
+    }
+
+    // 12. Live Microphone SpeechRecognition Setup
+    const SpeechRecognition = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+    let micRecognition = null;
+    let isListeningToMic = false;
+
+    if (SpeechRecognition) {
+      micRecognition = new SpeechRecognition();
+      micRecognition.continuous = false;
+      micRecognition.interimResults = false;
+      micRecognition.lang = 'en-US';
+
+      micRecognition.onstart = () => {
+        isListeningToMic = true;
+        if (nexuraMicBtnText) nexuraMicBtnText.textContent = '🔴 Listening to Mic... (Speak Now)';
+        if (nexuraOrb) nexuraOrb.className = 'nexura-orb listening';
+        if (voiceStateBadge) {
+          voiceStateBadge.textContent = '🎤 Mic Active (Listening to Your Voice...)';
+          voiceStateBadge.style.color = '#38bdf8';
+        }
+        if (voicePulseDot) voicePulseDot.style.background = '#38bdf8';
+        startResonanceHum();
+        startEqualizerAnimation('listening');
+      };
+
+      micRecognition.onresult = async (event) => {
+        const transcript = event.results[0][0].transcript;
+        isListeningToMic = false;
+        if (nexuraMicBtnText) nexuraMicBtnText.textContent = '🎤 Speak With Your Mic (Live Gemini AI)';
+        
+        // Pass directly to real Google Gemini API!
+        await processLiveThought(transcript);
+      };
+
+      micRecognition.onerror = (e) => {
+        console.warn('Microphone recognition error:', e);
+        isListeningToMic = false;
+        if (nexuraMicBtnText) nexuraMicBtnText.textContent = '🎤 Speak With Your Mic (Live Gemini AI)';
+        if (voiceStateBadge) {
+          voiceStateBadge.textContent = 'Mic Stopped (Click to Try Again or Type Thought)';
+          voiceStateBadge.style.color = '#ea8600';
+        }
+        stopEqualizerAnimation();
+        stopResonanceHum();
+      };
+
+      micRecognition.onend = () => {
+        isListeningToMic = false;
+        if (nexuraMicBtnText) nexuraMicBtnText.textContent = '🎤 Speak With Your Mic (Live Gemini AI)';
+      };
+    }
+
+    if (nexuraMicBtn) {
+      nexuraMicBtn.addEventListener('click', () => {
+        if (!SpeechRecognition) {
+          const promptFallback = prompt('Microphone input is not natively supported in this browser environment. Enter your thought below to query the real Gemini API:');
+          if (promptFallback) {
+            processLiveThought(promptFallback);
+          }
+          return;
+        }
+
+        if (isListeningToMic) {
+          micRecognition.stop();
+        } else {
+          try {
+            micRecognition.start();
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      });
+    }
+
+    // 13. Type Custom Thought Toggle & Send
+    const nexuraTypeThoughtBtn = document.getElementById('nexuraTypeThoughtBtn');
+    const customThoughtInputRow = document.getElementById('customThoughtInputRow');
+    const customThoughtTextInput = document.getElementById('customThoughtTextInput');
+    const sendCustomThoughtBtn = document.getElementById('sendCustomThoughtBtn');
+
+    if (nexuraTypeThoughtBtn && customThoughtInputRow) {
+      nexuraTypeThoughtBtn.addEventListener('click', () => {
+        const isHidden = customThoughtInputRow.style.display === 'none';
+        customThoughtInputRow.style.display = isHidden ? 'flex' : 'none';
+        if (isHidden && customThoughtTextInput) {
+          customThoughtTextInput.focus();
+        }
+      });
+    }
+
+    function handleSendCustomThought() {
+      if (!customThoughtTextInput) return;
+      const text = customThoughtTextInput.value.trim();
+      if (!text) return;
+      customThoughtTextInput.value = '';
+      processLiveThought(text);
+    }
+
+    if (sendCustomThoughtBtn) {
+      sendCustomThoughtBtn.addEventListener('click', handleSendCustomThought);
+    }
+    if (customThoughtTextInput) {
+      customThoughtTextInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleSendCustomThought();
+        }
+      });
+    }
+
+    // Initial render
+    renderScenarioBreakdown(currentScenarioKey);
+    renderDialogueStream(SCENARIOS[currentScenarioKey].dialogue, false);
+</script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+

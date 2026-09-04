@@ -1,4 +1,4 @@
-import { isWebAuthnSupported, registerBiometricCredential } from '../utils/webAuthnHelper';
+import { isBiometricAvailable, registerBiometric } from '../services/biometricAuth';
 import { exportEntriesAsMarkdown, exportEntriesAsCSV, exportEntriesAsJSON, exportCapsulesAsJSON, exportMindGraphAsJSON } from '../utils/vaultExportHelpers';
 import { getActiveDeviceSessions, revokeDeviceSession, revokeAllOtherDeviceSessions, DeviceSession } from '../services/deviceSessionManager';
 import { parseImportFile } from '../utils/vaultImportHelper';
@@ -18,7 +18,9 @@ import {
   recordGlobalHeartbeatPulse,
   calculateGuardianHeartbeat,
 } from '../services/vaultStorage';
+import { syncAllLocalVaultDataToFirestore } from '../services/firestoreVaultSync';
 import {
+  Cloud,
   Bell,
   ExternalLink,
   Shield,
@@ -49,9 +51,40 @@ import {
   Terminal,
   CheckCheck,
   Layers,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { PinBoxGroup } from './PinBoxGroup';
 import { vaultAudio } from '../utils/vaultAudioSynthesizer';
+
+const RECOMMENDED_FIRESTORE_RULES = `rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Strict User-Isolated Domain Rules (Zero-Knowledge ABAC)
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      // Allows all owner-isolated subcollections (entries, timeCapsules, settings, guardians, etc.)
+      match /{allChildren=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+};`;
 
 interface VaultSettingsViewProps {
   user: UserSession | null;
@@ -132,6 +165,51 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
     showToast('Device session revoked successfully.', 'success');
   };
 
+  const [isSyncingFirestore, setIsSyncingFirestore] = useState(false);
+  const [lastFirestoreSyncTime, setLastFirestoreSyncTime] = useState<string | null>(null);
+  const [firestorePermissionError, setFirestorePermissionError] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [isCopiedRules, setIsCopiedRules] = useState(false);
+
+  const handleCopyRules = () => {
+    navigator.clipboard.writeText(RECOMMENDED_FIRESTORE_RULES);
+    setIsCopiedRules(true);
+    showToast('Firestore Security Rules copied to clipboard!', 'success');
+    setTimeout(() => setIsCopiedRules(false), 3000);
+  };
+
+  const handleManualFirestoreSync = async () => {
+    if (!user || !user.uid || user.uid === 'guest' || user.uid === 'anonymous') {
+      showToast('Please sign in with Google to synchronize with Cloud Firestore.', 'warning');
+      return;
+    }
+
+    setIsSyncingFirestore(true);
+    try {
+      const result = await syncAllLocalVaultDataToFirestore(user.uid, {
+        entries,
+        capsules,
+        settings,
+        policies: guardianPolicies,
+      });
+      if (result.success) {
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLastFirestoreSyncTime(timeStr);
+        setFirestorePermissionError(false);
+        showToast(`Cloud Firestore Synchronized! (${result.syncedEntries} entries, ${result.syncedCapsules} capsules saved)`, 'success');
+      } else if (result.permissionDenied) {
+        setFirestorePermissionError(true);
+        showToast('Firestore permissions error: Deploy security rules in Firebase Console.', 'error');
+      } else {
+        showToast('Firestore sync encountered a warning. Check your network or permissions.', 'warning');
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to sync with Firestore', 'error');
+    } finally {
+      setIsSyncingFirestore(false);
+    }
+  };
+
   const handleRevokeAllOther = () => {
     const updated = revokeAllOtherDeviceSessions(uid);
     setDeviceSessions(updated);
@@ -151,14 +229,14 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
   const [isWebAuthnAvailable, setIsWebAuthnAvailable] = useState(false);
 
   useEffect(() => {
-    isWebAuthnSupported().then(setIsWebAuthnAvailable);
+    isBiometricAvailable().then(setIsWebAuthnAvailable);
   }, []);
 
   const handleEnrollBiometrics = async () => {
     try {
       showToast('Awaiting biometric hardware touch (Touch ID / Windows Hello)...', 'info');
-      const success = await registerBiometricCredential(uid, user?.email || 'vault_user');
-      if (success) {
+      const credential = await registerBiometric(uid);
+      if (credential) {
         handleSaveSecuritySettings({ biometricsEnabled: true });
         showToast('🔒 Hardware Biometrics Enrolled & Activated!', 'success');
       }
@@ -560,6 +638,230 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               <Fingerprint className="w-4 h-4" />
               <span>Enroll Biometric Quick Unlock</span>
             </button>
+          </div>
+        </div>
+
+        {/* ☁️ Cloud Firestore Sovereign Database Sync */}
+        <div
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1.5px solid rgba(16, 185, 129, 0.35)',
+            borderRadius: '16px',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#10b981',
+                }}
+              >
+                <Cloud className="w-5 h-5" />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                    Cloud Firestore Sovereign Database Sync
+                  </h2>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '100px',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      color: '#10b981',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                    }}
+                  >
+                    CONNECTED
+                  </span>
+                </div>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  Project: <code>neural-vault-22e16</code> • Encrypted client-side ciphertext & SHA digests
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setShowRulesModal(true)}
+                className="btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 14px',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  borderRadius: 'var(--radius-pill)',
+                  cursor: 'pointer',
+                }}
+                title="View and copy required Cloud Firestore Security Rules"
+              >
+                <FileText className="w-3.5 h-3.5 text-blue-500" />
+                <span>Security Rules Guide</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleManualFirestoreSync}
+                disabled={isSyncingFirestore}
+                className="btn btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 16px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-pill)',
+                  cursor: isSyncingFirestore ? 'not-allowed' : 'pointer',
+                  opacity: isSyncingFirestore ? 0.7 : 1,
+                }}
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncingFirestore ? 'animate-spin' : ''}`} />
+                <span>{isSyncingFirestore ? 'Syncing to Firestore...' : 'Sync with Firestore Now'}</span>
+              </button>
+            </div>
+          </div>
+
+          {firestorePermissionError && (
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '12px',
+                padding: '14px 18px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444' }}>
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span style={{ fontSize: '13px', fontWeight: 700 }}>
+                    Firestore Permission Denied (Action Required)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFirestorePermissionError(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                  }}
+                >
+                  ✕ Dismiss
+                </button>
+              </div>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                Cloud Firestore in project <code>neural-vault-22e16</code> blocked writing to user subcollections (<code>users/{uid}/entries</code>). To permit zero-knowledge encrypted synchronizations, deploy the owner-bound security rules to your Firebase Console.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                <button
+                  type="button"
+                  onClick={handleCopyRules}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {isCopiedRules ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{isCopiedRules ? 'Rules Copied!' : 'Copy Security Rules'}</span>
+                </button>
+                <a
+                  href="https://console.firebase.google.com/project/neural-vault-22e16/firestore/rules"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: 'var(--bg-main)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-subtle)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Firebase Console Rules</span>
+                </a>
+              </div>
+            </div>
+          )}
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '12px',
+              padding: '12px',
+              borderRadius: '12px',
+              background: 'var(--bg-main)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Collection: users/{uid}/entries
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
+                {entries.length} Reflections Ready
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Collection: users/{uid}/timeCapsules
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
+                {capsules.length} Capsules Ready
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Last Cloud Sync
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: lastFirestoreSyncTime ? '#10b981' : 'var(--text-secondary)' }}>
+                {lastFirestoreSyncTime ? `Synchronized at ${lastFirestoreSyncTime}` : 'Active (Live Real-Time Updates)'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -992,6 +1294,130 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
           </span>
         </div>
       </div>
+
+      {/* 📋 Cloud Firestore Security Rules Deployment Modal */}
+      {showRulesModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0, 0, 0, 0.65)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowRulesModal(false)}
+        >
+          <div
+            className="google-dialog-surface max-w-xl w-full p-6"
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '20px',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                <h3 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  Cloud Firestore Security Rules Setup
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRulesModal(false)}
+                style={{
+                  background: 'var(--surface-hover)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+              Nexus Mind Vault uses client-side AES-GCM-256 encryption. Only encrypted ciphertext is sent to Cloud Firestore. To allow your authenticated account to read and write reflections and capsules, deploy these rules to your Firebase Console:
+            </p>
+
+            <ol style={{ fontSize: '12.5px', color: 'var(--text-secondary)', paddingLeft: '20px', margin: 0, lineHeight: 1.6 }}>
+              <li>
+                Open the{' '}
+                <a
+                  href="https://console.firebase.google.com/project/neural-vault-22e16/firestore/rules"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--accent-blue)', textDecoration: 'underline' }}
+                >
+                  Firebase Console Firestore Rules tab ↗
+                </a>
+              </li>
+              <li>Replace the existing rules editor contents with the code below.</li>
+              <li>Click <strong>Publish</strong> in the Firebase Console.</li>
+            </ol>
+
+            <div style={{ position: 'relative' }}>
+              <pre
+                style={{
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  fontSize: '11.5px',
+                  fontFamily: 'monospace',
+                  color: 'var(--text-primary)',
+                  overflowX: 'auto',
+                  maxHeight: '220px',
+                  margin: 0,
+                }}
+              >
+                {RECOMMENDED_FIRESTORE_RULES}
+              </pre>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+              <a
+                href="https://console.firebase.google.com/project/neural-vault-22e16/firestore/rules"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="google-btn-secondary"
+                style={{
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '13px',
+                  padding: '8px 16px',
+                }}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open Firebase Console</span>
+              </a>
+              <button
+                type="button"
+                onClick={handleCopyRules}
+                className="google-btn-primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '13px',
+                  padding: '8px 16px',
+                }}
+              >
+                {isCopiedRules ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{isCopiedRules ? 'Copied to Clipboard!' : 'Copy Rules'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

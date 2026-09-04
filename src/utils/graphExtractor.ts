@@ -16,10 +16,10 @@ const STOP_WORDS = new Set([
 
 const CATEGORY_KEYWORDS: Record<ConceptCategory, string[]> = {
   emotion: ['calm', 'focused', 'creative', 'anxious', 'energetic', 'tired', 'joy', 'stress', 'peace', 'gratitude', 'mood', 'mental', 'mindset', 'serenity', 'burnout'],
-  insight: ['realization', 'clarity', 'lesson', 'discovered', 'learned', 'reflection', 'breakthrough', 'wisdom', 'mindfulness', 'truth', 'growth', 'principle'],
+  insight: ['realization', 'clarity', 'lesson', 'discovered', 'learned', 'reflection', 'breakthrough', 'wisdom', 'mindfulness', 'truth', 'growth', 'principle', 'voice-session', 'voice-mirror', 'neural-mirror', 'synthesis', 'grounding'],
   project: ['nexus', 'vault', 'system', 'build', 'architecture', 'app', 'code', 'deploy', 'protocol', 'design', 'milestone', 'launch', 'client', 'work'],
   entity: ['team', 'family', 'mentor', 'google', 'user', 'gemini', 'assistant', 'community', 'partner'],
-  theme: ['security', 'isolation', 'crypto', 'habits', 'productivity', 'health', 'focus', 'deep work', 'meditation', 'balance', 'learning', 'routine']
+  theme: ['security', 'isolation', 'crypto', 'habits', 'productivity', 'health', 'focus', 'deep work', 'meditation', 'balance', 'learning', 'routine', 'sanctuary', 'acoustic', 'dialogue']
 };
 
 export function extractSemanticGraph(entries: JournalEntry[]): SemanticGraphData {

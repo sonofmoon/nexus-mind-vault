@@ -1,18 +1,24 @@
 import { GoogleGenAI } from '@google/genai';
 
 const MODEL_FALLBACK_LADDER = [
-  'gemini-3.6-flash',          // Primary
-  'gemini-3.1-flash-lite',      // High-Availability Fallback
-  'gemini-flash-latest',        // Dynamic Alias
-  'gemini-3.7-flash',           // Deep Reasoning Fallback
+  'gemini-3.6-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
+  'gemini-3.7-flash',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
 ];
 
 let aiClient: GoogleGenAI | null = null;
 export function getGenAIClient(): GoogleGenAI {
   if (!aiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is not configured in Cloud Functions environment.');
+    }
     aiClient = new GoogleGenAI({
-      apiKey: apiKey || 'dummy-key-for-init',
+      apiKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-cloud-functions',
@@ -33,7 +39,7 @@ export async function generateWithFallback({
   responseMimeType?: string;
 }) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'dummy-key-for-init') {
+  if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured in Cloud Functions environment.');
   }
 

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { UserSession, VaultMode, TabType } from '../types';
-import { Shield, ShieldCheck, Lock, Unlock, LogIn, LogOut, BookOpen, BarChart2, Cpu, Clock, Settings, Share2, Network, Sun, Moon, Search, Command } from 'lucide-react';
+import { Shield, ShieldCheck, Lock, Unlock, LogIn, LogOut, BookOpen, BarChart2, Cpu, Clock, Settings, Share2, Network, Sun, Moon, Search, Command, Radio, Mic } from 'lucide-react';
 import { NexusMindVaultLogo } from './NexusMindVaultLogo';
 
 interface VaultHeaderProps {
@@ -177,6 +177,50 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
             <BookOpen className={`w-3.5 h-3.5 inline mr-1 ${activeTab === 'journal' ? 'text-white' : 'text-blue-500'}`} />
             <span>Journal</span>
           </button>
+
+          {/* Hero Centerpiece: 🎙️ Nexura AI (Voice Sanctuary - NMV Real Vault Only) */}
+          {vaultMode === 'real' && (
+            <button
+              type="button"
+              className="btn"
+              style={{
+                padding: '6px 13px',
+                fontSize: '12px',
+                fontWeight: activeTab === 'voice' ? 700 : 600,
+                borderRadius: 'var(--radius-pill)',
+                background: activeTab === 'voice'
+                  ? 'linear-gradient(135deg, #6366f1, #a855f7)'
+                  : 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12))',
+                color: activeTab === 'voice' ? '#ffffff' : '#8b5cf6',
+                border: activeTab === 'voice' ? 'none' : '1px solid rgba(139, 92, 246, 0.4)',
+                boxShadow: activeTab === 'voice'
+                  ? '0 0 16px rgba(139, 92, 246, 0.55)'
+                  : '0 0 8px rgba(139, 92, 246, 0.18)',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onClick={() => onTabChange('voice')}
+              title="Nexura AI: Sovereign Hands-free AI Confidant (Ctrl+M)"
+            >
+              <Radio className={`w-3.5 h-3.5 ${activeTab === 'voice' ? 'text-white' : 'text-purple-400 animate-pulse'}`} />
+              <span>Nexura AI</span>
+              <span
+                style={{
+                  fontSize: '9px',
+                  background: activeTab === 'voice' ? 'rgba(255,255,255,0.25)' : 'rgba(139,92,246,0.25)',
+                  padding: '1px 5px',
+                  borderRadius: '8px',
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase',
+                  fontWeight: 800,
+                }}
+              >
+                VOICE
+              </span>
+            </button>
+          )}
 
           {/* Item 2: 📈 Insights */}
           <button
