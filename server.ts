@@ -426,14 +426,19 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
 const VERTEX_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || "neural-vault-22e16";
 const VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || process.env.CLOUD_RUN_REGION || "us-central1";
 
-const VERTEX_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro"];
-const GENAI_MODELS = [
-  "gemini-3.6-flash",
-  "gemini-2.5-flash",
-  "gemini-flash-latest",
-  "gemini-3.1-flash-lite",
-  "gemini-3.7-flash",
+// Unified Resilient Gemini Model Fallback Ladder
+const MODEL_FALLBACK_LADDER = [
+  "gemini-3.6-flash",          // Primary Directive
+  "gemini-3.1-flash-lite",      // High-Availability Fallback
+  "gemini-flash-latest",        // Dynamic Alias
+  "gemini-3.7-flash",           // Deep Reasoning Fallback
+  "gemini-2.5-flash",           // High-Speed Multimodal Production Model
+  "gemini-2.5-flash-lite",      // Ultra-Fast High-Availability Lite Model
+  "gemini-2.5-pro",             // Extended Enterprise Fallback
 ];
+
+const VERTEX_MODELS = MODEL_FALLBACK_LADDER;
+const GENAI_MODELS = MODEL_FALLBACK_LADDER;
 
 async function* streamVertexAi({
   apiKey,
