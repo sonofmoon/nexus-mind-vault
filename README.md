@@ -94,31 +94,31 @@ Nexus Mind Vault is designed to provide **100% service continuity** with zero mo
 ```
 [Incoming AI Request (Reflect / Insights / Audio / Graph)]
                         |
-                        â–¼
+                        v
    +------------------------------------------+
    |  Primary: gemini-3.6-flash               | --> [Success: 200 OK / Token Stream]
    |  Primary high-speed cognitive reasoning  |
    +------------------------------------------+
                         | (404 / 403 / Unavailable -> Cascades)
-                        â–¼
+                        v
    +------------------------------------------+
    |  Fallback 1: gemini-3.1-flash-lite       | --> [Success: 200 OK / Token Stream]
    |  High-availability ultra-light tier      |
    +------------------------------------------+
                         | (404 / 403 / Unavailable -> Cascades)
-                        â–¼
+                        v
    +------------------------------------------+
    |  Dynamic Alias: gemini-flash-latest      | --> [Success: 200 OK / Token Stream]
    |  Automated latest version alias          |
    +------------------------------------------+
                         | (404 / 403 / Unavailable -> Cascades)
-                        â–¼
+                        v
    +------------------------------------------+
    |  Deep Reasoning: gemini-3.7-flash        | --> [Success: 200 OK / Token Stream]
    |  Advanced reasoning tier                 |
    +------------------------------------------+
                         | (Cascades to Production Tier)
-                        â–¼
+                        v
    +------------------------------------------+
    |  Vertex Production: gemini-2.5-flash / lite / pro| --> [Production Demo Continuity]
    |  Resilient enterprise fallback tier      |
@@ -159,59 +159,27 @@ Nexus Mind Vault solves the physical coercion and shoulder-surfing vulnerabiliti
 ##  Key Features & Visual Walkthrough
 > *Reviewers and evaluators: The application features high-fidelity Material 3 design, dark glassmorphism, dynamic audio feedback, and interactive physics visualizations.*
 ### 1. Covert Gate & Duress Protection
-```markdown
-<!-- SCREENSHOT PLACEHOLDER 1: Dual-Partition Coercion Defense & Cover Persona -->
-<!-- NOTE: Insert screenshot of the PIN entry modal and the Botanical Cover Persona reflection diary -->
-```
 * **Duress Partitioning**: Entering a decoy PIN unlocks the botanical research diary with zero alarm, protecting the user from coerced passphrase disclosure.
 * **Ambient Countdown Banner**: Floating warning banner alerts the user 30 seconds before inactivity lock with a 1-click extension button.
 ### 2. Inner Cognitive Journal & Multi-Modal Reflection Canvas
-```markdown
-<!-- SCREENSHOT PLACEHOLDER 2: Nexus Mind Vault Sovereign Glassmorphic Enclave -->
-<!-- NOTE: Insert screenshot of the rich journal canvas, markdown editor, streak counter, and audio recorder -->
-```
 * **Rich Journal Canvas**: Markdown formatting, mood tags, audio recordings, template selector, search filters, and real-time word/character telemetry.
 * **Neural Voice Mirror**: Direct audio recording and transcription powered by Gemini Speech-to-Text (`/api/gemini/audio`).
 ### 3. AI Cognitive Trends & Executive Synthesis
-```markdown
-<!-- SCREENSHOT PLACEHOLDER 3: AI Cognitive Trends & Multi-Modal Reflection -->
-<!-- NOTE: Insert screenshot of the Executive Synthesis card, emotional trajectory graph, and growth vectors -->
-```
 * **Executive Synthesis**: Dynamic Gemini analysis of recurring mental models, cognitive velocity, and breakthrough themes.
 * **Emotional Trajectory**: Tracks emotional balance (calm, focused, energetic, creative) across 30-day journaling windows.
 ### 4. D3.js Physics Force-Directed Semantic Memory Graph
-```markdown
-<!-- SCREENSHOT PLACEHOLDER 4: D3 Interactive Physics Force-Directed Semantic Mind Graph -->
-<!-- NOTE: Insert screenshot of the D3 force-directed concept graph with node clusters, zoom controls, and export tools -->
-```
 * **Associative Graph Engine**: Automatically clusters recurring entities, concepts, and journal dates into physics-simulated force nodes.
 * **Export Capabilities**: 1-click vector SVG and high-resolution PNG export directly from the canvas.
 ### 5. Cryptographically Sealed Future Time Capsules
-```markdown
-<!-- SCREENSHOT PLACEHOLDER 5: Cryptographically Sealed Time Capsules with NIST SHA-256 Fingerprint -->
-<!-- NOTE: Insert screenshot of the Time Capsules vault showing locked capsules, countdown timers, and SHA-256 seal status -->
-```
 * **NIST FIPS 180-4 SHA-256 Seal**: Tamper-proof digest calculated synchronously at sealing. Unsealing is cryptographically blocked if the hash mismatch indicates data corruption or tampering.
 * **Multi-Factor Unlock Conditions**: Supports date/time locks, target mood unlocking, or dual locks.
 ### 6. Legacy Guardian Proof-of-Life Living Will Protocol
-```markdown
-<!-- SCREENSHOT PLACEHOLDER 6: Multi-Policy Legacy Guardian Living Will Protocol -->
-<!-- NOTE: Insert screenshot of the Legacy Guardian dashboard showing heartbeat pulse, grace period timers, and beneficiary policies -->
-```
 * **Dead Man's Switch**: Emits scheduled Proof-of-Life heartbeats. If the user fails to check in before the grace window expires, pre-configured policy capsules are released to trusted contacts via claim tokens.
 * **Multi-Domain Policies**: Supports Family, Crypto/Financial, Business Continuity, and Personal categories.
 ### 7. Zero-Knowledge Security Health HUD & Multi-Device Manager
-```markdown
-<!-- SCREENSHOT PLACEHOLDER 7: Zero-Knowledge Security Health HUD & Self-Audit Matrix -->
-<!-- NOTE: Insert screenshot of the Security Health HUD, device session manager, and zero-plaintext leak audit -->
-```
 * **Live Cryptographic HUD**: Real-time monitor of active RAM key lifecycle, entropy calculation, and local encryption status.
 * **Self-Audit Verification**: Automated verification scan testing for zero plaintext leakage across all browser storage partitions.
 ### 8. Interactive Standalone Showcase App (`/apps/nmv`)
-```markdown
-<!-- SCREENSHOT PLACEHOLDER 8: Interactive Standalone Showcase App (public/apps/nmv/index.html) -->
-<!-- NOTE: Insert screenshot of the showcase app showing the architecture visualizer, live API playground, and dual-mode simulator -->
-```
 * Built-in interactive showcase available at `/apps/nmv` allowing evaluators to explore the architecture, test fallback ladders, and simulate duress modes in a single click.
 ---
 ## [folder] Repository Structure
