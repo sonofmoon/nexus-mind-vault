@@ -1,5 +1,5 @@
-/**
- * 🧠 Sovereign Google Gemini AI Client for Nexus Mind Vault
+﻿/**
+ * [ai] Sovereign Google Gemini AI Client for Nexus Mind Vault
  * - Routes via Resilient Server-Side Proxy (/api/gemini)
  * - Supports Real-Time SSE Token Streaming (streamGeminiChat)
  * - Supports Multi-Turn Chat Conversation, System Instructions, and Context Grounding
@@ -7,8 +7,12 @@
  * - Supports Flexible Date Range Distribution (14d, 30d, 90d, 180d, Custom)
  * - Supports Multi-Domain Cumulative Persona Aggregation
  * - Supports AI Journal Trends & Cognitive Synthesis
- * - Resilient Model Fallback Ladder (gemini-3.6-flash -> gemini-3.1-flash-lite -> gemini-flash-latest -> gemini-3.7-flash -> gemini-2.5-flash)
+ * - Rubric Ladder: gemini-3.6-flash -> gemini-3.1-flash-lite -> gemini-flash-latest -> gemini-3.7-flash
+ * - Distributed Multi-Instance Rate Limiting
+ * - Zero Plaintext Egress
  */
+
+import { authenticatedFetch } from './apiClient';
 
 export interface ChatTurn {
   role: 'user' | 'model' | 'assistant';
@@ -77,7 +81,7 @@ export interface AITrendsResult {
 }
 
 /**
- * 🔒 Defensive Payload Sanitizer (Strict Undefined-Stripping)
+ * [lock] Defensive Payload Sanitizer (Strict Undefined-Stripping)
  */
 export function stripUndefinedPayload<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
@@ -97,7 +101,7 @@ export function stripUndefinedPayload<T>(obj: T): T {
 }
 
 /**
- * ⚡ Real-Time SSE Token Streaming for AI Cognitive Reflection Mirror
+ * [fast] Real-Time SSE Token Streaming for AI Cognitive Reflection Mirror
  */
 export async function* streamGeminiChat(options: GeminiChatOptions): AsyncGenerator<string, void, unknown> {
   const { prompt, history = [], systemInstruction, context } = options;
@@ -113,7 +117,7 @@ export async function* streamGeminiChat(options: GeminiChatOptions): AsyncGenera
     stream: true,
   });
 
-  const response = await fetch('/api/gemini', {
+  const response = await authenticatedFetch('/api/gemini', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -166,7 +170,7 @@ export async function* streamGeminiChat(options: GeminiChatOptions): AsyncGenera
 }
 
 /**
- * 🧠 Non-Streaming Multi-Turn Chat Generation with Server-Side Fallback Ladder
+ * [ai] Non-Streaming Multi-Turn Chat Generation with Server-Side Fallback Ladder
  */
 export async function generateGeminiChatResponse(options: GeminiChatOptions): Promise<GeminiChatResponse> {
   const { prompt, history = [], systemInstruction, context } = options;
@@ -183,7 +187,7 @@ export async function generateGeminiChatResponse(options: GeminiChatOptions): Pr
   });
 
   try {
-    const response = await fetch('/api/gemini', {
+    const response = await authenticatedFetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -208,7 +212,7 @@ export async function generateGeminiChatResponse(options: GeminiChatOptions): Pr
 }
 
 /**
- * 🧬 Neural Parallel Persona Matrix (NPPM) Domain Synthesis
+ * [matrix] Neural Parallel Persona Matrix (NPPM) Domain Synthesis
  */
 export async function generateGeminiParallelPersona(options: ParallelPersonaOptions): Promise<ParallelPersonaResponse> {
   const targetDomain = options.targetDomain || "Botanical & Hydroponic Systems";
@@ -310,7 +314,7 @@ export async function generateGeminiParallelPersona(options: ParallelPersonaOpti
 'Source Data Context:\n' + entriesContext;
 
   try {
-    const response = await fetch('/api/gemini', {
+    const response = await authenticatedFetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -418,7 +422,7 @@ export async function generateGeminiParallelPersona(options: ParallelPersonaOpti
 }
 
 /**
- * 📊 AI Journal Trends & Emotional Trajectory Synthesis
+ * [chart] AI Journal Trends & Emotional Trajectory Synthesis
  */
 export async function generateGeminiJournalTrends(
   entries: Array<{ title: string; content: string; mood?: string; tags?: string[]; createdAt?: string }>
@@ -455,7 +459,7 @@ export async function generateGeminiJournalTrends(
 'User Journal Data:\n' + entriesContext;
 
   try {
-    const response = await fetch('/api/gemini', {
+    const response = await authenticatedFetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -513,7 +517,7 @@ export async function generateGeminiJournalTrends(
 export const generateGeminiTrendsAnalysis = generateGeminiJournalTrends;
 
 /**
- * 🕸️ AI Semantic Knowledge Graph Extraction & Enrichment
+ * [privacy] AI Semantic Knowledge Graph Extraction & Enrichment
  */
 export async function generateGeminiSemanticEnrichment(
   entries: Array<{ id?: string; title: string; content: string; mood?: string; tags?: string[]; createdAt?: string }>
@@ -558,7 +562,7 @@ Entries:
 ${entriesContext}`;
 
   try {
-    const response = await fetch('/api/gemini', {
+    const response = await authenticatedFetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -627,3 +631,4 @@ ${entriesContext}`;
     error: 'AI Graph extraction unavailable; utilizing client-side deterministic knowledge engine.',
   };
 }
+

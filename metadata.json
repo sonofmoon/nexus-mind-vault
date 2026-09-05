@@ -11,7 +11,7 @@
   "cryptography": {
     "cipher": "AES-GCM-256",
     "keyDerivation": "PBKDF2-HMAC-SHA-256",
-    "pbkdf2Iterations": 100000,
+    "pbkdf2Iterations": 600000,
     "digest": "SHA-256",
     "integrity": "HMAC-SHA-256",
     "biometrics": "W3C WebAuthn FIDO2 / Touch ID / Windows Hello"

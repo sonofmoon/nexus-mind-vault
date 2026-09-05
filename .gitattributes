@@ -1,0 +1,7 @@
+# Enforce LF line endings for all text files (cross-platform & Linux container compatibility)
+* text=auto eol=lf
+
+# Windows scripts retain CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

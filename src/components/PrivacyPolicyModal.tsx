@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { ShieldCheck, Lock, EyeOff, Server, HardDrive, CheckCircle2, X } from 'lucide-react';
 
 interface PrivacyPolicyModalProps {
@@ -58,7 +58,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
               <span>1. Zero-Knowledge Local-First Encryption</span>
             </div>
             <p className="text-xs">
-              All journal entries, time capsules, voice recordings, and tags are encrypted on your physical device using <strong>AES-GCM-256</strong> with keys derived via <strong>PBKDF2 (100,000 iterations)</strong>. Neither our servers nor any third party possesses the cryptographic keys to decrypt your reflections.
+              All journal entries, time capsules, voice recordings, and tags are encrypted on your physical device using <strong>AES-GCM-256</strong> with keys derived via <strong>PBKDF2 (600,000 iterations)</strong>. Neither our servers nor any third party possesses the cryptographic keys to decrypt your reflections.
             </p>
           </div>
 
@@ -110,3 +110,4 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
     </div>
   );
 };
+

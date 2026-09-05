@@ -84,9 +84,18 @@ export async function signInWithGoogle(): Promise<UserSession> {
     console.error("[Google Sign-In Error]", error);
     const errorCode = error.code || "unknown";
 
-    // Resilient fallback: If browser blocks popups, redirect to Google Sign-In
-    if (errorCode === "auth/popup-blocked" || errorCode === "auth/cancelled-popup-request") {
-      console.warn("[Google Sign-In] Popup was blocked by browser. Falling back to signInWithRedirect...");
+    // Resilient fallback: If browser blocks popups or COOP policy restricts window communication, redirect to Google Sign-In
+    const isPopupBlocked =
+      errorCode === "auth/popup-blocked" ||
+      errorCode === "auth/cancelled-popup-request" ||
+      errorCode === "auth/operation-not-supported-in-this-environment" ||
+      (typeof error.message === "string" && (
+        error.message.includes("Cross-Origin-Opener-Policy") ||
+        error.message.includes("window.closed")
+      ));
+
+    if (isPopupBlocked) {
+      console.warn("[Google Sign-In] Popup was blocked or restricted by browser policy. Falling back to signInWithRedirect...");
       await signInWithRedirect(auth, provider);
       return new Promise(() => {}); // Pauses until browser navigates
     }

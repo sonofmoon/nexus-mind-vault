@@ -1,4 +1,4 @@
-import { deriveKeyFromPassphrase, deriveHmacKeyFromPassphrase, setActiveSessionKey, setActiveHmacKey, base64ToBuffer, generateRandomSalt, verifySecretPassphrase } from '../services/cryptoEngine';
+import { deriveKeyFromPassphrase, deriveHmacKeyFromPassphrase, setActiveSessionKey, setActiveHmacKey, base64ToBuffer, generateRandomSalt, verifySecretPassphrase, PBKDF2_ITERATIONS, LEGACY_PBKDF2_ITERATIONS } from '../services/cryptoEngine';
 import React, { useState } from 'react';
 import { NexusMindVaultLogo } from './NexusMindVaultLogo';
 import { Lock, ShieldCheck, X, Eye, EyeOff, RotateCcw, CheckCircle2, ArrowLeft } from 'lucide-react';
@@ -51,12 +51,13 @@ export const UnlockVaultModal: React.FC<UnlockVaultModalProps> = ({
     const isValid = await verifySecretPassphrase(secretInput.trim(), credentials);
 
     if (isValid) {
-      // 🔐 Derive Real AES-GCM-256 Key via PBKDF2 (100,000 Iterations)
+      // 🔐 Derive Real AES-GCM-256 Key via PBKDF2 (600,000 Iterations OWASP Standard)
       const salt = credentials.salt ? base64ToBuffer(credentials.salt) : generateRandomSalt(16);
+      const iterations = credentials.iterations || LEGACY_PBKDF2_ITERATIONS;
       try {
         const [cryptoKey, hmacKey] = await Promise.all([
-          deriveKeyFromPassphrase(secretInput.trim(), salt, 100000),
-          deriveHmacKeyFromPassphrase(secretInput.trim(), salt, 100000),
+          deriveKeyFromPassphrase(secretInput.trim(), salt, iterations),
+          deriveHmacKeyFromPassphrase(secretInput.trim(), salt, iterations),
         ]);
         setActiveSessionKey(cryptoKey);
         setActiveHmacKey(hmacKey);

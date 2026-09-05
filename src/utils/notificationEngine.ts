@@ -7,9 +7,22 @@
 import { JournalEntry } from '../types';
 import { authenticatedFetch } from '../services/apiClient';
 
-// Sovereign Public VAPID Key (RFC 8292 Web Push Application Server Key)
-export const DEFAULT_VAPID_PUBLIC_KEY =
-  'BFxdF_jvygQI0M8MX84-fEujfGOtDNyzaGTnT3wz8rypEu2nIMIvx5iOKarM_-UJwy9LJOQUwCGG8bbdBBlngAE';
+/**
+ * Dynamically resolves the RFC 8292 Web Push Application Server Key
+ * Queries server endpoint /api/notifications/vapid-public-key with env fallback
+ */
+export async function getVapidPublicKey(): Promise<string> {
+  try {
+    const res = await fetch('/api/notifications/vapid-public-key');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.publicKey) return data.publicKey;
+    }
+  } catch (_e) {
+    // Fall back to environment variable if offline
+  }
+  return (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY || '';
+}
 
 /**
  * Converts a base64 string to a Uint8Array for PushManager subscription
@@ -84,7 +97,12 @@ export async function subscribeToPushNotifications(uid: string): Promise<PushSub
     let subscription = await reg.pushManager.getSubscription();
 
     if (!subscription) {
-      const applicationServerKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
+      const vapidKey = await getVapidPublicKey();
+      if (!vapidKey) {
+        console.warn('[PushEngine] ⚠️ VAPID public key not configured on server or environment.');
+        return null;
+      }
+      const applicationServerKey = urlBase64ToUint8Array(vapidKey);
       subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: applicationServerKey as any,

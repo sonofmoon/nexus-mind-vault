@@ -1,3 +1,4 @@
+import { verifyPinCode } from '../services/cryptoEngine';
 import { isBiometricAvailable, registerBiometric } from '../services/biometricAuth';
 import { exportEntriesAsMarkdown, exportEntriesAsCSV, exportEntriesAsJSON, exportCapsulesAsJSON, exportMindGraphAsJSON } from '../utils/vaultExportHelpers';
 import { getActiveDeviceSessions, revokeDeviceSession, revokeAllOtherDeviceSessions, DeviceSession } from '../services/deviceSessionManager';
@@ -56,36 +57,29 @@ import {
 } from 'lucide-react';
 import { PinBoxGroup } from './PinBoxGroup';
 import { vaultAudio } from '../utils/vaultAudioSynthesizer';
-
 const RECOMMENDED_FIRESTORE_RULES = `rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() {
       return request.auth != null;
     }
-
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
     // Strict User-Isolated Domain Rules (Zero-Knowledge ABAC)
     match /users/{userId} {
       allow read, write: if isOwner(userId);
-
       // Allows all owner-isolated subcollections (entries, timeCapsules, settings, guardians, etc.)
       match /{allChildren=**} {
         allow read, write: if isOwner(userId);
       }
     }
-
     // Default Deny
     match /{document=**} {
       allow read, write: if false;
     }
   }
 };`;
-
 interface VaultSettingsViewProps {
   user: UserSession | null;
   credentials: VaultCredentials | null;
@@ -94,7 +88,6 @@ interface VaultSettingsViewProps {
   onRefreshData: () => void;
   showToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
-
 export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
   user,
   credentials,
@@ -107,38 +100,29 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
   const [settings, setSettings] = useState<VaultSettings>(() => getVaultSettings(uid));
   const entries = getJournalEntries(uid);
   const capsules = getTimeCapsules(uid);
-
   // Change PIN state
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [currentPinInput, setCurrentPinInput] = useState('');
   const [newPinInput, setNewPinInput] = useState('');
   const [confirmNewPinInput, setConfirmNewPinInput] = useState('');
-  const [newSecretInput, setNewSecretInput] = useState(credentials?.secret || '');
-
+  const [newSecretInput, setNewSecretInput] = useState('');
   // Duress PIN state
   const [duressPinInput, setDuressPinInput] = useState(settings.duressPin || '');
-
   // Nexus Legacy Guardian Policies state
   const [guardianPolicies, setGuardianPolicies] = useState(() => getLegacyGuardianPolicies(uid));
-
-  
   const handleQuickCheckIn = () => {
     if (guardianPolicies.length === 0) return;
     const updated = recordGlobalHeartbeatPulse(uid);
     setGuardianPolicies(updated);
-    showToast(`🛡️ Global Heartbeat confirmed across ${updated.length} Legacy Guardian policies!`, 'success');
+    showToast(`x:️ Global Heartbeat confirmed across ${updated.length} Legacy Guardian policies!`, 'success');
   };
-
-
   // Zero-Trust Interactive Cryptographic Self-Audit State
-  // 🔒 ITEM 25: External Data Importer State
+  // x ITEM 25: External Data Importer State
   const [isImporting, setIsImporting] = useState(false);
   const [isPanicConfirmOpen, setIsPanicConfirmOpen] = useState(false);
-
   const handleImportFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
       setIsImporting(true);
       const result = await parseImportFile(file);
@@ -154,36 +138,30 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
       e.target.value = '';
     }
   };
-
   // Multi-Device Sessions State
   const [deviceSessions, setDeviceSessions] = useState<DeviceSession[]>(() => getActiveDeviceSessions(uid));
   const [schemaVersion, setSchemaVersion] = useState<number>(() => getVaultSchemaVersion(uid));
-
   const handleRevokeSession = (sessionId: string) => {
     const updated = revokeDeviceSession(uid, sessionId);
     setDeviceSessions(updated);
     showToast('Device session revoked successfully.', 'success');
   };
-
   const [isSyncingFirestore, setIsSyncingFirestore] = useState(false);
   const [lastFirestoreSyncTime, setLastFirestoreSyncTime] = useState<string | null>(null);
   const [firestorePermissionError, setFirestorePermissionError] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [isCopiedRules, setIsCopiedRules] = useState(false);
-
   const handleCopyRules = () => {
     navigator.clipboard.writeText(RECOMMENDED_FIRESTORE_RULES);
     setIsCopiedRules(true);
     showToast('Firestore Security Rules copied to clipboard!', 'success');
     setTimeout(() => setIsCopiedRules(false), 3000);
   };
-
   const handleManualFirestoreSync = async () => {
     if (!user || !user.uid || user.uid === 'guest' || user.uid === 'anonymous') {
       showToast('Please sign in with Google to synchronize with Cloud Firestore.', 'warning');
       return;
     }
-
     setIsSyncingFirestore(true);
     try {
       const result = await syncAllLocalVaultDataToFirestore(user.uid, {
@@ -209,13 +187,11 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
       setIsSyncingFirestore(false);
     }
   };
-
   const handleRevokeAllOther = () => {
     const updated = revokeAllOtherDeviceSessions(uid);
     setDeviceSessions(updated);
     showToast('All other remote device sessions revoked.', 'success');
   };
-
   const handleRunMigration = () => {
     const result = migrateVaultSchema(uid);
     if (result.migrated) {
@@ -225,26 +201,22 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
       showToast(`Vault is already up-to-date on Schema v${CURRENT_SCHEMA_VERSION}.`, 'info');
     }
   };
-
   const [isWebAuthnAvailable, setIsWebAuthnAvailable] = useState(false);
-
   useEffect(() => {
     isBiometricAvailable().then(setIsWebAuthnAvailable);
   }, []);
-
   const handleEnrollBiometrics = async () => {
     try {
       showToast('Awaiting biometric hardware touch (Touch ID / Windows Hello)...', 'info');
       const credential = await registerBiometric(uid);
       if (credential) {
         handleSaveSecuritySettings({ biometricsEnabled: true });
-        showToast('🔒 Hardware Biometrics Enrolled & Activated!', 'success');
+        showToast('x Hardware Biometrics Enrolled & Activated!', 'success');
       }
     } catch (err: any) {
       showToast(err.message || 'Biometric enrollment cancelled.', 'error');
     }
   };
-
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditReport, setAuditReport] = useState<{
     completed: boolean;
@@ -256,27 +228,22 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
     duressSegregated: boolean;
     capsuleSealValid: boolean;
   } | null>(null);
-
   const handleRunCryptoAudit = async () => {
     setIsAuditing(true);
     const start = performance.now();
-
     // 1. Hardware entropy check via CSPRNG
     const testEntropy = new Uint8Array(32);
     window.crypto.getRandomValues(testEntropy);
     const entropyValid = testEntropy.some((b) => b !== 0);
-
     // 2. Key derivation benchmark
     await new Promise((resolve) => setTimeout(resolve, 850));
     const derivationTime = Math.round(performance.now() - start);
-
     // 3. Plaintext storage leak verification
     const allKeys = Object.keys(localStorage);
     const hasPlaintextSecret = allKeys.some((k) => {
       const val = localStorage.getItem(k) || '';
-      return val.includes('master_plain_secret') || (credentials?.secret && val === credentials.secret);
+      return val.includes('master_plain_secret') || val.includes('"pin":"') || val.includes('"secret":"');
     });
-
     setAuditReport({
       completed: true,
       timestamp: new Date().toLocaleTimeString(),
@@ -287,12 +254,10 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
       duressSegregated: true,
       capsuleSealValid: true,
     });
-
     setIsAuditing(false);
     vaultAudio.playUnlockSound();
-    showToast('🛡️ Live Cryptographic Audit: 6/6 STRIDE Zero-Trust Pillars Verified!', 'success');
+    showToast('x:️ Live Cryptographic Audit: 6/6 STRIDE Zero-Trust Pillars Verified!', 'success');
   };
-
   const handleSaveSecuritySettings = (updated: Partial<VaultSettings>) => {
     const next = { ...settings, ...updated };
     setSettings(next);
@@ -300,31 +265,26 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
     window.dispatchEvent(new CustomEvent('vault_settings_updated', { detail: { settings: next } }));
     showToast('Vault security preferences saved.', 'success');
   };
-
-  const handleUpdateMasterCredentials = (e: React.FormEvent) => {
+  const handleUpdateMasterCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!credentials) return;
-
-    if (currentPinInput !== credentials.pin) {
+    const isMasterPinValid = await verifyPinCode(currentPinInput, credentials);
+    if (!isMasterPinValid) {
       showToast('Current Master PIN is incorrect.', 'error');
       return;
     }
-
     if (newPinInput.length !== 6 || !/^\d{6}$/.test(newPinInput)) {
       showToast('New PIN must be exactly 6 digits.', 'warning');
       return;
     }
-
     if (newPinInput !== confirmNewPinInput) {
       showToast('New PIN confirmation does not match.', 'error');
       return;
     }
-
     if (!newSecretInput.trim()) {
       showToast('Security Passphrase cannot be empty.', 'warning');
       return;
     }
-
     const updated = saveVaultCredentials(uid, newPinInput, newSecretInput.trim());
     onCredentialsUpdated(updated);
     setIsChangingPin(false);
@@ -333,19 +293,24 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
     setConfirmNewPinInput('');
     showToast('Master Vault credentials successfully updated and re-encrypted.', 'success');
   };
-
-  const handleSaveDuressPin = () => {
-    if (duressPinInput && (!/^\d{6}$/.test(duressPinInput) || duressPinInput === credentials?.pin)) {
-      showToast('Duress PIN must be 6 digits and distinct from your Master PIN.', 'error');
+  const handleSaveDuressPin = async () => {
+    if (!duressPinInput) {
+      handleSaveSecuritySettings({ duressPin: undefined });
+      return;
+    }
+    if (!/^\d{6}$/.test(duressPinInput)) {
+      showToast('Duress PIN must be exactly 6 digits.', 'error');
+      return;
+    }
+    const isSameAsMaster = credentials ? await verifyPinCode(duressPinInput, credentials) : false;
+    if (isSameAsMaster) {
+      showToast('Duress PIN must be distinct from your Master PIN.', 'error');
       return;
     }
     handleSaveSecuritySettings({ duressPin: duressPinInput });
   };
-
-
   return (
     <div style={{ maxWidth: '920px', margin: '0 auto', width: '100%', padding: '0 16px 40px 16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
       {/* Header Banner */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
         <div>
@@ -361,13 +326,9 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             Manage zero-trust cryptographic parameters, master PIN credentials, duress traps, and offline backups.
           </p>
         </div>
-
       </div>
-
       {/* Grid of Settings Modules */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '20px' }}>
-        
-        
         {/* Card 1: Master Credentials */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: 'var(--shadow-card)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -379,27 +340,24 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>6-digit master access PIN and security passphrase</span>
             </div>
           </div>
-
           {!isChangingPin ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Active Master PIN</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', letterSpacing: '4px' }}>••••••</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', letterSpacing: '4px' }}>⬢⬢⬢⬢⬢⬢</div>
                 </div>
                 <div style={{ fontSize: '11px', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Enforced</span>
                 </div>
               </div>
-
               <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Security Passphrase</div>
                 <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px', wordBreak: 'break-all' }}>
-                  {credentials?.secret ? `•••••••••••• (${credentials.secret.length} characters)` : 'Configured on client'}
+                  {credentials?.secretVerifier ? '⬢⬢⬢⬢⬢⬢⬢⬢⬢⬢⬢⬢ (Zero-Knowledge Verifier Active)' : 'Configured on client'}
                 </div>
               </div>
-
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -420,7 +378,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   onChange={(digits) => setCurrentPinInput(digits.join(''))}
                 />
               </div>
-
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                   New 6-Digit PIN
@@ -430,7 +387,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   onChange={(digits) => setNewPinInput(digits.join(''))}
                 />
               </div>
-
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                   Confirm New 6-Digit PIN
@@ -440,7 +396,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   onChange={(digits) => setConfirmNewPinInput(digits.join(''))}
                 />
               </div>
-
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                   Security Passphrase / Recovery Secret
@@ -454,7 +409,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   required
                 />
               </div>
-
               <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                 <button
                   type="button"
@@ -480,7 +434,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             </form>
           )}
         </div>
-
         {/* Card 2: Duress & Covert Stealth */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -492,7 +445,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Defend against physical coercion and shoulder-surfing</span>
             </div>
           </div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
@@ -520,7 +472,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                 If forced to unlock under duress, entering this PIN opens the benign cover vault without raising suspicion.
               </p>
             </div>
-
             <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>Covert Logo Trigger</div>
@@ -537,7 +488,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             </div>
           </div>
         </div>
-
         {/* Card 3: Session Security & Auto-Lock */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -549,7 +499,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Automatically purge memory cache on idle timeout</span>
             </div>
           </div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
               Inactivity Lock Timeout
@@ -567,7 +516,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                 </button>
               ))}
             </div>
-
             <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>Tamper Audit Logging</div>
@@ -580,7 +528,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                 style={{ width: '18px', height: '18px', accentColor: '#a855f7' }}
               />
             </div>
-
             {/* ITEM 4: AI Cognitive Synthesis Privacy Disclosure & Opt-Out Toggle */}
             <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
               <div style={{ maxWidth: '80%' }}>
@@ -603,11 +550,7 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             </div>
           </div>
         </div>
-
-
-
-        
-        {/* 🔒 ITEM 14: Hardware Biometric Authentication (WebAuthn / Touch ID / Windows Hello) */}
+        {/* x ITEM 14: Hardware Biometric Authentication (WebAuthn / Touch ID / Windows Hello) */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -623,7 +566,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               {settings.biometricsEnabled ? 'Enrolled & Active' : 'Not Enrolled'}
             </span>
           </div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               Enable hardware biometric quick unlock as a cryptographic alternative to entering your 6-digit PIN on this device.
@@ -640,8 +582,7 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             </button>
           </div>
         </div>
-
-        {/* ☁️ Cloud Firestore Sovereign Database Sync */}
+        {/* ܁️ Cloud Firestore Sovereign Database Sync */}
         <div
           style={{
             background: 'var(--bg-surface)',
@@ -691,11 +632,10 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   </span>
                 </div>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  Project: <code>neural-vault-22e16</code> • Encrypted client-side ciphertext & SHA digests
+                  Project: <code>neural-vault-22e16</code> ⬢ Encrypted client-side ciphertext & SHA digests
                 </span>
               </div>
             </div>
-
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
@@ -719,7 +659,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                 <FileText className="w-3.5 h-3.5 text-blue-500" />
                 <span>Security Rules Guide</span>
               </button>
-
               <button
                 type="button"
                 onClick={handleManualFirestoreSync}
@@ -744,7 +683,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               </button>
             </div>
           </div>
-
           {firestorePermissionError && (
             <div
               style={{
@@ -775,7 +713,7 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                     fontSize: '12px',
                   }}
                 >
-                  ✕ Dismiss
+                  S" Dismiss
                 </button>
               </div>
               <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
@@ -826,7 +764,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               </div>
             </div>
           )}
-
           <div
             style={{
               display: 'grid',
@@ -864,8 +801,7 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             </div>
           </div>
         </div>
-
-        {/* 🔒 ITEM 18: Multi-Device Sessions & Active Device Footprints */}
+        {/* x ITEM 18: Multi-Device Sessions & Active Device Footprints */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -889,7 +825,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               </button>
             )}
           </div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {deviceSessions.map((session) => (
               <div
@@ -913,7 +848,7 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
-                        {session.os} — {session.browser}
+                        {session.os}  {session.browser}
                       </span>
                       {session.isCurrentDevice && (
                         <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' }}>
@@ -926,7 +861,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                     </div>
                   </div>
                 </div>
-
                 {!session.isCurrentDevice && (
                   <button
                     type="button"
@@ -941,7 +875,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             ))}
           </div>
         </div>
-
         {/* Card 5: Nexus Legacy Guardian Protocol */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -966,11 +899,10 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   border: '1px solid rgba(34, 197, 94, 0.3)',
                 }}
               >
-                🟢 {guardianPolicies.filter((p) => p.policyEnabled).length} POLICIES ARMED
+                xx {guardianPolicies.filter((p) => p.policyEnabled).length} POLICIES ARMED
               </span>
             )}
           </div>
-
           {guardianPolicies.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -991,7 +923,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   </span>
                 </div>
               </div>
-
               {/* Automatic Pulse on Unlock Toggle */}
               <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
@@ -1005,7 +936,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   style={{ width: '18px', height: '18px', accentColor: '#10b981', cursor: 'pointer' }}
                 />
               </div>
-
               <button
                 type="button"
                 onClick={handleQuickCheckIn}
@@ -1035,10 +965,8 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             </div>
           )}
         </div>
-
       </div>
-
-      {/* 🛡️ Comprehensive Google Material 3 Zero-Trust Cryptographic Assurance Matrix */}
+      {/* x:️ Comprehensive Google Material 3 Zero-Trust Cryptographic Assurance Matrix */}
       <div
         id="zero-trust-assurance-matrix"
         style={{
@@ -1101,7 +1029,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               </p>
             </div>
           </div>
-
           <button
             type="button"
             onClick={handleRunCryptoAudit}
@@ -1135,7 +1062,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             )}
           </button>
         </div>
-
         {/* Live Audit Diagnostic Results (Rendered on Run) */}
         {auditReport && (
           <div
@@ -1162,28 +1088,26 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                 Latency: {auditReport.keyDerivationTimeMs}ms
               </span>
             </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', fontSize: '11.5px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
-                <span style={{ color: '#137333', fontWeight: 800 }}>✓</span>
+                <span style={{ color: '#137333', fontWeight: 800 }}>S</span>
                 <span>Hardware Entropy (CSPRNG): <strong>256-bit Valid</strong></span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
-                <span style={{ color: '#137333', fontWeight: 800 }}>✓</span>
+                <span style={{ color: '#137333', fontWeight: 800 }}>S</span>
                 <span>Plaintext Storage Leak Test: <strong>0.00% Zero-Leak</strong></span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
-                <span style={{ color: '#137333', fontWeight: 800 }}>✓</span>
+                <span style={{ color: '#137333', fontWeight: 800 }}>S</span>
                 <span>Duress Decoy Air-Gap: <strong>Isolated</strong></span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
-                <span style={{ color: '#137333', fontWeight: 800 }}>✓</span>
+                <span style={{ color: '#137333', fontWeight: 800 }}>S</span>
                 <span>SHA-256 Checksum Integrity: <strong>Verified</strong></span>
               </div>
             </div>
           </div>
         )}
-
         {/* 6-Pillar STRIDE Threat Model Defense Grid (Google Ready Colors) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
           {/* Pillar S: Spoofing */}
@@ -1199,7 +1123,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               Dual-Factor PBKDF2 Master PIN + Secret Code derivation. Key is ephemeral in RAM; credentials are never transmitted over network.
             </p>
           </div>
-
           {/* Pillar T: Tampering */}
           <div style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-main)', border: '1.5px solid rgba(30, 142, 62, 0.3)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1213,7 +1136,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               SHA-256 cryptographic sealing on every journal reflection, sealed Future Capsule, and Legacy Guardian policy.
             </p>
           </div>
-
           {/* Pillar R: Repudiation */}
           <div style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-main)', border: '1.5px solid rgba(147, 51, 234, 0.3)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1227,7 +1149,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               Client-side tamper-evident audit logging for partition mounts, failed PIN attempts, and Proof-of-Life pulse events.
             </p>
           </div>
-
           {/* Pillar I: Information Disclosure */}
           <div style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-main)', border: '1.5px solid rgba(26, 115, 232, 0.3)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1241,7 +1162,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               AES-GCM-256 authenticated encryption. Zero-knowledge schema guarantees servers and AI models never see unencrypted memory shards.
             </p>
           </div>
-
           {/* Pillar D: Denial of Service */}
           <div style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-main)', border: '1.5px solid rgba(234, 134, 0, 0.3)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1255,7 +1175,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
               Configurable Inactivity Memory Purge with 30s Ambient Alert + Automatic Proof-of-Life heartbeat on Secret Code unlock.
             </p>
           </div>
-
           {/* Pillar E: Elevation of Privilege */}
           <div style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-main)', border: '1.5px solid rgba(217, 48, 37, 0.3)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1270,7 +1189,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
             </p>
           </div>
         </div>
-
         {/* Cryptographic Architecture Decision Record Chips (Google Style) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '4px' }}>
@@ -1282,7 +1200,7 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
           </span>
           <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '4px 10px', borderRadius: '100px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <Key className="w-3 h-3 text-purple-500" />
-            <span>PBKDF2-SHA256 (100,000 Iterations)</span>
+            <span>PBKDF2-SHA256 (600,000 Iterations)</span>
           </span>
           <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '4px 10px', borderRadius: '100px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <Shield className="w-3 h-3 text-emerald-500" />
@@ -1294,8 +1212,7 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
           </span>
         </div>
       </div>
-
-      {/* 📋 Cloud Firestore Security Rules Deployment Modal */}
+      {/* x9 Cloud Firestore Security Rules Deployment Modal */}
       {showRulesModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -1338,14 +1255,12 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   color: 'var(--text-primary)',
                 }}
               >
-                ✕
+                S"
               </button>
             </div>
-
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
               Nexus Mind Vault uses client-side AES-GCM-256 encryption. Only encrypted ciphertext is sent to Cloud Firestore. To allow your authenticated account to read and write reflections and capsules, deploy these rules to your Firebase Console:
             </p>
-
             <ol style={{ fontSize: '12.5px', color: 'var(--text-secondary)', paddingLeft: '20px', margin: 0, lineHeight: 1.6 }}>
               <li>
                 Open the{' '}
@@ -1355,13 +1270,12 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                   rel="noopener noreferrer"
                   style={{ color: 'var(--accent-blue)', textDecoration: 'underline' }}
                 >
-                  Firebase Console Firestore Rules tab ↗
+                  Firebase Console Firestore Rules tab  
                 </a>
               </li>
               <li>Replace the existing rules editor contents with the code below.</li>
               <li>Click <strong>Publish</strong> in the Firebase Console.</li>
             </ol>
-
             <div style={{ position: 'relative' }}>
               <pre
                 style={{
@@ -1380,7 +1294,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
                 {RECOMMENDED_FIRESTORE_RULES}
               </pre>
             </div>
-
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
               <a
                 href="https://console.firebase.google.com/project/neural-vault-22e16/firestore/rules"
@@ -1418,7 +1331,6 @@ export const VaultSettingsView: React.FC<VaultSettingsViewProps> = ({
           </div>
         </div>
       )}
-
     </div>
   );
 };

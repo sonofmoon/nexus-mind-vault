@@ -1,19 +1,15 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Shield, Lock, EyeOff, Sparkles, ArrowRight, ArrowLeft, CheckCircle2, Key, Cpu, Zap } from 'lucide-react';
-
 interface OnboardingCarouselModalProps {
   isOpen: boolean;
   onComplete: () => void;
 }
-
 export const OnboardingCarouselModal: React.FC<OnboardingCarouselModalProps> = ({
   isOpen,
   onComplete,
 }) => {
   const [slide, setSlide] = useState(0);
-
   if (!isOpen) return null;
-
   const slides = [
     {
       icon: <Shield className="w-10 h-10 text-blue-500" />,
@@ -22,7 +18,7 @@ export const OnboardingCarouselModal: React.FC<OnboardingCarouselModalProps> = (
       description:
         "Nexus Mind Vault encrypts all your reflections, memories, and time capsules directly in your browser using authenticated AES-GCM-256. Plaintext is never transmitted or stored on any cloud server.",
       bulletPoints: [
-        "Client-side PBKDF2-SHA-256 key derivation with 100,000 rounds",
+        "Client-side PBKDF2-SHA-256 key derivation with 600,000 rounds",
         "Unique 96-bit cryptographic nonces (IVs) for every reflection",
         "100% sovereign data ownership with zero third-party tracking",
       ],
@@ -48,16 +44,14 @@ export const OnboardingCarouselModal: React.FC<OnboardingCarouselModalProps> = (
       description:
         "You will now set a 6-digit Master PIN and a Security Passphrase. These values are used to derive your AES-GCM-256 master key in memory.",
       bulletPoints: [
-        "Zero-knowledge hash verification — no plaintext storage",
+        "Zero-knowledge hash verification - no plaintext storage",
         "Automatic idle memory zeroization with live Security HUD",
         "Hardware biometric support (Touch ID / Windows Hello)",
       ],
       accentColor: "#10b981",
     },
   ];
-
   const current = slides[slide];
-
   return (
     <div className="modal-backdrop" style={{ zIndex: 11000 }} role="dialog" aria-modal="true">
       <div
@@ -88,7 +82,6 @@ export const OnboardingCarouselModal: React.FC<OnboardingCarouselModalProps> = (
             />
           ))}
         </div>
-
         {/* Slide Content */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div
@@ -106,7 +99,6 @@ export const OnboardingCarouselModal: React.FC<OnboardingCarouselModalProps> = (
           >
             {current.icon}
           </div>
-
           <span
             style={{
               fontSize: '11px',
@@ -123,15 +115,12 @@ export const OnboardingCarouselModal: React.FC<OnboardingCarouselModalProps> = (
           >
             {current.badge}
           </span>
-
           <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 10px', color: 'var(--text-primary)' }}>
             {current.title}
           </h2>
-
           <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 20px' }}>
             {current.description}
           </p>
-
           <div
             style={{
               background: 'var(--bg-main)',
@@ -152,7 +141,6 @@ export const OnboardingCarouselModal: React.FC<OnboardingCarouselModalProps> = (
             ))}
           </div>
         </div>
-
         {/* Navigation Actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
           {slide > 0 ? (
@@ -168,7 +156,6 @@ export const OnboardingCarouselModal: React.FC<OnboardingCarouselModalProps> = (
           ) : (
             <div />
           )}
-
           {slide < slides.length - 1 ? (
             <button
               type="button"

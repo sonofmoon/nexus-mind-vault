@@ -1,27 +1,22 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { ShieldCheck, Lock, Unlock, Cpu, Zap, Key } from 'lucide-react';
 import { vaultAudio } from '../utils/vaultAudioSynthesizer';
-
 interface VaultDecryptionSequenceModalProps {
   isOpen: boolean;
   onComplete: () => void;
 }
-
 export const VaultDecryptionSequenceModal: React.FC<VaultDecryptionSequenceModalProps> = ({
   isOpen,
   onComplete,
 }) => {
   const [telemetryStep, setTelemetryStep] = useState(0);
-
   useEffect(() => {
     if (!isOpen) {
       setTelemetryStep(0);
       return;
     }
-
     // Trigger synthetic audio lock disengagement
     vaultAudio.playUnlockSound();
-
     // Step progression
     const timer1 = setTimeout(() => setTelemetryStep(1), 220);
     const timer2 = setTimeout(() => setTelemetryStep(2), 550);
@@ -30,7 +25,6 @@ export const VaultDecryptionSequenceModal: React.FC<VaultDecryptionSequenceModal
     const timerEnd = setTimeout(() => {
       onComplete();
     }, 1450);
-
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
@@ -39,9 +33,7 @@ export const VaultDecryptionSequenceModal: React.FC<VaultDecryptionSequenceModal
       clearTimeout(timerEnd);
     };
   }, [isOpen, onComplete]);
-
   if (!isOpen) return null;
-
   return (
     <div
       style={{
@@ -86,7 +78,6 @@ export const VaultDecryptionSequenceModal: React.FC<VaultDecryptionSequenceModal
           pointerEvents: 'none',
         }}
       />
-
       <div
         style={{
           width: '100%',
@@ -130,7 +121,6 @@ export const VaultDecryptionSequenceModal: React.FC<VaultDecryptionSequenceModal
             {telemetryStep < 3 ? <Lock className="w-8 h-8 text-purple-400" /> : <Unlock className="w-8 h-8 text-emerald-400" />}
           </div>
         </div>
-
         {/* Title */}
         <h3
           style={{
@@ -147,7 +137,6 @@ export const VaultDecryptionSequenceModal: React.FC<VaultDecryptionSequenceModal
         <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 24px 0', fontFamily: 'var(--font-mono)' }}>
           CLIENT-SIDE ZERO-KNOWLEDGE PROTOCOL
         </p>
-
         {/* Telemetry Stream Lines */}
         <div
           style={{
@@ -167,32 +156,28 @@ export const VaultDecryptionSequenceModal: React.FC<VaultDecryptionSequenceModal
           {telemetryStep >= 1 && (
             <div style={{ color: '#81c995', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>[+] PBKDF-2 (100k Iterations) Verified</span>
+              <span>[+] PBKDF2 SHA-256 (600k Iter) Verified</span>
             </div>
           )}
-
           {telemetryStep >= 2 && (
             <div style={{ color: '#8ab4f8', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Key className="w-3.5 h-3.5 text-blue-400 shrink-0" />
               <span>[+] AES-256-GCM Master Key Expanded</span>
             </div>
           )}
-
           {telemetryStep >= 3 && (
             <div style={{ color: '#c084fc', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Cpu className="w-3.5 h-3.5 text-purple-400 shrink-0" />
               <span>[+] Nexus Neural Partitions Mounted</span>
             </div>
           )}
-
           {telemetryStep >= 4 && (
             <div style={{ color: '#34d399', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Zap className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>[+] Sovereign Vault Unlocked • Zero Leakage</span>
+              <span>[+] Sovereign Vault Unlocked * Zero Leakage</span>
             </div>
           )}
         </div>
-
         {/* Bottom Shimmer Bar */}
         <div style={{ marginTop: '20px', height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
           <div

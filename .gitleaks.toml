@@ -1,0 +1,14 @@
+title = "Nexus Mind Vault Gitleaks Configuration"
+
+[allowlist]
+description = "Allowlist public client-side Firebase web identifiers and test fixtures"
+paths = [
+  '''src/services/firebaseConfig\.ts''',
+  '''src/__tests__/.*''',
+  '''dist/.*''',
+  '''\.antigravity/.*'''
+]
+regexes = [
+  '''AIzaSyAkPuAjliHFhGiEzoP6_99Tu0hCST4SPX4''',
+  '''LEGACY_PBKDF2_ITERATIONS'''
+]

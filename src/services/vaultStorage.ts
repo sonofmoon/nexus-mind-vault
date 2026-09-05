@@ -26,7 +26,9 @@ import {
   setActiveSessionKey,
   clearActiveSessionKey,
   isEncryptedPayload,
-  EncryptedPayload
+  EncryptedPayload,
+  PBKDF2_ITERATIONS,
+  LEGACY_PBKDF2_ITERATIONS
 } from './cryptoEngine';
 import {
   VaultCredentials,
@@ -76,7 +78,42 @@ function persistEncryptedPayload(storageKey: string, payload: any, label: string
 export function getVaultCredentials(uid: string): VaultCredentials | null {
   try {
     const raw = localStorage.getItem(CREDENTIALS_KEY_PREFIX + uid);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const creds = JSON.parse(raw);
+
+    // 🔒 Zero-Knowledge Hardening: If legacy plaintext pin or secret is present, migrate and purge immediately
+    if (creds.pin || creds.secret) {
+      const legacyPin = creds.pin;
+      const legacySecret = creds.secret;
+      const saltBytes = creds.salt ? base64ToBuffer(creds.salt) : generateRandomSalt(16);
+      const saltB64 = creds.salt || bufferToBase64(saltBytes);
+
+      Promise.all([
+        legacyPin ? hashPin(legacyPin, saltBytes) : Promise.resolve(creds.pinHash || ''),
+        legacySecret ? hashSecret(legacySecret, saltBytes) : Promise.resolve(creds.secretVerifier || ''),
+      ]).then(([pinHash, secretVerifier]) => {
+        const sanitized: VaultCredentials = {
+          salt: saltB64,
+          pinHash: pinHash || creds.pinHash || '',
+          secretVerifier: secretVerifier || creds.secretVerifier || '',
+          createdAt: creds.createdAt || new Date().toISOString(),
+          isZeroKnowledgeV2: true,
+          isEncryptedFormat: true,
+          iterations: creds.iterations || PBKDF2_ITERATIONS,
+        };
+        localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, JSON.stringify(sanitized));
+        console.log('[VaultStorage] 🔒 Legacy plaintext credentials purged and upgraded to Zero-Knowledge V2.');
+      }).catch((e) => {
+        console.error('[VaultStorage] Failed to auto-migrate legacy credentials:', e);
+      });
+
+      // Synchronously purge plaintext keys from memory representation
+      delete creds.pin;
+      delete creds.secret;
+      creds.isZeroKnowledgeV2 = true;
+    }
+
+    return creds as VaultCredentials;
   } catch {
     return null;
   }
@@ -93,13 +130,14 @@ export function saveVaultCredentials(uid: string, pin: string, secret: string): 
     secretVerifier: '',
     createdAt: new Date().toISOString(),
     isZeroKnowledgeV2: true,
+    iterations: PBKDF2_ITERATIONS,
   };
 
   // Immediate synchronous verifiers
   Promise.all([
     hashPin(pin, salt),
     hashSecret(secret, salt),
-    deriveKeyFromPassphrase(secret, salt, 100000),
+    deriveKeyFromPassphrase(secret, salt, PBKDF2_ITERATIONS),
   ]).then(([pinHash, secretVerifier, derivedKey]) => {
     creds.pinHash = pinHash;
     creds.secretVerifier = secretVerifier;
@@ -124,7 +162,7 @@ export async function setupVaultCredentialsSecure(
   const pinHash = await hashPin(pin, salt);
   const secretVerifier = await hashSecret(secret, salt);
 
-  const key = await deriveKeyFromPassphrase(secret, salt);
+  const key = await deriveKeyFromPassphrase(secret, salt, PBKDF2_ITERATIONS);
   setActiveSessionKey(key);
 
   const creds: VaultCredentials = {
@@ -134,6 +172,7 @@ export async function setupVaultCredentialsSecure(
     createdAt: new Date().toISOString(),
     isZeroKnowledgeV2: true,
     isEncryptedFormat: true,
+    iterations: PBKDF2_ITERATIONS,
   };
 
   localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, JSON.stringify(creds));
@@ -272,11 +311,12 @@ export function addTimeCapsule(
 ): TimeCapsule {
   const capsules = getTimeCapsules(uid);
   // 🔒 Genuine NIST FIPS 180-4 Cryptographic SHA-256 Integrity Seal
+  const sealedAt = new Date().toISOString();
   const integrityPayload = {
     userId: uid,
     title: newCapsule.title,
     message: newCapsule.message,
-    sealedAt: new Date().toISOString(),
+    sealedAt,
     unlockDate: newCapsule.unlockDate || null,
   };
   const integrityHash = computeSHA256Sync(integrityPayload);
@@ -285,7 +325,7 @@ export function addTimeCapsule(
     ...newCapsule,
     id: "capsule_" + Math.random().toString(36).substring(2, 9),
     userId: uid,
-    sealedAt: new Date().toISOString(),
+    sealedAt,
     isOpened: false,
     integrityHash,
   };

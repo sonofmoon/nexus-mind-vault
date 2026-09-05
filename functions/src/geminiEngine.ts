@@ -1,13 +1,13 @@
-import { GoogleGenAI } from '@google/genai';
+﻿import { GoogleGenAI } from '@google/genai';
 
 const MODEL_FALLBACK_LADDER = [
-  'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
-  'gemini-3.7-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
+  'gemini-3.6-flash',          // Primary (Challenge Specification)
+  'gemini-3.1-flash-lite',     // High-Availability Fallback
+  'gemini-flash-latest',       // Dynamic Alias
+  'gemini-3.7-flash',          // Deep Reasoning Fallback
+  'gemini-2.5-flash',          // Production demo continuity fallback
+  'gemini-2.5-flash-lite',     // Production demo HA fallback
+  'gemini-2.5-pro',            // Production demo deep reasoning fallback
 ];
 
 let aiClient: GoogleGenAI | null = null;

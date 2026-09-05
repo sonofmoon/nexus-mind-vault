@@ -11,6 +11,7 @@ import {
   generateRandomSalt,
   base64ToBuffer,
   EncryptedPayload,
+  LEGACY_PBKDF2_ITERATIONS,
 } from '../services/cryptoEngine';
 
 export interface EncryptedShareEnvelope {
@@ -133,7 +134,8 @@ export async function decryptSharedEntryPayload(
       : 'nexus_open_sovereign_share_v2';
 
     const saltBytes = base64ToBuffer(parsed.payload.salt);
-    const derivedKey = await deriveKeyFromPassphrase(sharePassphrase, saltBytes);
+    const iterations = parsed.payload.iterations || LEGACY_PBKDF2_ITERATIONS;
+    const derivedKey = await deriveKeyFromPassphrase(sharePassphrase, saltBytes, iterations);
     const decrypted = await decryptData<SharedEntryData>(parsed.payload, derivedKey);
     return decrypted;
   }

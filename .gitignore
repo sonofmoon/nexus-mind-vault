@@ -18,3 +18,5 @@ coverage/
 *serviceAccount*.json
 *service-account*.json
 credentials.json
+scratch/
+

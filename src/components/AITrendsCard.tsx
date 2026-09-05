@@ -183,20 +183,6 @@ export const AITrendsCard: React.FC<AITrendsCardProps> = ({ entries }) => {
               >
                 AI Cognitive Trends &amp; Executive Synthesis
               </h3>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'var(--accent-blue)',
-                  background: 'var(--accent-blue-subtle)',
-                  padding: '2px 8px',
-                  borderRadius: '100px',
-                  border: '1px solid var(--accent-blue)',
-                  letterSpacing: '0.2px',
-                }}
-              >
-                Gemini 3.7 AI
-              </span>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
               Multi-entry longitudinal trends, mindset trajectory, and executive digest.
@@ -417,7 +403,7 @@ export const AITrendsCard: React.FC<AITrendsCardProps> = ({ entries }) => {
               <Award className="w-3.5 h-3.5 text-blue-500" />
               Mindfulness Index: <strong style={{ color: 'var(--text-primary)' }}>{analysis.mindfulnessScore}%</strong>
             </span>
-            <span>Analyzed via {modelUsed || 'Gemini 3.7 Flash'} · Zero-Trust Encryption Enforced</span>
+            <span>Analyzed via {modelUsed || 'Gemini AI'} · Zero-Trust Encryption Enforced</span>
           </div>
         </div>
       ) : null}

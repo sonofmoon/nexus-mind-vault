@@ -1,4 +1,4 @@
-export interface UserSession {
+﻿export interface UserSession {
   uid: string;
   email: string | null;
   displayName: string | null;
@@ -12,9 +12,7 @@ export interface VaultCredentials {
   createdAt: string;
   isZeroKnowledgeV2: boolean;
   isEncryptedFormat?: boolean;
-  // Legacy backward-compatibility migration fields
-  pin?: string;
-  secret?: string;
+  iterations?: number;       // PBKDF2 iterations (default: 600000; legacy: 600000)
 }
 
 export type VaultMode = 'protected' | 'real';
@@ -193,3 +191,4 @@ export interface ParallelPersonaData {
   graph: SemanticGraphData;
   generatedAt: string;
 }
+
