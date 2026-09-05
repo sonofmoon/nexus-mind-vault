@@ -1,5 +1,5 @@
-﻿# [lock] Nexus Mind Vault (NMV) - Personal Gemini Journal
-### [trophy] Cohort 3 * Accelerate AI with Cloud Run * Gen AI Academy APAC Edition
+﻿# Nexus Mind Vault (NMV) - Personal Gemini Journal
+### Cohort 3 * Accelerate AI with Cloud Run * Gen AI Academy APAC Edition
 **Ideathon Challenge Submission | `#AccelerateAIwithCloudRun`**
 [![Live Cloud Run Production](https://img.shields.io/badge/Google%20Cloud%20Run-Live%20Production-4285F4?logo=googlecloud&logoColor=white)](https://nexus-mind-vault-n4ekvxi54q-uc.a.run.app/)
 [![Interactive Showcase](https://img.shields.io/badge/Interactive%20Showcase-NMV%20App-0ea5e9?logo=googlechrome&logoColor=white)](https://nexusaitech.in/apps/nmv/index.html)
@@ -7,11 +7,11 @@
 [![Cryptographic Standard](https://img.shields.io/badge/W3C%20WebCrypto-PBKDF2%20600k%20%7C%20AES--GCM--256-8b5cf6)](#-cryptographic-security-contracts--stride-threat-model)
 [![Tests Passing](https://img.shields.io/badge/Vitest-56%2F56%20Passed-22c55e?logo=vitest&logoColor=white)](#-automated-verification--test-suite)
 ---
-## [globe] Live Service & Interactive Showcase
-* **[rocket] Primary Live Cloud Run Deployment**: [https://nexus-mind-vault-n4ekvxi54q-uc.a.run.app/](https://nexus-mind-vault-n4ekvxi54q-uc.a.run.app/)
-* **[art] Interactive Visual Showcase App**: [https://nexusaitech.in/apps/nmv/index.html](https://nexusaitech.in/apps/nmv/index.html)
+##  Live Service & Interactive Showcase
+* **Primary Live Cloud Run Deployment**: [https://nexus-mind-vault-n4ekvxi54q-uc.a.run.app/](https://nexus-mind-vault-n4ekvxi54q-uc.a.run.app/)
+* ** Interactive Visual Showcase App**: [https://nexusaitech.in/apps/nmv/index.html](https://nexusaitech.in/apps/nmv/index.html)
 ---
-## [idea] What is Nexus Mind Vault?
+##  What is Nexus Mind Vault?
 **Nexus Mind Vault (NMV)** is an enterprise-grade, zero-trust personal cognitive reflection mirror and semantic memory engine. Built with **Firebase Authentication**, **Cloud Firestore Native**, **Google Cloud Secret Manager**, and auto-scaling **Google Cloud Run**, it integrates the **Google Gemini Model Family** (`@google/genai` & Vertex AI Express) to deliver deep cognitive synthesis, D3 force-directed semantic graphing, living wills, and cryptographically sealed future time capsules - **without ever exposing plaintext user thoughts or private keys to the cloud**.
 ```
 +-----------------------------------------------------------------------------------------+
@@ -43,7 +43,7 @@
 +-----------------------------------------------------------------------------------------+
 ```
 ---
-## [shield] Cryptographic Security Contracts & STRIDE Threat Model
+## Cryptographic Security Contracts & STRIDE Threat Model
 Nexus Mind Vault was engineered from Day 1 around the **STRIDE Threat Modeling Matrix** and **Zero-Trust Architecture**:
 ```
 +-------------------------------------------------------------------------------------------+
@@ -89,7 +89,7 @@ Nexus Mind Vault was engineered from Day 1 around the **STRIDE Threat Modeling M
 7. **Zero Plaintext AI Proxy Air-Gap**:
    AI endpoints are wrapped in `requireFirebaseAuth` ID token verification. When AI features are toggled off in settings, zero outbound network requests are dispatched to inference endpoints.
 ---
-## [rocket] Resilient Gemini Model Fallback Ladder (Cloud Run AI Challenge Mandated)
+## Resilient Gemini Model Fallback Ladder (Cloud Run AI Challenge Mandated)
 Nexus Mind Vault is designed to provide **100% service continuity** with zero mock reflections. The server-side AI proxy implements the exact Cloud Run AI Challenge Mandated Fallback Ladder backed by resilient production fallbacks:
 ```
 [Incoming AI Request (Reflect / Insights / Audio / Graph)]
@@ -151,7 +151,7 @@ Nexus Mind Vault solves the physical coercion and shoulder-surfing vulnerabiliti
 * **Persona**: Presents as an ordinary researcher diary (botanical, agricultural, and soil science field notes).
 * **RAM Hygiene**: Holds **0 private cryptographic keys** in memory.
 * **Air-Gapped Coercion Target**: Entering the secondary Duress PIN mounts this decoy partition with **zero alarm**, providing complete plausible deniability under physical inspection.
-### 2. [lock] Nexus Mind Vault (NMV - Sovereign Cryptographic Enclave)
+### 2. Nexus Mind Vault (NMV - Sovereign Cryptographic Enclave)
 * **Role**: Cryptographically sealed inner cognitive brain.
 * **Security Posture**: Unlocked via the **Covert Stealth Gate** with Master Secret Passphrase derivation (`PBKDF2-SHA256` with 600,000 rounds).
 * **Cryptographic Enclave**: Ephemeral in-memory `AES-GCM-256` client decryption. Houses multi-turn Gemini cognitive reflections, D3 force-directed semantic graphs, sealed future time capsules, and the multi-policy Legacy Guardian living will protocol.
@@ -182,7 +182,7 @@ Nexus Mind Vault solves the physical coercion and shoulder-surfing vulnerabiliti
 ### 8. Interactive Standalone Showcase App (`/apps/nmv`)
 * Built-in interactive showcase available at `/apps/nmv` allowing evaluators to explore the architecture, test fallback ladders, and simulate duress modes in a single click.
 ---
-## [folder] Repository Structure
+## Repository Structure
 ```
 +-- Dockerfile                      # Production multi-stage container build for Cloud Run
 +-- .dockerignore                   # Build artifact & secret exclusions
@@ -233,7 +233,7 @@ Nexus Mind Vault solves the physical coercion and shoulder-surfing vulnerabiliti
 +-- README.md                       # Comprehensive deployment, security & operations guide
 ```
 ---
-## [step] Step-by-Step Installation & Deployment Guide
+##  Step-by-Step Installation & Deployment Guide
 Follow this end-to-end setup guide to clone, run locally, test, and deploy Nexus Mind Vault to **Google Cloud Run** and **Firebase**.
 ---
 ### Step 0: Prerequisites & Tooling Installation
@@ -487,7 +487,7 @@ gcloud run services update nexus-mind-vault \
   --update-labels=dev-tutorial=cloud-run-ai-challenge
 ```
 ---
-## [test] Automated Verification & Test Suite
+##  Automated Verification & Test Suite
 Nexus Mind Vault includes an automated test suite verifying cryptographic correctness, tamper rejection, rate limiting, and zero-knowledge guarantees:
 ```bash
 npm test
