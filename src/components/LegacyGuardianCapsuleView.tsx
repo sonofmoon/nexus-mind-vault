@@ -1285,70 +1285,75 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
               {/* Photos with clean dark dismiss button */}
               {formPhotos.length > 0 && (
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {formPhotos.map((p, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        position: 'relative',
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '8px',
-                        overflow: 'hidden',
-                        border: '1px solid var(--border-subtle)',
-                      }}
-                    >
-                      {(() => {
-                        const safeUrl = sanitizeSafeUrl(p);
-                        return safeUrl ? <img src={safeUrl} alt={`Attached ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null;
-                      })()}
-                      <button
-                        type="button"
-                        onClick={() => setFormPhotos((prev) => prev.filter((_, i) => i !== idx))}
+                  {formPhotos.map((p, idx) => {
+                    const safePhotoUrl = sanitizeSafeUrl(p);
+                    if (!safePhotoUrl) return null;
+                    return (
+                      <div
+                        key={idx}
                         style={{
-                          position: 'absolute',
-                          top: '3px',
-                          right: '3px',
-                          background: 'rgba(0, 0, 0, 0.65)',
-                          color: '#ffffff',
-                          borderRadius: '50%',
-                          width: '16px',
-                          height: '16px',
-                          border: 'none',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          padding: 0,
-                          transition: 'all 0.15s ease',
+                          position: 'relative',
+                          width: '64px',
+                          height: '64px',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          border: '1px solid var(--border-subtle)',
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#000000';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(0, 0, 0, 0.65)';
-                        }}
-                        title="Remove photo"
                       >
-                        <X style={{ width: '10px', height: '10px', color: '#ffffff', strokeWidth: 2.5 }} />
-                      </button>
-                    </div>
-                  ))}
+                        <img src={safePhotoUrl} alt={`Attached ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          type="button"
+                          onClick={() => setFormPhotos((prev) => prev.filter((_, i) => i !== idx))}
+                          style={{
+                            position: 'absolute',
+                            top: '3px',
+                            right: '3px',
+                            background: 'rgba(0, 0, 0, 0.65)',
+                            color: '#ffffff',
+                            borderRadius: '50%',
+                            width: '16px',
+                            height: '16px',
+                            border: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            padding: 0,
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#000000';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.65)';
+                          }}
+                          title="Remove photo"
+                        >
+                          <X style={{ width: '10px', height: '10px', color: '#ffffff', strokeWidth: 2.5 }} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              {/* Audio Player */}
-              {formAudioBlobUrl && sanitizeSafeUrl(formAudioBlobUrl) && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <audio src={sanitizeSafeUrl(formAudioBlobUrl)!} controls style={{ height: '32px', maxWidth: '280px' }} />
-                  <button
-                    type="button"
-                    onClick={() => setFormAudioBlobUrl(null)}
-                    style={{ background: 'transparent', border: 'none', color: '#f87171', fontSize: '12px', cursor: 'pointer' }}
-                  >
-                    Delete Memo
-                  </button>
-                </div>
-              )}
+                {/* Audio Player */}
+                {(() => {
+                  const safeAudioMemoUrl = formAudioBlobUrl ? sanitizeSafeUrl(formAudioBlobUrl) : null;
+                  if (!safeAudioMemoUrl) return null;
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <audio src={safeAudioMemoUrl} controls style={{ height: '32px', maxWidth: '280px' }} />
+                      <button
+                        type="button"
+                        onClick={() => setFormAudioBlobUrl(null)}
+                        style={{ background: 'transparent', border: 'none', color: '#f87171', fontSize: '12px', cursor: 'pointer' }}
+                      >
+                        Delete Memo
+                      </button>
+                    </div>
+                  );
+                })()}
             </div>
           </div>
 
@@ -1974,25 +1979,34 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
             </div>
 
             {/* Attached Photos if present */}
-            {(launchPolicy.photos?.length || 0) > 0 && (
-              <div>
-                <div className="context-title">Attached Biometric &amp; Emergency Photos</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
-                  {launchPolicy.photos?.map((p, idx) => {
-                    const safeUrl = sanitizeSafeUrl(p);
-                    return safeUrl ? <img key={idx} src={safeUrl} alt={`Dispatch ${idx + 1}`} style={{ width: '100%', height: '100px', borderRadius: '14px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} /> : null;
-                  })}
+            {(() => {
+              const safePhotos = (launchPolicy.photos || [])
+                .map((p) => sanitizeSafeUrl(p))
+                .filter((url): url is string => Boolean(url));
+              if (safePhotos.length === 0) return null;
+              return (
+                <div>
+                  <div className="context-title">Attached Biometric &amp; Emergency Photos</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
+                    {safePhotos.map((photoUrl, idx) => (
+                      <img key={idx} src={photoUrl} alt={`Dispatch ${idx + 1}`} style={{ width: '100%', height: '100px', borderRadius: '14px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Attached Audio if present */}
-            {launchPolicy.audioUrl && sanitizeSafeUrl(launchPolicy.audioUrl) && (
-              <div className="info-card" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--md-on-surface)' }}>Decrypted Voice Directive:</span>
-                <audio src={sanitizeSafeUrl(launchPolicy.audioUrl)!} controls style={{ height: '36px' }} />
-              </div>
-            )}
+            {(() => {
+              const safeLaunchAudio = launchPolicy.audioUrl ? sanitizeSafeUrl(launchPolicy.audioUrl) : null;
+              if (!safeLaunchAudio) return null;
+              return (
+                <div className="info-card" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--md-on-surface)' }}>Decrypted Voice Directive:</span>
+                  <audio src={safeLaunchAudio} controls style={{ height: '36px' }} />
+                </div>
+              );
+            })()}
 
             <div className="popup-actions" style={{ marginTop: '24px' }}>
               <button

@@ -1,5 +1,6 @@
 import cors from "cors";
 import webpush from "web-push";
+import rateLimit from "express-rate-limit";
 /**
  * Full-Stack Dev & Production Server for Nexus Mind Vault
  * Binds to host 0.0.0.0 and dynamic PORT
@@ -214,16 +215,20 @@ function createDistributedRateLimiter(config: DistributedRateLimitConfig) {
   };
 }
 
-const globalApiLimiter = createDistributedRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per 15 min per user/IP
-  message: "Too many requests. Please try again after 15 minutes.",
+const globalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again after 15 minutes.", code: "rate-limit/exceeded" },
 });
 
-const aiEndpointLimiter = createDistributedRateLimiter({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 15, // 15 AI inferences per minute across all instances
-  message: "AI inference rate limit exceeded. Max 15 requests per minute.",
+const aiEndpointLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "AI inference rate limit exceeded. Max 15 requests per minute.", code: "rate-limit/exceeded" },
 });
 
 // [lock] ITEM 6: Zero-Trust Cryptographic Firebase Admin Auth Token Verification Middleware
@@ -990,11 +995,14 @@ app.post("/api/gemini", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter
       return;
     }
 
-    // Enforce server-managed prompt generator and sanitize context input
-    let effectiveSystemInstruction = getSystemInstruction(mode);
+    // Enforce strictly server-managed prompt generator with zero client string injection into systemInstruction
+    const effectiveSystemInstruction = getSystemInstruction(mode);
     if (context && typeof context === "string") {
-      const sanitizedContext = context.replace(/<\/user_context>/gi, "");
-      effectiveSystemInstruction = `${effectiveSystemInstruction}\n\n<user_context>\n${sanitizedContext}\n</user_context>`;
+      const sanitizedContext = context.replace(/[<>]/g, "");
+      contents.unshift({
+        role: "user",
+        parts: [{ text: `[Reflection Context: ${sanitizedContext}]` }],
+      });
     }
 
     if (stream) {

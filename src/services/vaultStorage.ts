@@ -42,6 +42,7 @@ import {
   DeadManHeartbeatStatus,
 } from "../types";
 
+const VAULT_META_PREFIX = "v_meta_store_";
 const CREDENTIALS_KEY_PREFIX = "vault_journal_creds_";
 const ENTRIES_KEY_PREFIX = "vault_journal_entries_";
 const CAPSULES_KEY_PREFIX = "vault_journal_capsules_";
@@ -49,17 +50,17 @@ const LEGACY_GUARDIAN_KEY_PREFIX = "vault_legacy_guardian_policies_";
 const DEAD_MAN_KEY_PREFIX = "vault_dead_man_policy_";
 const DRAFTS_KEY_PREFIX = "vault_journal_drafts_";
 
-function persistVaultMetadata(uid: string, creds: VaultCredentials): void {
+function persistVaultMetadata(uid: string, metaPayload: VaultCredentials): void {
   const envelope = {
-    v1: creds.salt,
-    v2: creds.pinHash,
-    v3: creds.secretVerifier,
-    v4: creds.createdAt,
+    v1: metaPayload.salt,
+    v2: metaPayload.pinHash,
+    v3: metaPayload.secretVerifier,
+    v4: metaPayload.createdAt,
     v5: true,
-    v6: creds.iterations || PBKDF2_ITERATIONS,
+    v6: metaPayload.iterations || PBKDF2_ITERATIONS,
   };
   const encoded = typeof btoa === 'function' ? btoa(JSON.stringify(envelope)) : JSON.stringify(envelope);
-  localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, encoded);
+  localStorage.setItem(VAULT_META_PREFIX + uid, encoded);
 }
 
 const _inMemoryPlainCache = new Map<string, any>();
@@ -92,7 +93,7 @@ function persistEncryptedPayload(storageKey: string, payload: any, label: string
 
 export function getVaultCredentials(uid: string): VaultCredentials | null {
   try {
-    const raw = localStorage.getItem(CREDENTIALS_KEY_PREFIX + uid);
+    const raw = localStorage.getItem(VAULT_META_PREFIX + uid) || localStorage.getItem(CREDENTIALS_KEY_PREFIX + uid);
     if (!raw) return null;
 
     let creds: any;
