@@ -48,6 +48,20 @@ const CAPSULES_KEY_PREFIX = "vault_journal_capsules_";
 const LEGACY_GUARDIAN_KEY_PREFIX = "vault_legacy_guardian_policies_";
 const DEAD_MAN_KEY_PREFIX = "vault_dead_man_policy_";
 const DRAFTS_KEY_PREFIX = "vault_journal_drafts_";
+
+function persistVaultMetadata(uid: string, creds: VaultCredentials): void {
+  const envelope = {
+    salt: creds.salt,
+    pinHash: creds.pinHash,
+    secretVerifier: creds.secretVerifier,
+    createdAt: creds.createdAt,
+    isZeroKnowledgeV2: true,
+    isEncryptedFormat: true,
+    iterations: creds.iterations || PBKDF2_ITERATIONS,
+  };
+  localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, JSON.stringify(envelope));
+}
+
 const _inMemoryPlainCache = new Map<string, any>();
 
 function persistEncryptedPayload(storageKey: string, payload: any, label: string): boolean {

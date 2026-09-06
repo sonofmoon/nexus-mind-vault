@@ -953,7 +953,7 @@ app.get("/api/health", globalApiLimiter, (req: Request, res: Response) => {
 // ============================================================================
 // [ai] ITEM 4: Resilient Server-Side Gemini API Proxy (Streaming & Structured)
 // ============================================================================
-app.post("/api/gemini", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter, distributedRateLimitMiddleware, async (req: Request, res: Response): Promise<void> => {
+app.post("/api/gemini", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const body = (req.body && typeof req.body === "object") ? req.body : {};
     const {
@@ -1076,7 +1076,7 @@ app.post("/api/gemini", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter
 });
 
 // [audio] Audio transcription endpoint (Web Speech/MediaRecorder fallback pipeline)
-app.post("/api/gemini/audio", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter, distributedRateLimitMiddleware, async (req: Request, res: Response) => {
+app.post("/api/gemini/audio", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter, async (req: Request, res: Response) => {
   try {
     const schema = z.object({
       audio: z.string().min(1, "Audio payload is required"),
@@ -1119,7 +1119,7 @@ app.post("/api/gemini/audio", globalApiLimiter, requireFirebaseAuth, aiEndpointL
 });
 
 // API HTTP Proxy for Cloud Functions
-app.post("/api/functions/:functionName", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter, distributedRateLimitMiddleware, async (req: Request, res: Response): Promise<void> => {
+app.post("/api/functions/:functionName", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const { functionName } = req.params;
     const body = (req.body && typeof req.body === "object") ? req.body : {};
