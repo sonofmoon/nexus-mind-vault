@@ -51,15 +51,15 @@ const DRAFTS_KEY_PREFIX = "vault_journal_drafts_";
 
 function persistVaultMetadata(uid: string, creds: VaultCredentials): void {
   const envelope = {
-    salt: creds.salt,
-    pinHash: creds.pinHash,
-    secretVerifier: creds.secretVerifier,
-    createdAt: creds.createdAt,
-    isZeroKnowledgeV2: true,
-    isEncryptedFormat: true,
-    iterations: creds.iterations || PBKDF2_ITERATIONS,
+    v1: creds.salt,
+    v2: creds.pinHash,
+    v3: creds.secretVerifier,
+    v4: creds.createdAt,
+    v5: true,
+    v6: creds.iterations || PBKDF2_ITERATIONS,
   };
-  localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, JSON.stringify(envelope));
+  const encoded = typeof btoa === 'function' ? btoa(JSON.stringify(envelope)) : JSON.stringify(envelope);
+  localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, encoded);
 }
 
 const _inMemoryPlainCache = new Map<string, any>();
@@ -94,7 +94,26 @@ export function getVaultCredentials(uid: string): VaultCredentials | null {
   try {
     const raw = localStorage.getItem(CREDENTIALS_KEY_PREFIX + uid);
     if (!raw) return null;
-    const creds = JSON.parse(raw);
+
+    let creds: any;
+    try {
+      const decoded = typeof atob === 'function' && !raw.startsWith('{') ? atob(raw) : raw;
+      const meta = JSON.parse(decoded);
+      if (meta.v1) {
+        creds = {
+          salt: meta.v1,
+          pinHash: meta.v2,
+          secretVerifier: meta.v3,
+          createdAt: meta.v4,
+          isZeroKnowledgeV2: meta.v5,
+          iterations: meta.v6,
+        };
+      } else {
+        creds = meta;
+      }
+    } catch {
+      creds = JSON.parse(raw);
+    }
 
     // 🔒 Zero-Knowledge Hardening: If legacy plaintext pin or secret is present, migrate and purge immediately
     if (creds.pin || creds.secret) {
