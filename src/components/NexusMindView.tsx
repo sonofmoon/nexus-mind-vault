@@ -1,4 +1,5 @@
 import { authenticatedFetch } from '../services/apiClient';
+import { generateSecureId } from '../services/cryptoEngine';
 import { generateGeminiChatResponse, streamGeminiChat } from '../services/geminiClient';
 import React, { useState } from 'react';
 import { JournalEntry, TimeCapsule, JournalDraft } from '../types';
@@ -196,7 +197,7 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
     setInputQuery('');
 
     const userMsg: ChatMessage = {
-      id: 'msg_' + Math.random().toString(36).substring(2, 9),
+      id: generateSecureId('msg'),
       sender: 'user',
       text: userMsgText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -219,7 +220,7 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
         2
       )}`;
 
-      const aiMsgId = 'msg_' + Math.random().toString(36).substring(2, 9);
+      const aiMsgId = generateSecureId('msg');
       let streamedContent = '';
       let hasStreamedChunk = false;
 
@@ -261,7 +262,7 @@ export const NexusMindView: React.FC<NexusMindViewProps> = ({
     } catch (apiErr: any) {
       console.error("[Nexus Mind Gemini API Call]", apiErr.message || apiErr);
       const errorMsg: ChatMessage = {
-        id: 'msg_' + Math.random().toString(36).substring(2, 9),
+        id: generateSecureId('msg'),
         sender: 'assistant',
         text: `⚠️ **Gemini API Error**: ${apiErr.message || 'Unable to reach Gemini API with configured key.'}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

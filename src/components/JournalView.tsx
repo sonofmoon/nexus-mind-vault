@@ -1,4 +1,5 @@
 import { generateEntryShareLink, generateEncryptedEntryShareLink } from '../utils/entrySharingEngine';
+import { generateSecureId } from '../services/cryptoEngine';
 import { ConfirmationModal } from './ConfirmationModal';
 import { Share2, Undo2, Printer, CheckCircle2, Sparkles, Bell } from 'lucide-react';
 import { authenticatedFetch } from '../services/apiClient';
@@ -589,7 +590,7 @@ export const JournalView: React.FC<JournalViewProps> = ({
       reader.onload = () => {
         const dataUrl = reader.result as string;
         const item: AttachmentItem = {
-          id: 'att_file_' + Math.random().toString(36).substring(2, 9),
+          id: generateSecureId('att_file'),
           name: file.name,
           type,
           size: file.size,

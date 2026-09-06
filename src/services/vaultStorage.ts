@@ -28,7 +28,8 @@ import {
   isEncryptedPayload,
   EncryptedPayload,
   PBKDF2_ITERATIONS,
-  LEGACY_PBKDF2_ITERATIONS
+  LEGACY_PBKDF2_ITERATIONS,
+  generateSecureId,
 } from './cryptoEngine';
 import {
   VaultCredentials,
@@ -101,7 +102,7 @@ export function getVaultCredentials(uid: string): VaultCredentials | null {
           isEncryptedFormat: true,
           iterations: creds.iterations || PBKDF2_ITERATIONS,
         };
-        localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, JSON.stringify(sanitized));
+        persistVaultMetadata(uid, sanitized);
         console.log('[VaultStorage] 🔒 Legacy plaintext credentials purged and upgraded to Zero-Knowledge V2.');
       }).catch((e) => {
         console.error('[VaultStorage] Failed to auto-migrate legacy credentials:', e);
@@ -142,10 +143,10 @@ export function saveVaultCredentials(uid: string, pin: string, secret: string): 
     creds.pinHash = pinHash;
     creds.secretVerifier = secretVerifier;
     setActiveSessionKey(derivedKey);
-    localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, JSON.stringify(creds));
+    persistVaultMetadata(uid, creds);
   }).catch(() => {});
 
-  localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, JSON.stringify(creds));
+  persistVaultMetadata(uid, creds);
   return creds;
 }
 
@@ -175,7 +176,7 @@ export async function setupVaultCredentialsSecure(
     iterations: PBKDF2_ITERATIONS,
   };
 
-  localStorage.setItem(CREDENTIALS_KEY_PREFIX + uid, JSON.stringify(creds));
+  persistVaultMetadata(uid, creds);
   return { creds, key };
 }
 
@@ -233,7 +234,7 @@ export function addJournalEntry(uid: string, newEntry: Omit<JournalEntry, "id" |
   const entries = getJournalEntries(uid);
   const created: JournalEntry = {
     ...newEntry,
-    id: "entry_" + Math.random().toString(36).substring(2, 9),
+    id: generateSecureId("entry"),
     userId: uid,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -323,7 +324,7 @@ export function addTimeCapsule(
 
   const created: TimeCapsule = {
     ...newCapsule,
-    id: "capsule_" + Math.random().toString(36).substring(2, 9),
+    id: generateSecureId("capsule"),
     userId: uid,
     sealedAt,
     isOpened: false,
@@ -605,7 +606,7 @@ export function saveLegacyGuardianPolicies(uid: string, policies: LegacyGuardian
   const sanitized = policies.map((policy) => ({
     ...policy,
     userId: uid,
-    id: policy.id || `lgp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    id: policy.id || generateSecureId('lgp'),
     updatedAt: new Date().toISOString(),
     createdAt: policy.createdAt || new Date().toISOString(),
   }));
@@ -678,7 +679,7 @@ export function saveLegacyGuardianPolicy(uid: string, policy: LegacyGuardianPoli
   const updatedPolicy: LegacyGuardianPolicy = {
     ...policy,
     userId: uid,
-    id: policy.id || `lgp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    id: policy.id || generateSecureId('lgp'),
     updatedAt: new Date().toISOString(),
     createdAt: policy.createdAt || new Date().toISOString(),
   };

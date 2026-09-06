@@ -301,8 +301,19 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
 
 
   // 1. Top-Level Request Deserialization & Zero-Trust CORS (Ordering Guarantee)
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",")
+    : ["https://nexus-mind-vault-n4ekvxi54q-uc.a.run.app", "http://localhost:3000", "http://localhost:5173"];
+
   app.use(cors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g., mobile apps, curl, same-origin static) or matching allowed origins
+      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== "production") {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS policy violation"));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Vault-User-Id"]
@@ -328,7 +339,7 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
   // ============================================================================
   
   // [bell] Public VAPID Key Endpoint (Allows Client to dynamically acquire Secret Manager public key)
-  app.get("/api/notifications/vapid-public-key", (_req: Request, res: Response) => {
+  app.get("/api/notifications/vapid-public-key", globalApiLimiter, (_req: Request, res: Response) => {
     if (!VAPID_PUBLIC_KEY) {
       return res.status(503).json({ error: "VAPID public key not configured on server." });
     }
@@ -338,7 +349,7 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
     });
   });
 
-  app.post("/api/notifications/subscribe", requireFirebaseAuth, async (req: Request, res: Response) => {
+  app.post("/api/notifications/subscribe", globalApiLimiter, requireFirebaseAuth, async (req: Request, res: Response) => {
     try {
       const parsed = PushSubscriptionSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -369,7 +380,7 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
     }
   });
 
-  app.post("/api/notifications/unsubscribe", requireFirebaseAuth, async (req: Request, res: Response) => {
+  app.post("/api/notifications/unsubscribe", globalApiLimiter, requireFirebaseAuth, async (req: Request, res: Response) => {
     try {
       const uid = (req as any).user.uid;
       const { endpoint } = req.body;
@@ -383,7 +394,7 @@ async function requireFirebaseAuth(req: Request, res: Response, next: NextFuncti
     }
   });
 
-    app.post("/api/notifications/dispatch-push", requireFirebaseAuth, async (req: Request, res: Response) => {
+    app.post("/api/notifications/dispatch-push", globalApiLimiter, requireFirebaseAuth, async (req: Request, res: Response) => {
     if (!webpushConfigured) {
       return res.status(503).json({ error: "Push notification service unconfigured on server (missing VAPID keys)." });
     }
@@ -871,7 +882,7 @@ async function getFirestoreSession(uid: string, sessionId: string): Promise<any 
     const docSnap = await db.doc(`users/${uid}/sessions/${sessionId}`).get();
     return docSnap.exists ? docSnap.data() : null;
   } catch (err: any) {
-    console.warn(`[FirestoreSession] Error reading session ${sessionId}:`, err.message);
+    console.warn("[FirestoreSession] Error reading session %s:", sessionId, err.message);
     return null;
   }
 }
@@ -884,7 +895,7 @@ async function saveFirestoreSession(uid: string, sessionId: string, data: any): 
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
   } catch (err: any) {
-    console.warn(`[FirestoreSession] Error saving session ${sessionId}:`, err.message);
+    console.warn("[FirestoreSession] Error saving session %s:", sessionId, err.message);
   }
 }
 
@@ -896,7 +907,7 @@ async function listFirestoreSessions(uid: string): Promise<any[]> {
       (a: any, b: any) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
     );
   } catch (err: any) {
-    console.warn(`[FirestoreSession] Error listing sessions for ${uid}:`, err.message);
+    console.warn("[FirestoreSession] Error listing sessions for %s:", uid, err.message);
     return [];
   }
 }
@@ -909,7 +920,7 @@ async function getFirestoreMessages(uid: string, sessionId: string): Promise<any
       (a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
     );
   } catch (err: any) {
-    console.warn(`[FirestoreSession] Error getting messages for session ${sessionId}:`, err.message);
+    console.warn("[FirestoreSession] Error getting messages for session %s:", sessionId, err.message);
     return [];
   }
 }
@@ -922,13 +933,13 @@ async function addFirestoreMessage(uid: string, sessionId: string, message: any)
       createdAt: FieldValue.serverTimestamp(),
     });
   } catch (err: any) {
-    console.warn(`[FirestoreSession] Error adding message to session ${sessionId}:`, err.message);
+    console.warn("[FirestoreSession] Error adding message to session %s:", sessionId, err.message);
   }
 }
 
 
 // API Health Check
-app.get("/api/health", (req: Request, res: Response) => {
+app.get("/api/health", globalApiLimiter, (req: Request, res: Response) => {
   res.json({
     status: "ok",
     service: "vault-journal-server",
@@ -940,14 +951,13 @@ app.get("/api/health", (req: Request, res: Response) => {
 // ============================================================================
 // [ai] ITEM 4: Resilient Server-Side Gemini API Proxy (Streaming & Structured)
 // ============================================================================
-app.post("/api/gemini", requireFirebaseAuth, aiEndpointLimiter, async (req: Request, res: Response): Promise<void> => {
+app.post("/api/gemini", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter, distributedRateLimitMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const body = (req.body && typeof req.body === "object") ? req.body : {};
     const {
       messages,
       prompt,
       history,
-      systemInstruction,
       mode = "reflect",
       context,
       stream = false,
@@ -978,9 +988,11 @@ app.post("/api/gemini", requireFirebaseAuth, aiEndpointLimiter, async (req: Requ
       return;
     }
 
-    let effectiveSystemInstruction = systemInstruction || getSystemInstruction(mode);
-    if (context) {
-      effectiveSystemInstruction = `${effectiveSystemInstruction}\n\n[USER VAULT REFLECTIONS CONTEXT]\n${context}`;
+    // Enforce server-managed prompt generator and sanitize context input
+    let effectiveSystemInstruction = getSystemInstruction(mode);
+    if (context && typeof context === "string") {
+      const sanitizedContext = context.replace(/<\/user_context>/gi, "");
+      effectiveSystemInstruction = `${effectiveSystemInstruction}\n\n<user_context>\n${sanitizedContext}\n</user_context>`;
     }
 
     if (stream) {
@@ -1062,7 +1074,7 @@ app.post("/api/gemini", requireFirebaseAuth, aiEndpointLimiter, async (req: Requ
 });
 
 // [audio] Audio transcription endpoint (Web Speech/MediaRecorder fallback pipeline)
-app.post("/api/gemini/audio", requireFirebaseAuth, aiEndpointLimiter, async (req: Request, res: Response) => {
+app.post("/api/gemini/audio", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter, distributedRateLimitMiddleware, async (req: Request, res: Response) => {
   try {
     const schema = z.object({
       audio: z.string().min(1, "Audio payload is required"),
@@ -1105,7 +1117,7 @@ app.post("/api/gemini/audio", requireFirebaseAuth, aiEndpointLimiter, async (req
 });
 
 // API HTTP Proxy for Cloud Functions
-app.post("/api/functions/:functionName", requireFirebaseAuth, aiEndpointLimiter, async (req: Request, res: Response): Promise<void> => {
+app.post("/api/functions/:functionName", globalApiLimiter, requireFirebaseAuth, aiEndpointLimiter, distributedRateLimitMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { functionName } = req.params;
     const body = (req.body && typeof req.body === "object") ? req.body : {};
@@ -1808,7 +1820,7 @@ ${entriesContext}`;
 
   // Static route for /apps/nmv showcase
   const nmvShowcasePath = path.join(process.cwd(), "public", "apps", "nmv", "index.html");
-  app.get(["/apps/nmv", "/apps/nmv/*"], (req: Request, res: Response) => {
+  app.get(["/apps/nmv", "/apps/nmv/*"], globalApiLimiter, (req: Request, res: Response) => {
     res.sendFile(nmvShowcasePath);
   });
 

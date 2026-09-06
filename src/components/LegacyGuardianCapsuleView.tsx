@@ -1,4 +1,5 @@
 import { generateSecureClaimLink, dispatchEmergencyNotice } from '../services/guardianDispatchService';
+import { generateSecureId, sanitizeSafeUrl } from '../services/cryptoEngine';
 import { Link, Copy } from 'lucide-react';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
@@ -250,7 +251,7 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
     const existingPolicy = editingPolicyId ? policies.find((p) => p.id === editingPolicyId) : null;
 
     const newPolicy: LegacyGuardianPolicy = {
-      id: editingPolicyId || `lgp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: editingPolicyId || generateSecureId('lgp'),
       userId: userId,
       title: formTitle.trim(),
       category: formCategory,
@@ -402,7 +403,7 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
       const reader = new FileReader();
       reader.onload = () => {
         const newItem: AttachmentItem = {
-          id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          id: generateSecureId('att'),
           name: (file as any).name,
           type: (file as any).type.startsWith('image/') ? 'image' : 'file',
           size: (file as any).size,
@@ -1296,7 +1297,7 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
                         border: '1px solid var(--border-subtle)',
                       }}
                     >
-                      <img src={p} alt={`Attached ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={sanitizeSafeUrl(p)} alt={`Attached ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       <button
                         type="button"
                         onClick={() => setFormPhotos((prev) => prev.filter((_, i) => i !== idx))}
@@ -1335,7 +1336,7 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
               {/* Audio Player */}
               {formAudioBlobUrl && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <audio src={formAudioBlobUrl} controls style={{ height: '32px', maxWidth: '280px' }} />
+                  <audio src={sanitizeSafeUrl(formAudioBlobUrl)} controls style={{ height: '32px', maxWidth: '280px' }} />
                   <button
                     type="button"
                     onClick={() => setFormAudioBlobUrl(null)}
@@ -1975,7 +1976,7 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
                 <div className="context-title">Attached Biometric &amp; Emergency Photos</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
                   {launchPolicy.photos?.map((p, idx) => (
-                    <img key={idx} src={p} alt={`Dispatch ${idx + 1}`} style={{ width: '100%', height: '100px', borderRadius: '14px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
+                    <img key={idx} src={sanitizeSafeUrl(p)} alt={`Dispatch ${idx + 1}`} style={{ width: '100%', height: '100px', borderRadius: '14px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
                   ))}
                 </div>
               </div>
@@ -1985,7 +1986,7 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
             {launchPolicy.audioUrl && (
               <div className="info-card" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--md-on-surface)' }}>Decrypted Voice Directive:</span>
-                <audio src={launchPolicy.audioUrl} controls style={{ height: '36px' }} />
+                <audio src={sanitizeSafeUrl(launchPolicy.audioUrl)} controls style={{ height: '36px' }} />
               </div>
             )}
 

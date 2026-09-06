@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { generateSecureId } from '../services/cryptoEngine';
 import { TimeCapsule, CapsuleLockType, MoodType, AttachmentItem } from '../types';
 import { InnovativeCameraStudioModal, CapturedPhotoResult } from './InnovativeCameraStudioModal';
 import {
@@ -216,7 +217,7 @@ export const CreateTimeCapsuleView: React.FC<CreateTimeCapsuleViewProps> = ({
 
     Array.from(files).forEach((file: File) => {
       const newAtt: AttachmentItem = {
-        id: 'att_' + Math.random().toString(36).substring(2, 9),
+        id: generateSecureId('att'),
         name: file.name,
         type: 'file',
         size: file.size,

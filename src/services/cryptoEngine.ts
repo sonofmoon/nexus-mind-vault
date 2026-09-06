@@ -1,4 +1,4 @@
-﻿/**
+/**
  * [shield] Nexus Mind Vault - Complete W3C Web Crypto API Engine
  * Standards Compliance & Cryptographic Verification:
  * 1. Key Derivation: PBKDF2-HMAC-SHA-256 (600,000 iterations OWASP standard, 128-bit CSPRNG Salt)
@@ -504,3 +504,36 @@ export function verifyTimeCapsuleIntegrity(capsule: any): { isValid: boolean; ca
     storedHash,
   };
 }
+
+/**
+ * 🔒 Cryptographically Secure ID Generator using W3C WebCrypto API
+ */
+export function generateSecureId(prefix: string = ''): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    const uuid = crypto.randomUUID();
+    return prefix ? `${prefix}_${uuid}` : uuid;
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return prefix ? `${prefix}_${hex.slice(0, 16)}` : hex.slice(0, 16);
+}
+
+/**
+ * 🔒 Sanitizes media URLs (image, audio, blob) before binding to HTML DOM elements
+ */
+export function sanitizeSafeUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  const trimmed = String(url).trim();
+  if (/^(blob:|data:image\/|data:audio\/|https?:\/\/|\/)/i.test(trimmed)) {
+    return trimmed;
+  }
+  return undefined;
+}
+
