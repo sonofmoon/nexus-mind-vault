@@ -1297,7 +1297,10 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
                         border: '1px solid var(--border-subtle)',
                       }}
                     >
-                      <img src={sanitizeSafeUrl(p)} alt={`Attached ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {(() => {
+                        const safeUrl = sanitizeSafeUrl(p);
+                        return safeUrl ? <img src={safeUrl} alt={`Attached ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null;
+                      })()}
                       <button
                         type="button"
                         onClick={() => setFormPhotos((prev) => prev.filter((_, i) => i !== idx))}
@@ -1334,9 +1337,9 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
               )}
 
               {/* Audio Player */}
-              {formAudioBlobUrl && (
+              {formAudioBlobUrl && sanitizeSafeUrl(formAudioBlobUrl) && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <audio src={sanitizeSafeUrl(formAudioBlobUrl)} controls style={{ height: '32px', maxWidth: '280px' }} />
+                  <audio src={sanitizeSafeUrl(formAudioBlobUrl)!} controls style={{ height: '32px', maxWidth: '280px' }} />
                   <button
                     type="button"
                     onClick={() => setFormAudioBlobUrl(null)}
@@ -1975,18 +1978,19 @@ export const LegacyGuardianCapsuleView: React.FC<LegacyGuardianCapsuleViewProps>
               <div>
                 <div className="context-title">Attached Biometric &amp; Emergency Photos</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
-                  {launchPolicy.photos?.map((p, idx) => (
-                    <img key={idx} src={sanitizeSafeUrl(p)} alt={`Dispatch ${idx + 1}`} style={{ width: '100%', height: '100px', borderRadius: '14px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
-                  ))}
+                  {launchPolicy.photos?.map((p, idx) => {
+                    const safeUrl = sanitizeSafeUrl(p);
+                    return safeUrl ? <img key={idx} src={safeUrl} alt={`Dispatch ${idx + 1}`} style={{ width: '100%', height: '100px', borderRadius: '14px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} /> : null;
+                  })}
                 </div>
               </div>
             )}
 
             {/* Attached Audio if present */}
-            {launchPolicy.audioUrl && (
+            {launchPolicy.audioUrl && sanitizeSafeUrl(launchPolicy.audioUrl) && (
               <div className="info-card" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--md-on-surface)' }}>Decrypted Voice Directive:</span>
-                <audio src={sanitizeSafeUrl(launchPolicy.audioUrl)} controls style={{ height: '36px' }} />
+                <audio src={sanitizeSafeUrl(launchPolicy.audioUrl)!} controls style={{ height: '36px' }} />
               </div>
             )}
 

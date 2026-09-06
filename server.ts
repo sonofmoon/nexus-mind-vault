@@ -759,13 +759,14 @@ async function generateStreamWithFallback({
   // 2. Try Google GenAI SDK as fallback
   try {
     const ai = getGenAIClient();
+    const safeSystemInstruction = systemInstruction ? String(systemInstruction).trim() : undefined;
     for (const model of MODEL_FALLBACK_LADDER) {
       try {
         const responseStream = await ai.models.generateContentStream({
           model,
           contents,
           config: {
-            ...(systemInstruction ? { systemInstruction } : {}),
+            ...(safeSystemInstruction ? { systemInstruction: safeSystemInstruction } : {}),
             temperature,
             maxOutputTokens,
           },
@@ -800,6 +801,7 @@ async function generateWithFallback({
   }
 
   let lastError: any = null;
+  const safeSystemInstruction = systemInstruction ? String(systemInstruction).trim() : undefined;
 
   // 1. Try direct REST content generation with full MODEL_FALLBACK_LADDER
   for (const model of MODEL_FALLBACK_LADDER) {
@@ -812,7 +814,7 @@ async function generateWithFallback({
         apiKey,
         model,
         contents: normalizedContents,
-        systemInstruction,
+        systemInstruction: safeSystemInstruction,
         responseMimeType,
       });
 
@@ -834,7 +836,7 @@ async function generateWithFallback({
           model,
           contents,
           config: {
-            ...(systemInstruction ? { systemInstruction } : {}),
+            ...(safeSystemInstruction ? { systemInstruction: safeSystemInstruction } : {}),
             ...(responseMimeType ? { responseMimeType } : {}),
           },
         });
@@ -1838,7 +1840,7 @@ ${entriesContext}`;
         res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
       }
     }));
-    app.get("*", (_req: Request, res: Response) => {
+    app.get("*", globalApiLimiter, (_req: Request, res: Response) => {
       res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
       res.sendFile(path.join(distPath, "index.html"));
     });
